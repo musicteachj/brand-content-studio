@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  ::selection{background:rgba(91,63,227,.16);}
+  @keyframes folioFade{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}
+  @keyframes folioBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+  @media (max-width:980px){
+    #folio-hero{grid-template-columns:1fr !important;gap:56px !important;}
+    #folio-features{grid-template-columns:1fr 1fr !important;}
+    #folio-rag{grid-template-columns:1fr !important;}
+    #folio-footcols{grid-template-columns:1fr 1fr !important;}
+  }
+  @media (max-width:620px){
+    #folio-features{grid-template-columns:1fr !important;}
+    #folio-navlinks{display:none !important;}
+    #folio-footcols{grid-template-columns:1fr !important;}
+  }
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;}}
+</style>
+</helmet>
+
+<div ref="{{ setRoot }}" style="--bg:#F8F9FA;--surface:#FFFFFF;--variant:#F1F3F5;--fg:#1A1D21;--muted:#6C737A;--border:#E4E7EA;--preview:#E8EAED;--accent:#5B3FE3;--accent-strong:#4A30C4;--success:#15803D;background:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;">
+
+  <!-- ============ NAV ============ -->
+  <header ref="{{ setNav }}" data-screen-label="Nav" style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid transparent;transition:border-color .2s ease,box-shadow .2s ease;">
+    <div style="max-width:1200px;margin:0 auto;padding:0 32px;height:66px;display:flex;align-items:center;justify-content:space-between;">
+      <a href="#top" style="display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--fg);">
+        <span style="position:relative;width:26px;height:26px;display:inline-block;">
+          <span style="position:absolute;inset:0;background:var(--fg);border-radius:7px;"></span>
+          <span style="position:absolute;top:0;right:0;width:11px;height:11px;background:var(--bg);border-bottom-left-radius:7px;"></span>
+          <span style="position:absolute;top:0;right:0;width:11px;height:11px;border-left:1.5px solid var(--fg);border-bottom:1.5px solid var(--fg);border-bottom-left-radius:7px;"></span>
+        </span>
+        <span style="font-weight:700;font-size:19px;letter-spacing:-0.02em;">Folio</span>
+      </a>
+      <nav id="folio-navlinks" style="display:flex;align-items:center;gap:34px;">
+        <a href="#features" style="text-decoration:none;color:var(--muted);font-size:14.5px;font-weight:500;" style-hover="color:var(--fg);">Features</a>
+        <a href="#how" style="text-decoration:none;color:var(--muted);font-size:14.5px;font-weight:500;" style-hover="color:var(--fg);">How it works</a>
+        <a href="#how" style="text-decoration:none;color:var(--muted);font-size:14.5px;font-weight:500;" style-hover="color:var(--fg);">The model</a>
+      </nav>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <a href="#" style="text-decoration:none;color:var(--fg);font-size:14.5px;font-weight:600;padding:9px 14px;border-radius:8px;white-space:nowrap;" style-hover="background:var(--variant);">Sign in</a>
+        <a href="#cta" style="display:inline-flex;align-items:center;gap:7px;text-decoration:none;background:var(--accent);color:#fff;font-size:14.5px;font-weight:600;padding:10px 17px;border-radius:8px;box-shadow:0 6px 18px rgba(91,63,227,.20);transition:transform .15s ease,box-shadow .2s ease;white-space:nowrap;" style-hover="transform:translateY(-1px);box-shadow:0 10px 26px rgba(91,63,227,.30);">Get started</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section id="top" data-screen-label="Hero" style="max-width:1200px;margin:0 auto;padding:88px 32px 96px;">
+    <div id="folio-hero" style="display:grid;grid-template-columns:0.92fr 1.08fr;gap:72px;align-items:center;">
+
+      <!-- left copy -->
+      <div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:24px;display:flex;align-items:center;gap:10px;">
+          <span style="width:18px;height:1px;background:var(--muted);display:inline-block;"></span>Brand Content Studio
+        </div>
+        <h1 style="margin:0;font-size:clamp(2.75rem,6vw,4.4rem);line-height:1.03;letter-spacing:-0.035em;font-weight:700;color:var(--fg);text-wrap:balance;">Every post,<br>already on brand.</h1>
+        <p style="margin:26px 0 0;font-size:18px;line-height:1.6;color:var(--muted);max-width:30em;">Folio reads your brand — guidelines, voice, logo, colors — then generates designed LinkedIn cards and posts that look and sound exactly like you. Export a PNG. Publish.</p>
+        <div style="display:flex;align-items:center;gap:14px;margin-top:36px;flex-wrap:wrap;">
+          <a href="#cta" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;background:var(--accent);color:#fff;font-size:15.5px;font-weight:600;letter-spacing:-0.01em;padding:14px 24px;border-radius:9px;box-shadow:0 8px 24px rgba(91,63,227,.22);transition:transform .15s ease,box-shadow .2s ease;white-space:nowrap;" style-hover="transform:translateY(-1px);box-shadow:0 12px 30px rgba(91,63,227,.32);">Start creating<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+          <a href="#how" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:var(--surface);color:var(--fg);font-size:15.5px;font-weight:600;padding:14px 22px;border-radius:9px;border:1px solid var(--border);transition:background .15s ease;white-space:nowrap;" style-hover="background:var(--variant);">See how it works</a>
+        </div>
+        <div style="margin-top:30px;font-family:'DM Mono',monospace;font-size:11.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);opacity:.85;">Retrieval-grounded · No design tool required</div>
+      </div>
+
+      <!-- right: product preview panel -->
+      <div style="position:relative;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 32px rgb(26 29 33 / .10);overflow:hidden;">
+          <!-- toolbar -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">Template</span>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="width:26px;height:32px;border-radius:5px;background:var(--variant);border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(91,63,227,.10);"></span>
+                <span style="width:26px;height:32px;border-radius:5px;background:var(--variant);border:1px solid var(--border);"></span>
+                <span style="width:26px;height:32px;border-radius:5px;background:var(--variant);border:1px solid var(--border);"></span>
+              </div>
+            </div>
+            <button style="display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:transform .15s ease;" style-hover="transform:translateY(-1px);" aria-label="Export PNG">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export PNG
+            </button>
+          </div>
+          <!-- preview surround -->
+          <div style="background:var(--preview);padding:40px 32px;display:flex;justify-content:center;">
+            <!-- THE CARD (client brand: Verdure) -->
+            <div style="width:340px;max-width:100%;background:#F4F1E9;border-radius:16px;border:1px solid rgb(26 29 33 / .06);box-shadow:0 14px 40px rgb(26 29 33 / .20);overflow:hidden;font-family:'Spectral',Georgia,serif;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 0;">
+                <span style="font-family:'DM Serif Display',Georgia,serif;font-size:18px;color:#1C3A2E;letter-spacing:-0.01em;">Verdure</span>
+                <span style="font-size:9.5px;letter-spacing:0.18em;text-transform:uppercase;font-weight:500;color:rgb(28 58 46 / .55);">Field Notes · 04</span>
+              </div>
+              <div style="position:relative;margin:15px 16px 0;border-radius:11px;overflow:hidden;aspect-ratio:4/3;background:#1C3A2E;">
+                <img src="https://picsum.photos/seed/verdurefieldmoss/720/540" alt="Regenerative materials field" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;display:block;">
+                <span style="position:absolute;inset:0;background:linear-gradient(180deg,rgb(28 58 46 / .04),rgb(28 58 46 / .28));mix-blend-mode:multiply;"></span>
+              </div>
+              <div style="padding:18px 20px 4px;min-height:104px;">
+                <p style="margin:0;font-family:'DM Serif Display',Georgia,serif;font-size:25px;line-height:1.18;color:#1C3A2E;letter-spacing:-0.01em;">{{ typedStatement }}<span style="display:inline-block;width:2px;height:0.92em;background:#1C3A2E;margin-left:2px;vertical-align:-2px;opacity:{{ caretOpacity }};animation:folioBlink 1s step-end infinite;"></span></p>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px 18px;">
+                <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:rgb(28 58 46 / .72);">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#C98A3D;display:inline-block;"></span>@verdure.materials
+                </span>
+                <span style="font-size:10px;color:rgb(28 58 46 / .5);">Photo · Unsplash</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- floating product chips -->
+        <sc-if value="{{ showProductChips }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;top:78px;left:-26px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgb(26 29 33 / .10);padding:9px 13px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.04em;color:var(--fg);">1080 × 1350 px</div>
+          <div style="position:absolute;bottom:54px;right:-22px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgb(26 29 33 / .10);padding:9px 13px;font-size:12.5px;font-weight:500;color:var(--fg);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Brand voice matched
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOCIAL PROOF ============ -->
+  <sc-if value="{{ showSocialProof }}" hint-placeholder-val="{{ true }}">
+    <section data-screen-label="Social proof" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface);">
+      <div style="max-width:1200px;margin:0 auto;padding:30px 32px;display:flex;align-items:center;gap:44px;flex-wrap:wrap;justify-content:center;">
+        <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">Trusted by brand &amp; content teams</span>
+        <div style="display:flex;align-items:center;gap:40px;flex-wrap:wrap;opacity:.62;">
+          <span style="font-weight:700;font-size:18px;letter-spacing:-0.02em;color:var(--fg);">Northbeam</span>
+          <span style="font-weight:600;font-size:17px;letter-spacing:0.02em;color:var(--fg);font-family:'Spectral',serif;">Cultivar</span>
+          <span style="font-weight:700;font-size:18px;letter-spacing:-0.03em;color:var(--fg);">Meridian</span>
+          <span style="font-weight:500;font-size:17px;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg);font-family:'DM Mono',monospace;">Lumen</span>
+          <span style="font-weight:700;font-size:18px;letter-spacing:-0.01em;color:var(--fg);">Field&amp;Co</span>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features" data-screen-label="Features" style="max-width:1200px;margin:0 auto;padding:104px 32px 24px;">
+    <div style="max-width:34em;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;">What's inside</div>
+      <h2 style="margin:0;font-size:clamp(2rem,3.6vw,2.85rem);line-height:1.08;letter-spacing:-0.03em;font-weight:700;color:var(--fg);text-wrap:balance;">Everything between a blank canvas and a post.</h2>
+      <p style="margin:20px 0 0;font-size:17px;line-height:1.6;color:var(--muted);">Four pieces, one flow. Copy, layout, imagery, and export — each grounded in what your brand actually is.</p>
+    </div>
+
+    <div id="folio-features" style="margin-top:56px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;">
+      <!-- 1 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px 28px;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);">
+        <div style="width:46px;height:46px;border-radius:11px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:22px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+        <h3 style="margin:0 0 9px;font-size:17px;font-weight:600;letter-spacing:-0.015em;color:var(--fg);">AI-generated copy</h3>
+        <p style="margin:0;font-size:14.5px;line-height:1.6;color:var(--muted);">Posts in your voice, not a template's. Retrieval-grounded text streams into the card as you watch.</p>
+      </div>
+      <!-- 2 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px 28px;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);">
+        <div style="width:46px;height:46px;border-radius:11px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:22px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="6" height="7" x="15" y="14" rx="1"/></svg>
+        </div>
+        <h3 style="margin:0 0 9px;font-size:17px;font-weight:600;letter-spacing:-0.015em;color:var(--fg);">Branded templates</h3>
+        <p style="margin:0;font-size:14.5px;line-height:1.6;color:var(--muted);">Pick a layout; your fonts, colors, and logo lock into place automatically. Your identity, every time.</p>
+      </div>
+      <!-- 3 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px 28px;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);">
+        <div style="width:46px;height:46px;border-radius:11px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:22px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+        </div>
+        <h3 style="margin:0 0 9px;font-size:17px;font-weight:600;letter-spacing:-0.015em;color:var(--fg);">Unsplash image search</h3>
+        <p style="margin:0;font-size:14.5px;line-height:1.6;color:var(--muted);">Search millions of photos without leaving the canvas. Attribution is added for you, automatically.</p>
+      </div>
+      <!-- 4 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px 28px;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);">
+        <div style="width:46px;height:46px;border-radius:11px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:22px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        </div>
+        <h3 style="margin:0 0 9px;font-size:17px;font-weight:600;letter-spacing:-0.015em;color:var(--fg);">PNG export</h3>
+        <p style="margin:0;font-size:14.5px;line-height:1.6;color:var(--muted);">Publish-ready in one click. Pixel-perfect PNG sized for LinkedIn — no design-tool round trip.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RAG / HOW IT WORKS ============ -->
+  <section id="how" data-screen-label="How it works" style="margin-top:96px;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+    <div style="max-width:1200px;margin:0 auto;padding:104px 32px;">
+      <div style="text-align:center;max-width:40em;margin:0 auto;">
+        <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;">Retrieval-augmented generation</div>
+        <h2 style="margin:0;font-size:clamp(2.1rem,4vw,3.2rem);line-height:1.06;letter-spacing:-0.032em;font-weight:700;color:var(--fg);text-wrap:balance;">Feeds on your brand.<br>Speaks in your voice.</h2>
+        <p style="margin:22px auto 0;font-size:17.5px;line-height:1.6;color:var(--muted);max-width:32em;">Most tools start from a blank prompt. Folio starts from your brand — ingested, embedded, and retrieved for every single generation.</p>
+      </div>
+
+      <!-- three-stage flow -->
+      <div id="folio-rag" style="margin-top:72px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;align-items:stretch;">
+
+        <!-- INGEST -->
+        <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:30px 28px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+            <span style="width:30px;height:30px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5a2 2 0 0 0 2 2h5"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
+            <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);">01 / Ingest</span>
+          </div>
+          <h3 style="margin:0 0 10px;font-size:19px;font-weight:600;letter-spacing:-0.02em;color:var(--fg);">Drop in your brand</h3>
+          <p style="margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--muted);">Guidelines, past posts, logo, colors, tone of voice. Folio chunks and embeds every asset.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--fg);"><span>Brand guidelines.pdf</span><span style="display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--success);"><span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;"></span>Ready</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--fg);"><span>Tone of voice.docx</span><span style="display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--success);"><span style="width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block;"></span>Ready</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--fg);"><span>Logo + palette</span><span style="display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);"><span style="width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;opacity:.6;"></span>Processing</span></div>
+          </div>
+        </div>
+
+        <!-- RETRIEVE -->
+        <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:30px 28px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+            <span style="width:30px;height:30px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></span>
+            <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);">02 / Retrieve</span>
+          </div>
+          <h3 style="margin:0 0 10px;font-size:19px;font-weight:600;letter-spacing:-0.02em;color:var(--fg);">Pull what matters</h3>
+          <p style="margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--muted);">For every prompt, Folio retrieves the most relevant brand context — so the model never guesses.</p>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;"><span style="font-size:12px;color:var(--fg);font-weight:500;">"regenerative materials"</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">0.94</span></div>
+              <div style="height:4px;border-radius:2px;background:var(--variant);overflow:hidden;"><span style="display:block;width:94%;height:100%;background:var(--fg);opacity:.85;"></span></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;"><span style="font-size:12px;color:var(--fg);font-weight:500;">"built to be unmade"</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">0.88</span></div>
+              <div style="height:4px;border-radius:2px;background:var(--variant);overflow:hidden;"><span style="display:block;width:88%;height:100%;background:var(--fg);opacity:.7;"></span></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 13px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;"><span style="font-size:12px;color:var(--fg);font-weight:500;">brand voice · plainspoken</span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">0.83</span></div>
+              <div style="height:4px;border-radius:2px;background:var(--variant);overflow:hidden;"><span style="display:block;width:83%;height:100%;background:var(--fg);opacity:.55;"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GENERATE -->
+        <div style="position:relative;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:30px 28px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+            <span style="width:30px;height:30px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>
+            <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);">03 / Generate</span>
+          </div>
+          <h3 style="margin:0 0 10px;font-size:19px;font-weight:600;letter-spacing:-0.02em;color:var(--fg);">On-brand, on-screen</h3>
+          <p style="margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--muted);">A designed card and copy in your voice, ready to export. Nothing off-brand slips through.</p>
+          <!-- mini card -->
+          <div style="background:#F4F1E9;border:1px solid rgb(26 29 33 / .06);border-radius:11px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 4px 14px rgb(26 29 33 / .08);">
+            <div style="height:74px;background:#1C3A2E;position:relative;overflow:hidden;">
+              <img src="https://picsum.photos/seed/verduremini/420/200" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.92;">
+            </div>
+            <div style="padding:13px 15px 15px;">
+              <p style="margin:0;font-family:'DM Serif Display',serif;font-size:16px;line-height:1.2;color:#1C3A2E;">Built to be unmade.</p>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:rgb(28 58 46 / .65);"><span style="width:7px;height:7px;border-radius:50%;background:#C98A3D;display:inline-block;"></span>@verdure.materials</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CLOSING CTA ============ -->
+  <section id="cta" data-screen-label="CTA" style="max-width:1200px;margin:0 auto;padding:120px 32px;">
+    <div style="background:var(--fg);border-radius:24px;padding:80px 48px;text-align:center;position:relative;overflow:hidden;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:rgb(255 255 255 / .55);margin-bottom:22px;">Start your studio</div>
+      <h2 style="margin:0 auto;max-width:18em;font-size:clamp(2.1rem,4vw,3.1rem);line-height:1.08;letter-spacing:-0.03em;font-weight:700;color:#fff;text-wrap:balance;">Stop writing for your brand. Let it write itself.</h2>
+      <p style="margin:22px auto 0;max-width:30em;font-size:17px;line-height:1.6;color:rgb(255 255 255 / .66);">Connect your brand assets and generate your first on-brand LinkedIn card in minutes.</p>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:36px;flex-wrap:wrap;">
+        <a href="#" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;background:var(--accent);color:#fff;font-size:15.5px;font-weight:600;padding:14px 26px;border-radius:9px;box-shadow:0 8px 24px rgba(91,63,227,.35);transition:transform .15s ease,box-shadow .2s ease;white-space:nowrap;" style-hover="transform:translateY(-1px);box-shadow:0 12px 32px rgba(91,63,227,.45);">Sign in to Folio<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        <a href="#features" style="text-decoration:none;color:rgb(255 255 255 / .82);font-size:15.5px;font-weight:600;padding:14px 18px;border-radius:9px;border:1px solid rgb(255 255 255 / .2);transition:background .15s ease;white-space:nowrap;" style-hover="background:rgb(255 255 255 / .08);">Explore features</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer data-screen-label="Footer" style="border-top:1px solid var(--border);background:var(--surface);">
+    <div style="max-width:1200px;margin:0 auto;padding:64px 32px 40px;">
+      <div id="folio-footcols" style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:40px;">
+        <div>
+          <a href="#top" style="display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--fg);margin-bottom:16px;">
+            <span style="position:relative;width:24px;height:24px;display:inline-block;">
+              <span style="position:absolute;inset:0;background:var(--fg);border-radius:6px;"></span>
+              <span style="position:absolute;top:0;right:0;width:10px;height:10px;background:var(--surface);border-bottom-left-radius:6px;"></span>
+            </span>
+            <span style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Folio</span>
+          </a>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:var(--muted);max-width:24em;">Brand Content Studio. On-brand LinkedIn content, generated from what your brand already is.</p>
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Product</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="#features" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Features</a>
+            <a href="#how" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">How it works</a>
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Pricing</a>
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Changelog</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Company</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">About</a>
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Careers</a>
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Contact</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Legal</div>
+          <div style="display:flex;flex-direction:column;gap:11px;">
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Privacy</a>
+            <a href="#" style="text-decoration:none;color:var(--fg);font-size:14px;" style-hover="color:var(--muted);">Terms</a>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:48px;padding-top:24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <span style="font-size:13px;color:var(--muted);">© 2026 Folio. All rights reserved.</span>
+        <span style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">Made for brand teams</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;iris&quot;,&quot;vermillion&quot;,&quot;marigold&quot;,&quot;magenta&quot;],&quot;default&quot;:&quot;iris&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showSocialProof&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showProductChips&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { typed: '', done: false };
+
+  ACCENTS = {
+    iris:       ['#5B3FE3', '#4A30C4'],
+    vermillion: ['#E8552D', '#C13F1C'],
+    marigold:   ['#D97706', '#B45309'],
+    magenta:    ['#C2185B', '#9E1248'],
+  };
+
+  STATEMENT = 'Everything we make is built to be unmade.';
+
+  setRoot = (el) => { this._root = el; this.applyAccent(); };
+  setNav = (el) => { this._nav = el; };
+
+  applyAccent() {
+    if (!this._root) return;
+    const key = this.props.accent || 'iris';
+    const [a, s] = this.ACCENTS[key] || this.ACCENTS.iris;
+    this._root.style.setProperty('--accent', a);
+    this._root.style.setProperty('--accent-strong', s);
+  }
+
+  componentDidMount() {
+    this.applyAccent();
+    // streaming card copy
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      this.setState({ typed: this.STATEMENT, done: true });
+    } else {
+      let i = 0;
+      this._iv = setInterval(() => {
+        i += 1;
+        this.setState({ typed: this.STATEMENT.slice(0, i) });
+        if (i >= this.STATEMENT.length) {
+          clearInterval(this._iv);
+          this._doneTo = setTimeout(() => this.setState({ done: true }), 1200);
+        }
+      }, 34);
+    }
+    // nav scroll shadow
+    this._onScroll = () => {
+      if (!this._nav) return;
+      const s = window.scrollY > 8;
+      this._nav.style.borderBottomColor = s ? 'var(--border)' : 'transparent';
+      this._nav.style.boxShadow = s ? '0 1px 2px rgb(26 29 33 / .04), 0 2px 6px rgb(26 29 33 / .05)' : 'none';
+    };
+    window.addEventListener('scroll', this._onScroll, { passive: true });
+    this._onScroll();
+  }
+
+  componentDidUpdate(prev) {
+    if (prev.accent !== this.props.accent) this.applyAccent();
+  }
+
+  componentWillUnmount() {
+    clearInterval(this._iv);
+    clearTimeout(this._doneTo);
+    window.removeEventListener('scroll', this._onScroll);
+  }
+
+  renderVals() {
+    return {
+      typedStatement: this.state.typed,
+      caretOpacity: this.state.done ? 0 : 1,
+      showSocialProof: this.props.showSocialProof ?? true,
+      showProductChips: this.props.showProductChips ?? true,
+      setRoot: this.setRoot,
+      setNav: this.setNav,
+    };
+  }
+}
+</script>
+</body>
+</html>

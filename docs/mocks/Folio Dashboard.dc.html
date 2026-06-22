@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;}
+  .folio-scroll::-webkit-scrollbar{width:11px;}
+  .folio-scroll::-webkit-scrollbar-thumb{background:#D5D9DD;border-radius:8px;border:3px solid #F8F9FA;}
+  .folio-scroll::-webkit-scrollbar-thumb:hover{background:#C2C7CC;}
+  .folio-scroll::-webkit-scrollbar-track{background:transparent;}
+  @media (max-width:1140px){ #dash-stats{grid-template-columns:1fr 1fr !important;} #dash-grid{grid-template-columns:1fr 1fr !important;} }
+  @media (max-width:680px){ #dash-stats,#dash-grid{grid-template-columns:1fr !important;} }
+</style>
+</helmet>
+
+<div style="--bg:#F8F9FA;--surface:#FFFFFF;--variant:#F1F3F5;--fg:#1A1D21;--muted:#6C737A;--border:#E4E7EA;--preview:#E8EAED;--accent:#C2185B;--accent-strong:#9E1248;--accent-soft:rgba(194,24,91,.10);--accent-ring:rgba(194,24,91,.34);--accent-shadow:0 8px 22px rgba(194,24,91,.24);--success:#15803D;position:fixed;inset:0;display:flex;background:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside style="width:236px;flex-shrink:0;height:100%;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;padding:18px 14px;">
+    <div style="display:flex;align-items:center;gap:11px;padding:6px 8px 18px;">
+      <span style="position:relative;width:26px;height:26px;display:inline-block;">
+        <span style="position:absolute;inset:0;background:var(--fg);border-radius:7px;"></span>
+        <span style="position:absolute;top:0;right:0;width:11px;height:11px;background:var(--surface);border-bottom-left-radius:7px;"></span>
+      </span>
+      <span style="font-weight:700;font-size:18px;letter-spacing:-0.02em;">Folio</span>
+    </div>
+
+    <nav style="display:flex;flex-direction:column;gap:3px;">
+      <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;border-left:3px solid var(--accent);background:var(--variant);text-decoration:none;color:var(--fg);font-weight:600;font-size:14px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>Dashboard
+      </a>
+      <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;border-left:3px solid transparent;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/><path d="M15 4V2"/><path d="M8 9h2"/><path d="M17.8 6.2 19 5"/><path d="M15 9h.01"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 16v-2"/></svg>Generate
+      </a>
+      <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;border-left:3px solid transparent;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>Content History
+      </a>
+      <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;border-left:3px solid transparent;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>Asset Manager
+      </a>
+      <a href="#" style="display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;border-left:3px solid transparent;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>Settings
+      </a>
+    </nav>
+
+    <div style="flex:1;"></div>
+
+    <div style="display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);">
+      <span style="width:30px;height:30px;border-radius:50%;background:var(--fg);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;">JP</span>
+      <div style="min-width:0;line-height:1.2;">
+        <div style="font-size:13px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Jordan Park</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;color:var(--muted);">Brand lead</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN COLUMN ============ -->
+  <div style="flex:1;height:100%;display:flex;flex-direction:column;min-width:0;">
+
+    <!-- TOP BAR -->
+    <div style="height:60px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:0 22px;">
+      <button style="display:flex;align-items:center;gap:11px;background:transparent;border:1px solid transparent;border-radius:10px;padding:6px 10px 6px 7px;cursor:pointer;font-family:inherit;transition:background .15s ease,border-color .15s ease;" style-hover="background:var(--surface);border-color:var(--border);">
+        <span style="width:30px;height:30px;border-radius:8px;background:#1C3A2E;color:#F4F1E9;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:16px;flex-shrink:0;">V</span>
+        <span style="text-align:left;line-height:1.15;">
+          <span style="display:block;font-size:14px;font-weight:600;color:var(--fg);white-space:nowrap;">Verdure Materials</span>
+          <span style="display:block;font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Workspace</span>
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px;"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button aria-label="Search" style="width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:background .15s ease;" style-hover="background:var(--variant);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button aria-label="Help" style="width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);transition:background .15s ease;" style-hover="background:var(--variant);">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- SCROLL CONTENT -->
+    <div class="folio-scroll" style="flex:1;overflow-y:auto;min-height:0;">
+      <div style="max-width:1180px;margin:0 auto;padding:40px 40px 72px;">
+
+        <!-- HEADER -->
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:36px;">
+          <div>
+            <div style="font-family:'DM Mono',monospace;font-size:11.5px;font-weight:500;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Wednesday · June 18</div>
+            <h1 style="margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;color:var(--fg);">Good afternoon, Jordan</h1>
+            <p style="margin:8px 0 0;font-size:15px;line-height:1.5;color:var(--muted);">Here's what's moving in Verdure Materials.</p>
+          </div>
+          <a href="#" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;background:var(--accent);color:#fff;font-size:15px;font-weight:600;letter-spacing:-0.01em;padding:13px 22px;border-radius:9px;box-shadow:var(--accent-shadow);white-space:nowrap;transition:transform .15s ease,box-shadow .2s ease;" style-hover="transform:translateY(-1px);box-shadow:0 12px 28px rgba(194,24,91,.32);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>New generation
+          </a>
+        </div>
+
+        <!-- STAT ROW -->
+        <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
+        <div id="dash-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:44px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Generations</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+            </div>
+            <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);line-height:1;">48</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Assets ingested</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+            </div>
+            <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);line-height:1;">12</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Last generation</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            </div>
+            <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);line-height:1;">2h <span style="font-size:16px;font-weight:600;color:var(--muted);">ago</span></div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Workspace since</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+            </div>
+            <div style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);line-height:1;">Mar <span style="font-size:16px;font-weight:600;color:var(--muted);">2025</span></div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- RECENT GENERATIONS -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <h2 style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);">Recent generations</h2>
+          <a href="#" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:600;transition:color .15s ease;" style-hover="color:var(--fg);">View all<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        </div>
+
+        <div id="dash-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+
+          <!-- CARD 1 · photo-led -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:148px;background:#F4F1E9;border-radius:9px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 5px 16px rgb(26 29 33 / .16);">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px 0;"><span style="font-family:'DM Serif Display',serif;font-size:12px;color:#1C3A2E;">Verdure</span><span style="font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:rgb(28 58 46 / .55);">Notes · 04</span></div>
+                <div style="position:relative;margin:8px 8px 0;border-radius:6px;overflow:hidden;aspect-ratio:4/3;background:#1C3A2E;"><img src="https://picsum.photos/seed/verdurefieldmoss/300/225" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;display:block;"><span style="position:absolute;inset:0;background:linear-gradient(180deg,rgb(28 58 46 / .04),rgb(28 58 46 / .26));mix-blend-mode:multiply;"></span></div>
+                <div style="padding:9px 11px 2px;"><p style="margin:0;font-family:'DM Serif Display',serif;font-size:11.5px;line-height:1.18;color:#1C3A2E;">Built to be unmade.</p></div>
+                <div style="display:flex;align-items:center;gap:5px;padding:6px 11px 10px;font-size:7.5px;color:rgb(28 58 46 / .7);"><span style="width:5px;height:5px;border-radius:50%;background:#C98A3D;"></span>@verdure.materials</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">Why everything we make is built to be unmade</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Image card</span>
+                <span style="font-size:12px;color:var(--muted);">2 hours ago</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Export PNG" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+          <!-- CARD 2 · statement -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:148px;height:164px;background:#1C3A2E;border-radius:9px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 5px 16px rgb(26 29 33 / .16);display:flex;flex-direction:column;padding:14px 14px 12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-family:'DM Serif Display',serif;font-size:12px;color:#F4F1E9;">Verdure</span><span style="font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:rgb(244 241 233 / .6);">Impact · 25</span></div>
+                <div style="flex:1;display:flex;align-items:center;"><p style="margin:0;font-family:'DM Serif Display',serif;font-size:18px;line-height:1.12;color:#F4F1E9;letter-spacing:-0.01em;">94% diverted from landfill.</p></div>
+                <div style="display:flex;align-items:center;gap:5px;font-size:7.5px;color:rgb(244 241 233 / .72);"><span style="width:5px;height:5px;border-radius:50%;background:#C98A3D;"></span>@verdure.materials</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">Our 2025 material impact, in three numbers</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Image card</span>
+                <span style="font-size:12px;color:var(--muted);">Yesterday</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Export PNG" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+          <!-- CARD 3 · quote -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:148px;height:164px;background:#F4F1E9;border-radius:9px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 5px 16px rgb(26 29 33 / .16);display:flex;flex-direction:column;padding:13px 14px 12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-family:'DM Serif Display',serif;font-size:12px;color:#1C3A2E;">Verdure</span><span style="font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:rgb(28 58 46 / .55);">Voices</span></div>
+                <div style="flex:1;display:flex;flex-direction:column;justify-content:center;"><span style="font-family:'DM Serif Display',serif;font-size:30px;line-height:.5;color:#C98A3D;">&ldquo;</span><p style="margin:6px 0 0;font-family:'DM Serif Display',serif;font-size:11.5px;line-height:1.22;color:#1C3A2E;">Disassembly is a design decision, not an afterthought.</p></div>
+                <div style="font-size:7px;letter-spacing:.04em;color:rgb(28 58 46 / .6);">— Maya Okonkwo, Founder</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">Maya on designing for disassembly</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Image card</span>
+                <span style="font-size:12px;color:var(--muted);">2 days ago</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Export PNG" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+          <!-- CARD 4 · photo-led -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:148px;background:#F4F1E9;border-radius:9px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 5px 16px rgb(26 29 33 / .16);">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px 0;"><span style="font-family:'DM Serif Display',serif;font-size:12px;color:#1C3A2E;">Verdure</span><span style="font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:rgb(28 58 46 / .55);">Notes · 03</span></div>
+                <div style="position:relative;margin:8px 8px 0;border-radius:6px;overflow:hidden;aspect-ratio:4/3;background:#1C3A2E;"><img src="https://picsum.photos/seed/cliffmist/300/225" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;display:block;"><span style="position:absolute;inset:0;background:linear-gradient(180deg,rgb(28 58 46 / .04),rgb(28 58 46 / .26));mix-blend-mode:multiply;"></span></div>
+                <div style="padding:9px 11px 2px;"><p style="margin:0;font-family:'DM Serif Display',serif;font-size:11.5px;line-height:1.18;color:#1C3A2E;">Take it back. Make it again.</p></div>
+                <div style="display:flex;align-items:center;gap:5px;padding:6px 11px 10px;font-size:7.5px;color:rgb(28 58 46 / .7);"><span style="width:5px;height:5px;border-radius:50%;background:#C98A3D;"></span>@verdure.materials</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">Inside the Verdure take-back program</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Image card</span>
+                <span style="font-size:12px;color:var(--muted);">4 days ago</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Export PNG" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+          <!-- CARD 5 · text post -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:166px;background:#fff;border:1px solid rgb(26 29 33 / .08);border-radius:9px;overflow:hidden;box-shadow:0 5px 16px rgb(26 29 33 / .14);padding:11px 12px 10px;font-family:'Spectral',serif;">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px;">
+                  <span style="width:22px;height:22px;border-radius:50%;background:#1C3A2E;color:#F4F1E9;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:11px;flex-shrink:0;">V</span>
+                  <div style="line-height:1.15;"><div style="font-size:8.5px;font-weight:600;color:#1A1D21;">Verdure Materials</div><div style="font-size:6.5px;color:#6C737A;">Now · Edited</div></div>
+                </div>
+                <p style="margin:0;font-size:8.5px;line-height:1.5;color:#2b2f33;">We're hiring a Head of Materials to lead our move to fully circular production. If you believe nothing should be designed for the landfill, let's talk.</p>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:9px;padding-top:8px;border-top:1px solid rgb(26 29 33 / .08);font-size:6.5px;color:#6C737A;font-family:'DM Mono',monospace;"><span>124 reactions</span><span>·</span><span>18 comments</span></div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">We're hiring a Head of Materials</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6.1H3"/><path d="M21 12.1H3"/><path d="M15.1 18H3"/></svg>Text post</span>
+                <span style="font-size:12px;color:var(--muted);">5 days ago</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Copy text" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+          <!-- CARD 6 · statement -->
+          <article style="background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;box-shadow:0 1px 2px rgb(26 29 33 / .04),0 2px 6px rgb(26 29 33 / .05);transition:transform .2s cubic-bezier(0.16,1,0.3,1),box-shadow .2s ease;" style-hover="transform:translateY(-2px);box-shadow:0 4px 12px rgb(26 29 33 / .09);">
+            <div style="height:196px;background:var(--preview);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);">
+              <div style="width:148px;height:164px;background:#F4F1E9;border-radius:9px;overflow:hidden;font-family:'Spectral',serif;box-shadow:0 5px 16px rgb(26 29 33 / .16);display:flex;flex-direction:column;padding:14px 14px 12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-family:'DM Serif Display',serif;font-size:12px;color:#1C3A2E;">Verdure</span><span style="font-size:5.5px;letter-spacing:.16em;text-transform:uppercase;color:rgb(28 58 46 / .55);">Notes · 02</span></div>
+                <div style="flex:1;display:flex;align-items:center;"><p style="margin:0;font-family:'DM Serif Display',serif;font-size:16px;line-height:1.14;color:#1C3A2E;letter-spacing:-0.01em;">Material passports should be public.</p></div>
+                <div style="display:flex;align-items:center;gap:5px;font-size:7.5px;color:rgb(28 58 46 / .72);"><span style="width:5px;height:5px;border-radius:50%;background:#C98A3D;"></span>@verdure.materials</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px 13px;">
+              <h3 style="margin:0;font-size:14.5px;font-weight:600;line-height:1.32;color:var(--fg);">Why material passports should be public</h3>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:10px;">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:var(--variant);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500;color:var(--fg);white-space:nowrap;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>Image card</span>
+                <span style="font-size:12px;color:var(--muted);">1 week ago</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:14px;padding-top:13px;border-top:1px solid var(--border);">
+                <button aria-label="Re-open" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>Open</button>
+                <button aria-label="Export PNG" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;" style-hover="background:var(--variant);color:var(--fg);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button>
+                <button aria-label="Delete" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;margin-left:auto;transition:background .15s ease,color .15s ease,border-color .15s ease;" style-hover="background:rgba(180,35,24,.06);color:#B42318;border-color:rgba(180,35,24,.3);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+              </div>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- WORKSPACE ASSET SUMMARY -->
+        <sc-if value="{{ showAssetSummary }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:48px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 28px;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+                <h2 style="margin:0;font-size:17px;font-weight:700;letter-spacing:-0.02em;color:var(--fg);">Brand corpus</h2>
+                <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(21,128,61,.08);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:600;color:var(--success);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>All ready</span>
+              </div>
+              <p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--muted);">12 sources ingested · last updated 3 days ago. This is what Folio retrieves from when it writes in your voice.</p>
+            </div>
+            <a href="#" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:var(--surface);color:var(--fg);border:1px solid var(--border);border-radius:9px;padding:11px 18px;font-size:14px;font-weight:600;white-space:nowrap;transition:background .15s ease;" style-hover="background:var(--variant);">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>Add assets
+            </a>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:22px;">
+            <div style="display:flex;align-items:center;gap:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:180px;">
+              <span style="width:34px;height:34px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5a2 2 0 0 0 2 2h5"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
+              <div style="line-height:1.25;"><div style="font-size:14px;font-weight:600;color:var(--fg);">Guidelines</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);">2 documents</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:180px;">
+              <span style="width:34px;height:34px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+              <div style="line-height:1.25;"><div style="font-size:14px;font-weight:600;color:var(--fg);">Past posts</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);">6 imported</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:180px;">
+              <span style="width:34px;height:34px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/></svg></span>
+              <div style="line-height:1.25;"><div style="font-size:14px;font-weight:600;color:var(--fg);">Brand docs</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);">3 files</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;flex:1;min-width:180px;">
+              <span style="width:34px;height:34px;border-radius:8px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
+              <div style="line-height:1.25;"><div style="font-size:14px;font-weight:600;color:var(--fg);">Logo &amp; palette</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);">1 brand kit</div></div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showStats&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showAssetSummary&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showStats: this.props.showStats ?? true,
+      showAssetSummary: this.props.showAssetSummary ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

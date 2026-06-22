@@ -1,0 +1,43 @@
+# === Secrets / env ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# === Python (server) ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# === Node (client) ===
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+coverage/
+
+# === Local data / vector store / uploads (dev) ===
+/data/
+chroma/
+*.sqlite3
+/server/uploads/
+/server/storage/
+
+# === Claude Code: keep committed project settings, ignore personal overrides ===
+.claude/settings.local.json
+
+# === OS / editor ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

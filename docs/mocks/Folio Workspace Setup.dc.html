@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Spectral:wght@400;500;600&family=Inter:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+</style>
+</helmet>
+
+<div style="--bg:#F8F9FA;--surface:#FFFFFF;--variant:#F1F3F5;--fg:#1A1D21;--muted:#6C737A;--border:#E4E7EA;--preview:#E8EAED;--accent:#C2185B;--accent-strong:#9E1248;--accent-soft:rgba(194,24,91,.10);--accent-ring:rgba(194,24,91,.34);--success:#15803D;width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:52px;background:#ECEEF0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:var(--fg);">
+
+  <div style="margin-bottom:40px;max-width:760px;">
+    <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Folio · Brand Content Studio</div>
+    <h1 style="margin:0;font-size:30px;font-weight:700;letter-spacing:-0.025em;color:var(--fg);">Workspace Setup — onboarding flow</h1>
+    <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#52585e;">The first-time experience, before the app shell exists. Four focused steps, each shown as its own screen with the live stepper. Two steps update live — the avatar in Step 1 and the card preview in Step 3.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:48px;align-items:flex-start;">
+
+    <!-- ===================== STEP 1 ===================== -->
+    <div style="flex:none;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Step 01 — Name your workspace</div>
+      <div style="width:1080px;height:720px;background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06),0 16px 44px rgba(26,29,33,.10);display:flex;flex-direction:column;">
+
+        <!-- top bar -->
+        <div style="height:62px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="position:relative;width:24px;height:24px;display:inline-block;"><span style="position:absolute;inset:0;background:var(--fg);border-radius:6px;"></span><span style="position:absolute;top:0;right:0;width:10px;height:10px;background:var(--bg);border-bottom-left-radius:6px;"></span></span>
+            <span style="font-weight:700;font-size:17px;letter-spacing:-0.02em;">Folio</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">1</span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Name</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">2</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Assets</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">3</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Brand</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">4</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Ready</span></div>
+          </div>
+          <a href="#" style="font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;" style-hover="color:var(--fg);">Exit setup</a>
+        </div>
+
+        <!-- content -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px;">
+          <div style="width:100%;max-width:520px;">
+            <div style="font-family:'DM Mono',monospace;font-size:11.5px;font-weight:500;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Step 1 of 4</div>
+            <h2 style="margin:0;font-size:32px;font-weight:700;letter-spacing:-0.03em;color:var(--fg);">Name your workspace</h2>
+            <p style="margin:12px 0 0;font-size:16px;line-height:1.55;color:var(--muted);">This is usually your company or brand name. It's how your workspace shows up across Folio — you can change it later.</p>
+
+            <div style="margin-top:30px;display:flex;align-items:center;gap:15px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+              <span style="width:46px;height:46px;border-radius:11px;background:var(--fg);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:23px;flex-shrink:0;" ref="{{ wsAvatarRef }}">V</span>
+              <div style="line-height:1.25;min-width:0;">
+                <div style="font-size:15px;font-weight:600;color:var(--fg);" ref="{{ wsNameRef }}">Verdure Materials</div>
+                <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Workspace preview</div>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;">
+              <label for="ws-name" style="display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px;">Workspace name</label>
+              <input id="ws-name" type="text" value="Verdure Materials" onInput="{{ onName }}" style="width:100%;font-family:inherit;font-size:16px;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:13px 15px;transition:border-color .15s ease,box-shadow .15s ease;" style-focus="border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);outline:none;">
+            </div>
+
+            <div style="margin-top:32px;display:flex;align-items:center;justify-content:flex-end;gap:14px;">
+              <span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--muted);">Takes 10 seconds</span>
+              <button style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:13px 24px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 22px var(--accent-soft);transition:transform .15s ease;" style-hover="transform:translateY(-1px);">Continue<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== STEP 2 ===================== -->
+    <div style="flex:none;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Step 02 — Upload brand assets</div>
+      <div style="width:1080px;height:720px;background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06),0 16px 44px rgba(26,29,33,.10);display:flex;flex-direction:column;">
+
+        <div style="height:62px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="position:relative;width:24px;height:24px;display:inline-block;"><span style="position:absolute;inset:0;background:var(--fg);border-radius:6px;"></span><span style="position:absolute;top:0;right:0;width:10px;height:10px;background:var(--bg);border-bottom-left-radius:6px;"></span></span>
+            <span style="font-weight:700;font-size:17px;letter-spacing:-0.02em;">Folio</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Name</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Assets</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">3</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Brand</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">4</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Ready</span></div>
+          </div>
+          <a href="#" style="font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;" style-hover="color:var(--fg);">Exit setup</a>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:28px 32px;">
+          <div style="width:100%;max-width:560px;">
+            <h2 style="margin:0;font-size:28px;font-weight:700;letter-spacing:-0.03em;color:var(--fg);">Add your brand assets</h2>
+            <p style="margin:10px 0 0;font-size:15px;line-height:1.55;color:var(--muted);">Brand guidelines, past LinkedIn posts, tone &amp; voice notes, and any other brand documents. This is what Folio retrieves from when it writes in your voice.</p>
+
+            <!-- dropzone -->
+            <div style="margin-top:20px;border:1.5px dashed var(--border);border-radius:12px;background:var(--surface);padding:24px;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease;" style-hover="border-color:var(--accent);background:#fff;">
+              <span style="width:46px;height:46px;border-radius:11px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);margin-bottom:12px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="m8 17 4-4 4 4"/><path d="M20 16.5A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></svg></span>
+              <div style="font-size:15px;font-weight:600;color:var(--fg);">Drag files here, or <span style="color:var(--accent);">browse</span></div>
+              <div style="margin-top:5px;font-family:'DM Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--muted);">PDF · TXT · DOCX — up to 25 MB each</div>
+            </div>
+
+            <!-- uploaded files -->
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px;">
+                <span style="width:32px;height:32px;border-radius:7px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5a2 2 0 0 0 2 2h5"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
+                <div style="flex:1;min-width:0;line-height:1.3;"><div style="font-size:13.5px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Brand guidelines 2025.pdf</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">2.4 MB</div></div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--success);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Ready</span>
+                <button aria-label="Remove" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;color:var(--muted);cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px;">
+                <span style="width:32px;height:32px;border-radius:7px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/><path d="M14 2v6h6"/></svg></span>
+                <div style="flex:1;min-width:0;line-height:1.3;"><div style="font-size:13.5px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Tone of voice.docx</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">480 KB</div></div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--success);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Ready</span>
+                <button aria-label="Remove" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;color:var(--muted);cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px;">
+                <span style="width:32px;height:32px;border-radius:7px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <div style="flex:1;min-width:0;line-height:1.3;"><div style="font-size:13.5px;font-weight:600;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Q1 LinkedIn posts.txt</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">96 KB</div></div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--muted);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Processing</span>
+                <button aria-label="Remove" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;color:var(--muted);cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;display:flex;align-items:flex-start;gap:10px;background:var(--variant);border-radius:10px;padding:13px 15px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <p style="margin:0;font-size:12.5px;line-height:1.5;color:var(--muted);">These assets are Folio's source of truth. The more you add, the more on-brand every generation becomes — you can always add more later.</p>
+            </div>
+
+            <div style="margin-top:22px;display:flex;align-items:center;justify-content:space-between;">
+              <button style="display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--muted);border:none;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;padding:8px 4px;transition:color .15s ease;" style-hover="color:var(--fg);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Back</button>
+              <button style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:13px 22px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 22px var(--accent-soft);transition:transform .15s ease;" style-hover="transform:translateY(-1px);">Continue · 3 files<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== STEP 3 ===================== -->
+    <div style="flex:none;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Step 03 — Brand profile (live preview)</div>
+      <div style="width:1080px;height:720px;background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06),0 16px 44px rgba(26,29,33,.10);display:flex;flex-direction:column;">
+
+        <div style="height:62px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="position:relative;width:24px;height:24px;display:inline-block;"><span style="position:absolute;inset:0;background:var(--fg);border-radius:6px;"></span><span style="position:absolute;top:0;right:0;width:10px;height:10px;background:var(--bg);border-bottom-left-radius:6px;"></span></span>
+            <span style="font-weight:700;font-size:17px;letter-spacing:-0.02em;">Folio</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Name</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Assets</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">3</span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Brand</span></div>
+            <span style="width:30px;height:2px;background:var(--border);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--variant);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">4</span><span style="margin-left:8px;font-size:12.5px;font-weight:500;color:var(--muted);">Ready</span></div>
+          </div>
+          <a href="#" style="font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;" style-hover="color:var(--fg);">Exit setup</a>
+        </div>
+
+        <div style="flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:28px 36px;">
+          <div style="display:flex;gap:44px;align-items:center;width:100%;max-width:820px;">
+
+            <!-- inputs -->
+            <div style="flex:1;min-width:0;">
+              <h2 style="margin:0;font-size:26px;font-weight:700;letter-spacing:-0.03em;color:var(--fg);">Set your brand look</h2>
+              <p style="margin:9px 0 0;font-size:14.5px;line-height:1.5;color:var(--muted);">These feed straight into your card templates — you'll see them on every generation.</p>
+
+              <!-- logo -->
+              <div style="margin-top:22px;">
+                <label style="display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px;">Logo</label>
+                <div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;">
+                  <span style="width:44px;height:44px;border-radius:9px;background:#1C3A2E;color:#F4F1E9;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:18px;flex-shrink:0;">V</span>
+                  <div style="flex:1;min-width:0;line-height:1.3;"><div style="font-size:13.5px;font-weight:600;color:var(--fg);">verdure-logo.svg</div><div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);">Uploaded · 24 KB</div></div>
+                  <button style="font-family:inherit;font-size:12.5px;font-weight:600;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 12px;cursor:pointer;transition:background .15s ease;" style-hover="background:var(--variant);">Replace</button>
+                </div>
+              </div>
+
+              <!-- color -->
+              <div style="margin-top:18px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><label style="font-size:13px;font-weight:600;color:var(--fg);">Primary brand color</label><span ref="{{ hexRef }}" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);">#1C3A2E</span></div>
+                <div style="display:flex;gap:9px;">
+                  <button data-color="#1C3A2E" onClick="{{ setBrand }}" aria-label="Forest" style="width:34px;height:34px;border-radius:8px;background:#1C3A2E;border:none;cursor:pointer;box-shadow:0 0 0 2px var(--accent);"></button>
+                  <button data-color="#1A1D21" onClick="{{ setBrand }}" aria-label="Ink" style="width:34px;height:34px;border-radius:8px;background:#1A1D21;border:none;cursor:pointer;box-shadow:none;"></button>
+                  <button data-color="#7C3A28" onClick="{{ setBrand }}" aria-label="Terracotta" style="width:34px;height:34px;border-radius:8px;background:#7C3A28;border:none;cursor:pointer;box-shadow:none;"></button>
+                  <button data-color="#1E3A5F" onClick="{{ setBrand }}" aria-label="Navy" style="width:34px;height:34px;border-radius:8px;background:#1E3A5F;border:none;cursor:pointer;box-shadow:none;"></button>
+                  <button data-color="#5B2A4A" onClick="{{ setBrand }}" aria-label="Plum" style="width:34px;height:34px;border-radius:8px;background:#5B2A4A;border:none;cursor:pointer;box-shadow:none;"></button>
+                  <button data-color="#3F4A2E" onClick="{{ setBrand }}" aria-label="Olive" style="width:34px;height:34px;border-radius:8px;background:#3F4A2E;border:none;cursor:pointer;box-shadow:none;"></button>
+                </div>
+              </div>
+
+              <!-- typography -->
+              <div style="margin-top:18px;">
+                <label style="display:block;font-size:13px;font-weight:600;color:var(--fg);margin-bottom:8px;">Brand typography</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <button data-font="DM Serif Display" onClick="{{ setFont }}" style="text-align:left;background:var(--surface);border:1px solid var(--accent);box-shadow:0 0 0 2px var(--accent-soft);border-radius:8px;padding:9px 12px;cursor:pointer;transition:border-color .15s ease;"><span style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--fg);">DM Serif Display</span></button>
+                  <button data-font="Playfair Display" onClick="{{ setFont }}" style="text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;transition:border-color .15s ease;" style-hover="border-color:#C2C7CC;"><span style="font-family:'Playfair Display',serif;font-size:16px;color:var(--fg);">Playfair Display</span></button>
+                  <button data-font="Plus Jakarta Sans" onClick="{{ setFont }}" style="text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;transition:border-color .15s ease;" style-hover="border-color:#C2C7CC;"><span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--fg);">Plus Jakarta Sans</span></button>
+                  <button data-font="Inter" onClick="{{ setFont }}" style="text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;transition:border-color .15s ease;" style-hover="border-color:#C2C7CC;"><span style="font-family:'Inter',sans-serif;font-size:15px;color:var(--fg);">Inter</span></button>
+                </div>
+              </div>
+
+              <div style="margin-top:24px;display:flex;align-items:center;justify-content:space-between;">
+                <button style="display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--muted);border:none;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;padding:8px 4px;transition:color .15s ease;" style-hover="color:var(--fg);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Back</button>
+                <button style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:13px 22px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 8px 22px var(--accent-soft);transition:transform .15s ease;" style-hover="transform:translateY(-1px);">Continue<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+              </div>
+            </div>
+
+            <!-- live preview -->
+            <div style="flex-shrink:0;width:286px;background:var(--preview);border-radius:14px;padding:26px 22px;display:flex;flex-direction:column;align-items:center;">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;">Live preview</span>
+              <div ref="{{ cardRef }}" style="--brand:#1C3A2E;--bfont:'DM Serif Display',serif;width:230px;background:#F4F1E9;border-radius:13px;overflow:hidden;box-shadow:0 12px 32px rgb(26 29 33 / .18);font-family:'Spectral',serif;">
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 15px 0;"><span style="font-family:var(--bfont);font-size:16px;color:var(--brand);">Verdure</span><span style="font-size:7px;letter-spacing:.16em;text-transform:uppercase;color:var(--brand);opacity:.6;">Notes · 04</span></div>
+                <div style="margin:11px 12px 0;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:var(--brand);position:relative;"><img src="https://picsum.photos/seed/verdurefieldmoss/360/270" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.92;"></div>
+                <div style="padding:13px 15px 3px;"><p style="margin:0;font-family:var(--bfont);font-size:18px;line-height:1.16;color:var(--brand);">Built to be unmade.</p></div>
+                <div style="display:flex;align-items:center;gap:6px;padding:9px 15px 14px;font-size:10px;color:var(--brand);opacity:.75;"><span style="width:6px;height:6px;border-radius:50%;background:#C98A3D;"></span>@verdure.materials</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== STEP 4 ===================== -->
+    <div style="flex:none;">
+      <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Step 04 — Ready</div>
+      <div style="width:1080px;height:720px;background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06),0 16px 44px rgba(26,29,33,.10);display:flex;flex-direction:column;">
+
+        <div style="height:62px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 26px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="position:relative;width:24px;height:24px;display:inline-block;"><span style="position:absolute;inset:0;background:var(--fg);border-radius:6px;"></span><span style="position:absolute;top:0;right:0;width:10px;height:10px;background:var(--bg);border-bottom-left-radius:6px;"></span></span>
+            <span style="font-weight:700;font-size:17px;letter-spacing:-0.02em;">Folio</span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Name</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Assets</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Brand</span></div>
+            <span style="width:30px;height:2px;background:var(--accent);margin:0 8px;"></span>
+            <div style="display:flex;align-items:center;"><span style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">4</span><span style="margin-left:8px;font-size:12.5px;font-weight:600;color:var(--fg);">Ready</span></div>
+          </div>
+          <a href="#" style="font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;" style-hover="color:var(--fg);">Exit setup</a>
+        </div>
+
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px;">
+          <div style="width:100%;max-width:460px;text-align:center;">
+            <span style="width:60px;height:60px;border-radius:50%;background:rgba(21,128,61,.1);display:inline-flex;align-items:center;justify-content:center;color:var(--success);margin-bottom:22px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <h2 style="margin:0;font-size:32px;font-weight:700;letter-spacing:-0.03em;color:var(--fg);">Your workspace is ready</h2>
+            <p style="margin:12px 0 0;font-size:16px;line-height:1.55;color:var(--muted);">Verdure Materials is set up and your brand is ingested. Time to make something.</p>
+
+            <div style="margin-top:28px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:8px 20px;text-align:left;box-shadow:0 1px 2px rgb(26 29 33 / .04);">
+              <div style="display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid var(--border);">
+                <span style="width:38px;height:38px;border-radius:9px;background:#1C3A2E;color:#F4F1E9;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:18px;flex-shrink:0;">V</span>
+                <div style="flex:1;line-height:1.3;"><div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Workspace</div><div style="font-size:14.5px;font-weight:600;color:var(--fg);">Verdure Materials</div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:13px;padding:14px 0;border-bottom:1px solid var(--border);">
+                <span style="width:38px;height:38px;border-radius:9px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></span>
+                <div style="flex:1;line-height:1.3;"><div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Assets</div><div style="font-size:14.5px;font-weight:600;color:var(--fg);">3 sources ingested</div></div>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--success);"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>All ready</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:13px;padding:14px 0;">
+                <span style="width:38px;height:38px;border-radius:9px;background:var(--variant);display:flex;align-items:center;justify-content:center;color:var(--fg);flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg></span>
+                <div style="flex:1;line-height:1.3;"><div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Brand look</div><div style="font-size:14.5px;font-weight:600;color:var(--fg);">DM Serif Display</div></div>
+                <span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:18px;height:18px;border-radius:5px;background:#1C3A2E;"></span><span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);">#1C3A2E</span></span>
+              </div>
+            </div>
+
+            <button style="margin-top:28px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:9px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:15px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 26px var(--accent-soft);transition:transform .15s ease;" style-hover="transform:translateY(-1px);">Start creating<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+            <p style="margin:16px 0 0;font-size:12.5px;color:var(--muted);">You can add more assets anytime in the Asset Manager.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  FONTS = {
+    'DM Serif Display': "'DM Serif Display', serif",
+    'Playfair Display': "'Playfair Display', serif",
+    'Plus Jakarta Sans': "'Plus Jakarta Sans', sans-serif",
+    'Inter': "'Inter', sans-serif",
+  };
+
+  onName = (e) => {
+    const v = e.target.value;
+    const letter = (v.trim()[0] || 'W').toUpperCase();
+    if (this._avatar) this._avatar.textContent = letter;
+    if (this._name) this._name.textContent = v.trim() || 'Your workspace';
+  };
+
+  setBrand = (e) => {
+    const c = e.currentTarget.dataset.color;
+    if (this._card) this._card.style.setProperty('--brand', c);
+    if (this._hex) this._hex.textContent = c;
+    for (const s of e.currentTarget.parentNode.children) s.style.boxShadow = 'none';
+    e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent)';
+  };
+
+  setFont = (e) => {
+    const name = e.currentTarget.dataset.font;
+    const stack = this.FONTS[name] || "'DM Serif Display', serif";
+    if (this._card) this._card.style.setProperty('--bfont', stack);
+    for (const s of e.currentTarget.parentNode.children) { s.style.borderColor = 'var(--border)'; s.style.boxShadow = 'none'; }
+    e.currentTarget.style.borderColor = 'var(--accent)';
+    e.currentTarget.style.boxShadow = '0 0 0 2px var(--accent-soft)';
+  };
+
+  renderVals() {
+    return {
+      onName: this.onName,
+      setBrand: this.setBrand,
+      setFont: this.setFont,
+      wsAvatarRef: (el) => { this._avatar = el; },
+      wsNameRef: (el) => { this._name = el; },
+      cardRef: (el) => { this._card = el; },
+      hexRef: (el) => { this._hex = el; },
+    };
+  }
+}
+</script>
+</body>
+</html>
