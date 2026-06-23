@@ -37,6 +37,7 @@ The product itself is unchanged: a **RAG**-powered studio that ingests a brand's
 | 15 | Seed & demo access | Seed the **Verdure** workspace with its corpus **pre-ingested**; "Explore as demo" logs visitors into it with **destructive actions disabled** (`is_demo` guard). No EMS-style demo mode; no public signup. | — | Visitors hit the RAG "wow" instantly with zero setup; the guard protects the seed from being deleted. |
 | 16 | Retrieval strategy | **Hybrid**: always inject the brand `voice_summary` + content pillars, then add semantic top-k (k≈6) exemplars | — | Always-needed brand fundamentals shouldn't depend on a similarity hit; naive top-k can miss them. |
 | 17 | API cost control | **Hard usage limit set on the Anthropic console** for the project API key (platform-level); in-app per-user caps deferred | — | The console cap bounds spend regardless of demo traffic; SRB-style in-app caps are unnecessary at portfolio scale. |
+| 18 | Design approach | Build the frontend UI/UX with the Claude **design skills** (`frontend-design`, `impeccable`, `ui-ux-pro-max`). `DESIGN.md` + the `mocks/` are a **reference / starting point, not a pixel-exact spec** — adopt a better UI/UX option when a skill offers one, and fold the improvement back into `DESIGN.md`. | — | The mocks are AI-generated references; the design skills can produce higher-quality, less-generic UI. Keep Folio's tokens/identity as the baseline and let the system evolve. |
 
 ---
 

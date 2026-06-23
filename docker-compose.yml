@@ -1,0 +1,22 @@
+# Local dev infrastructure only. Run `docker-compose up -d`, then `npm run dev`
+# to start the FastAPI server + Vite client on the host.
+services:
+  mongo:
+    image: mongo:7
+    container_name: brand_content_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: brand_content_chroma
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/data
+
+volumes:
+  mongo_data:
+  chroma_data:

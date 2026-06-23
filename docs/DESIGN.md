@@ -1,5 +1,7 @@
 # Brand Content Studio — Design System ("Folio")
 
+> **Reference, not gospel.** This system and the [`mocks/`](./mocks/) are the design *starting point*, not a pixel-exact spec. Frontend work uses the Claude design skills (`frontend-design` / `impeccable` / `ui-ux-pro-max`); when a skill yields a clearly better UI/UX, adopt it and update this doc. Folio's tokens and identity are the baseline to evolve from — see [`DECISIONS.md`](./DECISIONS.md) #18.
+
 > **Chosen identity: "Folio."** A distinct, app-specific look — deliberately NOT the developer's
 > portfolio brand, the Smart Resume Builder's "Editorial Ink," or any client's brand system.
 > Every project gets its own identity. Folio treats brand content creation as a craft: **Plus Jakarta Sans**
