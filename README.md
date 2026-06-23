@@ -4,7 +4,7 @@ A **RAG-powered** brand content studio. It ingests a brand's assets — voice/to
 
 Retrieval is the differentiator: generic generation is prompt→response; on-brand generation needs the brand corpus pulled in at query time.
 
-> **Status:** Planning complete, code not yet started. Start with [`docs/PLAN.md`](./docs/PLAN.md).
+> **Status:** Phase 0 (scaffold, `v0.0.0`) complete — see [`CHANGELOG.md`](./CHANGELOG.md). Roadmap in [`docs/PLAN.md`](./docs/PLAN.md).
 
 ## Portfolio context
 
@@ -40,6 +40,7 @@ docs/        Planning & reference docs, demo corpus, and design mocks (docs/mock
 | Doc | What it covers |
 |---|---|
 | [`docs/PLAN.md`](./docs/PLAN.md) | **Start here** — phased build roadmap with acceptance criteria |
+| [`CHANGELOG.md`](./CHANGELOG.md) | What's shipped, by phase |
 | [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) | How we build — vertical slices, front/back ordering, branching, commits |
 | [`docs/DECISIONS.md`](./docs/DECISIONS.md) | Single source of truth for architecture decisions |
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Stack, repo structure, RAG pipeline, API surface, gotchas |

@@ -50,7 +50,7 @@ dev   ────●───●──●──●──●──●───�
 feat/*      ●●        ●●              ●●                short-lived feature branches
 ```
 
-- **`main`** — stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each: `v0.1.0` after Phase 1a, `v0.2.0` after 1b, etc.
+- **`main`** — stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each phase on `main`: `v0.0.0` (scaffold), `v0.1.0` (Phase 1a), `v0.2.0` (1b), etc. — matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md).
 - **`dev`** — integration branch (where we are now). Feature branches merge here; it should always at least build.
 - **`feat/<phase>-<slice>`** — short-lived, branched off `dev`, one per feature. Examples: `feat/0-scaffold`, `feat/1a-ingestion`, `feat/1a-text-generation`, `feat/1b-card-export`.
 - Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
@@ -128,6 +128,6 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 
 **A slice is done when:** its tests are green, it's wired to the real endpoint, it covers the design's loading/empty/error states, and its acceptance bullet is met.
 
-**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), and `dev` is merged to `main` and tagged.
+**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged.
 
 **Any push is allowed only after:** the §5 review gate (`/code-review` + `/security-review`, findings addressed) and explicit push approval.
