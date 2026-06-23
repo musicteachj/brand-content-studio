@@ -32,7 +32,7 @@ A slice may touch two or three views, but we build only the **minimum view a sli
 
 1. **Contract first.** Define the API request/response shape as a Pydantic v2 model (`server/app/models`) and a matching TypeScript type (`client/src/types`). This keeps front and back from diverging.
 2. **Backend.** Implement the route + service; write pytest (unit + the RAG tests named in [PLAN.md](./PLAN.md): chunking, ingestion-ready, `test_query_is_workspace_scoped`, streaming-persists). Backend goes first because the UI exists to display real RAG output — build the data, then the view.
-3. **Frontend.** Wire the view to the **real** endpoint (react-query hook, or the `lib/sse.ts` reader for streaming). Build the view from the corresponding mock in [`mocks/`](./mocks/) using Folio tokens — never hardcode hex.
+3. **Frontend.** Wire the view to the **real** endpoint (react-query hook, or the `lib/sse.ts` reader for streaming). Build the UI with the Claude **design skills** (`frontend-design` / `impeccable` / `ui-ux-pro-max`); the [`mocks/`](./mocks/) and [`DESIGN.md`](./DESIGN.md) are a **reference, not a pixel-exact spec** — take a better UI/UX option when a skill offers one, and fold the improvement back into `DESIGN.md`. Keep Folio's tokens as the baseline; never hardcode hex.
 4. **Polish to design.** Loading/empty/error states, accessibility (focus rings, `aria-live` on the streaming preview, icon+label status), motion gated behind `prefers-reduced-motion` — all per [DESIGN.md](./DESIGN.md).
 5. **Verify & PR.** Run the slice's tests + check it against the phase's acceptance criterion, then open a PR into `dev`.
 

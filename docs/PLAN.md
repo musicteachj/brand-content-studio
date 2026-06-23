@@ -5,6 +5,8 @@
 
 Build order: **Phase 0 scaffold → 1a text posts → 1b image cards → 1.5 customization → 2 documents → deferred AWS deployment.** Each phase lists concrete steps, the files it touches, an acceptance criterion, and how to verify.
 
+Frontend views are built with the Claude design skills (`frontend-design` / `impeccable` / `ui-ux-pro-max`); the `mocks/` + [`DESIGN.md`](./DESIGN.md) are a **reference, not a pixel-exact spec** — adopt a better UI/UX option when a skill offers one and fold it back into `DESIGN.md` (see [DECISIONS.md](./DECISIONS.md) #18).
+
 ---
 
 ## Phase 0 — Scaffold
