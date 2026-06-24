@@ -8,9 +8,13 @@ from app.models.user import UserInDB
 from app.utils.security import verify_password
 
 
+def _to_user(doc: dict) -> UserInDB:
+    return UserInDB(id=str(doc["_id"]), **{k: v for k, v in doc.items() if k != "_id"})
+
+
 async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[UserInDB]:
     doc = await db.users.find_one({"email": email})
-    return UserInDB(**doc) if doc else None
+    return _to_user(doc) if doc else None
 
 
 async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[UserInDB]:
@@ -18,7 +22,7 @@ async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[Use
         doc = await db.users.find_one({"_id": ObjectId(user_id)})
     except Exception:
         return None
-    return UserInDB(**doc) if doc else None
+    return _to_user(doc) if doc else None
 
 
 async def get_demo_user(db: AsyncIOMotorDatabase) -> Optional[dict]:

@@ -17,7 +17,7 @@ class User(BaseModel):
 
 
 class UserInDB(User):
-    pass
+    id: str = ""  # str(_id), always populated by the auth service (_to_user)
 
 
 class UserLogin(BaseModel):

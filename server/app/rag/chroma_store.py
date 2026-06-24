@@ -70,6 +70,36 @@ class ChromaStore:
 
         return await asyncio.to_thread(_do)
 
+    async def get_by_kinds(
+        self, workspace_id: str, kinds: list[str], limit: int = 8
+    ) -> list[RetrievedChunk]:
+        if not kinds:
+            return []
+
+        def _do() -> list[RetrievedChunk]:
+            col = self._collection(workspace_id)
+            res = col.get(
+                where={"asset_kind": {"$in": kinds}},
+                limit=limit,
+                include=["documents", "metadatas"],
+            )
+            ids = res.get("ids") or []
+            docs = res.get("documents") or []
+            metas = res.get("metadatas") or []
+            out: list[RetrievedChunk] = []
+            for i, _id in enumerate(ids):
+                out.append(
+                    {
+                        "id": _id,
+                        "text": docs[i],
+                        "score": 1.0,  # pinned: always included, not a similarity hit
+                        "metadata": metas[i] or {},
+                    }
+                )
+            return out
+
+        return await asyncio.to_thread(_do)
+
     async def delete_workspace(self, workspace_id: str) -> None:
         def _do() -> None:
             try:

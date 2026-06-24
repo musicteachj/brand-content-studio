@@ -3,11 +3,11 @@
   "private": true,
   "scripts": {
     "dev:client": "cd client && npm run dev",
-    "dev:server": "cd server && python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:server": "cd server && .venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "dev": "concurrently -n client,server -c blue,magenta \"npm run dev:client\" \"npm run dev:server\"",
     "build:client": "cd client && npm run build",
     "build": "npm run build:client",
-    "seed": "cd server && python3 -m seed.seed_demo"
+    "seed": "cd server && .venv/bin/python -m seed.seed_demo"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
