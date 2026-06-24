@@ -34,6 +34,7 @@ async def close_mongo_connection() -> None:
 
 async def ensure_indexes() -> None:
     """Idempotent index creation (see docs/DATA_MODEL.md)."""
+    assert db.client is not None, "connect_to_mongo() must run before ensure_indexes()"
     database = db.client[settings.database_name]
     await database.users.create_index("email", unique=True)
     await database.workspaces.create_index("owner_id")

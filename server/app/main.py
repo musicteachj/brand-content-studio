@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
 from app.rag.vector_store import get_vector_store
-from app.routes import auth, health
+from app.routes import assets, auth, generate, generations, health, workspaces
 
 logging.basicConfig(level=logging.INFO)
 
@@ -41,6 +41,18 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(workspaces.router, prefix="/api/workspaces", tags=["workspaces"])
+app.include_router(
+    assets.router, prefix="/api/workspaces/{workspace_id}/assets", tags=["assets"]
+)
+app.include_router(
+    generate.router, prefix="/api/workspaces/{workspace_id}/generate", tags=["generate"]
+)
+app.include_router(
+    generations.router,
+    prefix="/api/workspaces/{workspace_id}/generations",
+    tags=["generations"],
+)
 
 
 if settings.environment == "production":
