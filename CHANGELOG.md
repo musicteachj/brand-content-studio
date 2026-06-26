@@ -21,6 +21,17 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 5: On-brand templates — `0.7.0` *(PR-A: document templates)*
+
+Bring your own branded `.docx`/`.pptx` and pour content into it — your own text (primary) or an AI draft (optional) — producing a download that keeps the template's **exact** styling. The faithful-template path R4/DECISIONS #21 promised; see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#24) and the spec/plan under `docs/superpowers/`. **Custom card presets (PR-B) is a separate later slice.**
+
+- **`/workspaces/{id}/templates` routes** — upload (`.docx`/`.pptx`, allow-list + 10 MB cap + 422 on a corrupt file), list, delete (+ stored file), `ai-fill`, and `render`. On upload we **discover the `{{placeholders}}`** (docx via docxtpl's Jinja analysis; pptx by scanning joined paragraph text — robust to PowerPoint run-splitting) and store the file + tag list in a new **`templates` collection**. Mutations are demo-blocked; `ai-fill` is demo-allowed (generative, not a mutation).
+- **The template's styling is authoritative** — render swaps **only** `{{tag}}` text and never touches fonts/colors/layout/headers/masters (no `brand_profile` injection, unlike the Phase 2 from-scratch docs). docx via **docxtpl**; pptx via **paragraph-level run replacement** (substitute on the joined paragraph text, keep the first run's formatting). One honest caveat: a pptx tag with mixed inline formatting *within itself* collapses to its paragraph's first-run style.
+- **Two fill paths, one render** — fill the dynamic form **yourself** (the common case), or **"Draft with AI"**: one forced strict tool-use call whose schema is built from the template's exact placeholder names returns a value per field, editable before export. Values are clamped (`MAX_VALUE_LEN`) and unknown keys dropped; templates cap at `MAX_PLACEHOLDERS = 40`.
+- **Templates are not Assets** — they're output scaffolds, never ingested into the RAG corpus. New **Templates** nav page: upload/list/delete + a fill view (field per placeholder, "Draft with AI", Download). Renders are **ephemeral** (returned as a file download, not stored / not in History).
+- **Tests** — pytest (+15, 87 total): placeholder discovery (docx + pptx), fill preserves a known run's font/size/color (incl. a pptx tag fragmented across runs), value clamping, models, the dynamic AI-fill tool, and routes (upload/list/delete/ai-fill/render, 415 + demo-403). Vitest (+2, 44 total): the fill-form value helpers.
+- **Deps** — server `docxtpl` (Jinja2-for-Word; pulls in jinja2).
+
 ### Added — Phase 4: Brand learning — `0.6.0` *(PR-C: slice 4c, exemplar steering)*
 
 Teach the studio your card style **by example**: upload a few past on-brand cards and new generated copy steers toward them. The "learn from examples" half of slice 4c (the second half after auto-extract); see [`docs/phase-4-plan.md`](./docs/phase-4-plan.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#23). Honesty stance fixed: we **approximate via our Satori archetypes — never pixel-clone** an uploaded card.
