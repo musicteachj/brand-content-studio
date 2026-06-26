@@ -5,6 +5,7 @@ import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
+import { ExemplarsSection } from "./ExemplarsSection";
 import { WorkspacesSection } from "./WorkspacesSection";
 
 const THEMES: { value: ThemePref; label: string; icon: LucideIcon }[] = [
@@ -111,6 +112,15 @@ export function SettingsPage() {
           hint={`The palette, fonts, voice, and logo for ${workspace.name}. These drive generated cards — not the app chrome.`}
         >
           <BrandIdentityEditor workspace={workspace} />
+        </Section>
+      )}
+
+      {workspace && (
+        <Section
+          title="Example cards"
+          hint="Teach the studio your card style by example — uploads steer generated copy."
+        >
+          <ExemplarsSection workspace={workspace} />
         </Section>
       )}
     </div>

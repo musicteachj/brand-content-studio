@@ -103,3 +103,26 @@ export function useExtractBrand(workspaceId: string | null) {
     },
   });
 }
+
+// Phase 4c exemplar steering — upload a past brand card (the server extracts a
+// style note and stores it on brand_profile.exemplars) / remove one.
+export function useAddExemplar(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<Workspace>(`/workspaces/${workspaceId}/exemplars`, form)).data;
+    },
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useRemoveExemplar(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (exemplarId: string) =>
+      (await api.delete<Workspace>(`/workspaces/${workspaceId}/exemplars/${exemplarId}`)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
