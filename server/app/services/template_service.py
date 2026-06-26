@@ -11,6 +11,7 @@ from typing import Optional
 
 from bson import ObjectId
 from docxtpl import DocxTemplate
+from jinja2.sandbox import SandboxedEnvironment
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pptx import Presentation
 
@@ -75,7 +76,9 @@ def render(data: bytes, values: dict[str, str], fmt: str) -> bytes:
 
 def _fill_docx(data: bytes, values: dict[str, str]) -> bytes:
     tpl = DocxTemplate(BytesIO(data))
-    tpl.render(values)  # Jinja: an undefined/missing var renders as empty string
+    # Sandbox the Jinja env: the template source is uploaded (untrusted), so a
+    # `{% %}`/SSTI payload in the file must not be able to execute on render.
+    tpl.render(values, jinja_env=SandboxedEnvironment())  # missing var → empty string
     out = BytesIO()
     tpl.save(out)
     return out.getvalue()
