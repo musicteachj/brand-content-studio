@@ -59,6 +59,19 @@ export interface Workspace {
   updated_at: string | null;
 }
 
+// Phase 5 — on-brand document templates.
+export type TemplateFormat = "docx" | "pptx";
+
+export interface Template {
+  id: string;
+  workspace_id: string;
+  name: string;
+  format: TemplateFormat;
+  storage_key: string;
+  placeholders: string[];
+  created_at: string | null;
+}
+
 export type AssetKind = "voice" | "posts" | "pillars" | "personas" | "competitors" | "other";
 
 export type IngestionStatus = "processing" | "ready" | "error";
