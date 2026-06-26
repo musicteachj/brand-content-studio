@@ -146,14 +146,31 @@ foreground/background pairs for contrast independently per theme.
   Unsplash") rendered automatically — non-negotiable, required by Unsplash license.
 - **Card preview panel:** Sits on `--preview-bg` surround. The card itself is `radius-xl` + `shadow-preview`.
   Streaming copy appears token by token directly in the preview — no separate text output area.
-  Inline editing activates on click during Phase 1.5. Export button always visible below the preview.
+  The finishing actions (Add/Change image · Edit text · Export) sit in one wrapping row under the card.
+- **Card customization (Phase 1.5) — quiet, beneath the hero.** Post-generation, a recessed *Customize*
+  panel (`surface` + hairline) under the preview offers **Layout** (the `TemplatePicker` thumbnails,
+  now also a no-regenerate swap) and **Accent** (a row of round brand-palette swatches; selected =
+  2px `foreground` ring + a luminance-aware check — never accent-on-accent). A `warning`-mono "Unsaved"
+  marker plus a **Discard / Save changes** pair appear only when the draft is dirty. **Inline text
+  editing happens on the card itself:** an *Edit text* toggle swaps the locked Satori image for the
+  live DOM card with `contentEditable` fields (dashed `currentColor` affordance + placeholder via
+  `.card-edit-field`, sized in 1080px card space so it reads at preview scale); a single *Done editing*
+  action returns to the locked preview. Edits are ephemeral until Save (which `PATCH`es); export and the
+  History re-export never call the model. The same editor hydrates a **re-opened History card** (a
+  *Customize* action on the detail dialog), so layout/accent/copy/image edits work there too.
+- **Settings page (Phase 1.5) — quiet appearance controls.** Sectioned, single-column, `max-w-2xl`:
+  a **Theme** segmented control (Light / Dark / System), a **Brand color tint** pill switch (the
+  optional workspace `--accent` override, default on; cosmetic only), and a read-only **Brand identity**
+  card (palette swatches + workspace fonts). No account or destructive controls.
 - **Generation loading state:** Skeleton shimmer on card text areas only (warm, not blue). Image slot
   shows a neutral placeholder until Unsplash result loads. No full-page spinners.
 - **Ingestion progress indicator:** Compact status bar in the Asset Manager when a new document is being
   chunked and embedded. Shows "processing" → "ready" — never blocks the rest of the UI.
-- **Workspace brand color application:** When a workspace is active, the `--accent` token is optionally
-  overridden with the workspace's primary brand color for subtle UI tinting on active nav items and
-  selected states. This is cosmetic only — never affects semantic tokens (success/warning/destructive).
+- **Workspace brand color application:** A **Settings toggle (default on)** overrides the `--accent`
+  token with the active workspace's primary brand color for subtle UI tinting on active nav items and
+  selected states (applied via `useAppearance` → `applyAccentTint`, which also derives `--accent-strong`
+  / `--ring` / `--accent-foreground`). Cosmetic only — never affects semantic tokens
+  (success/warning/destructive). Resolved in [DECISIONS.md](./DECISIONS.md) #20.
 
 ---
 

@@ -1,16 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, FileText, Image as ImageIcon, Sparkles, Type } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CardControlsPanel } from "@/features/generate/CardControlsPanel";
+import { CardCustomizePanel } from "@/features/generate/CardCustomizePanel";
 import { CardPreview } from "@/features/generate/CardPreview";
 import { ControlsPanel } from "@/features/generate/ControlsPanel";
 import { ImagePickerPanel } from "@/features/generate/ImagePickerPanel";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
+import { useCardEditor, type CardEditorBase } from "@/features/generate/useCardEditor";
 import { useCardGeneration } from "@/features/generate/useCardGeneration";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
+import { useGenerateStore } from "@/stores/generate";
 import type { CardTemplate, Length, Tone } from "@/types";
 
 type Mode = "text" | "card";
@@ -22,7 +25,9 @@ const MODES: { value: Mode; label: string; icon: typeof Type }[] = [
 
 export function GeneratePage() {
   const { workspace } = useActiveWorkspace();
-  const [mode, setMode] = useState<Mode>("text");
+  // Re-opened from History "Customize" → land directly in card mode.
+  const hydratePending = useGenerateStore((s) => s.hydrate !== null);
+  const [mode, setMode] = useState<Mode>(hydratePending ? "card" : "text");
 
   const corpusReady = (workspace?.ready_chunk_count ?? 0) > 0;
   if (workspace && !corpusReady) {
@@ -108,8 +113,49 @@ function CardMode() {
   const gen = useCardGeneration(workspaceId);
   const isStreaming = gen.status === "streaming";
 
+  // Consume a History → Customize hand-off once: load the persisted card into the
+  // editor (no /generate). The store is cleared so a remount doesn't reload it.
+  const hydrate = useGenerateStore((s) => s.hydrate);
+  const setHydrate = useGenerateStore((s) => s.setHydrate);
+  useEffect(() => {
+    if (hydrate && hydrate.type === "card") {
+      void gen.loadGeneration(hydrate);
+      setHydrate(null);
+    }
+    // Run once on mount; the hand-off is a one-shot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Once the card is generated, hand its persisted state to the editor: layout
+  // swap, accent, and inline copy edits are all client-side (PATCH on Save, never
+  // a /generate). Until then there's nothing to customize.
+  const editorBase: CardEditorBase | null =
+    gen.status === "done" && gen.fields && gen.generationId
+      ? {
+          generationId: gen.generationId,
+          template: gen.templateId,
+          fields: gen.fields,
+          accentHex: gen.accentHex,
+        }
+      : null;
+  const editor = useCardEditor(workspaceId, editorBase);
+  const editing = editorBase !== null;
+  const [editingText, setEditingText] = useState(false);
+
+  // Leave inline-edit mode whenever there's nothing to edit (e.g. after a
+  // regenerate starts a fresh stream).
+  useEffect(() => {
+    if (!editing) setEditingText(false);
+  }, [editing]);
+
   const brand = workspace?.brand_profile;
   if (!brand) return null;
+
+  // The preview renders from the editor draft when editing (so unsaved swaps/edits
+  // show live), otherwise from the live generation stream.
+  const previewTemplate = editing ? editor.template : gen.templateId;
+  const previewFields = editing ? editor.fields : gen.fields;
+  const previewAccent = editing ? editor.accentHex : gen.accentHex;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
@@ -133,16 +179,35 @@ function CardMode() {
         <CardPreview
           status={gen.status}
           copy={gen.copy}
-          template={gen.templateId}
-          fields={gen.fields}
+          template={previewTemplate}
+          fields={previewFields}
           brand={brand}
+          accentHex={previewAccent}
           imageDataUrl={gen.imageDataUrl}
           attribution={gen.image?.attribution ?? null}
           error={gen.error}
           hasImage={gen.image !== null}
           imageError={gen.imageError}
           onAddImage={() => setPickerOpen(true)}
+          editingText={editing && editingText}
+          onToggleEditText={editing ? () => setEditingText((v) => !v) : undefined}
+          onEditField={editing ? editor.setField : undefined}
+          editKey={`${gen.generationId ?? ""}:${editor.template}`}
         />
+        {editing && (
+          <CardCustomizePanel
+            brand={brand}
+            template={editor.template}
+            accentHex={editor.accentHex}
+            dirty={editor.dirty}
+            saving={editor.saving}
+            saveError={editor.saveError}
+            onTemplate={editor.setTemplate}
+            onAccent={editor.setAccent}
+            onSave={() => void editor.save()}
+            onDiscard={editor.discard}
+          />
+        )}
         <RetrievalDebugPanel retrieval={gen.retrieval} />
       </div>
 

@@ -58,6 +58,20 @@ async def update_generation(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only card generations can be edited.",
         )
+    # The per-card accent must be one of the workspace's own brand-palette colors —
+    # never an arbitrary hex (keeps cards on-brand; DESIGN §7).
+    accent = patch.get("accent_hex")
+    if accent is not None:
+        palette = {
+            c["hex"].lower()
+            for c in (workspace.get("brand_profile") or {}).get("colors") or []
+            if isinstance(c, dict) and isinstance(c.get("hex"), str)
+        }
+        if accent.lower() not in palette:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="accent_hex must be one of the workspace's brand colors.",
+            )
     doc = await generations_service.update_generation_output(
         db, workspace["_id"], generation_id, patch
     )

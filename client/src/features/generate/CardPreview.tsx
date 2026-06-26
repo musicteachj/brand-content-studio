@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, ImageIcon, ImagePlus } from "lucide-react";
+import { Check, Download, ImageIcon, ImagePlus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   buildCardElement,
@@ -27,12 +27,20 @@ interface Props {
   template: CardTemplate;
   fields: CardFields | null;
   brand: BrandProfile;
+  accentHex: string | null;
   imageDataUrl: string | null;
   attribution: ImageAttribution | null;
   error: string | null;
   hasImage: boolean;
   imageError: string | null;
   onAddImage: () => void;
+  // Inline text editing (Phase 1.5). When `onEditField` is provided the card can
+  // enter an in-place edit mode; `editKey` re-seeds the editable fields when the
+  // generation/template changes.
+  editingText?: boolean;
+  onToggleEditText?: () => void;
+  onEditField?: (key: keyof CardFields, value: string) => void;
+  editKey?: string;
 }
 
 function DraftingCard({
@@ -95,12 +103,17 @@ export function CardPreview({
   template,
   fields,
   brand,
+  accentHex,
   imageDataUrl,
   attribution,
   error,
   hasImage,
   imageError,
   onAddImage,
+  editingText = false,
+  onToggleEditText,
+  onEditField,
+  editKey,
 }: Props) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -108,6 +121,7 @@ export function CardPreview({
   // Add-image is offered while streaming (parallel) and after; export only once done.
   const showAddImage = usesImage && (status === "streaming" || status === "done");
   const showExport = status === "done";
+  const canEditText = status === "done" && !!onEditField && !!onToggleEditText;
 
   // Load the workspace fonts into the DOM so the live/fallback render matches the
   // Satori export (which loads the same TTFs as buffers).
@@ -119,14 +133,18 @@ export function CardPreview({
     template,
     fields: fields ?? { eyebrow: "", headline: "", body: "", cta: "", hashtag: "" },
     brand,
+    accentHex,
     imageSrc: imageDataUrl,
     attribution,
   };
 
   // Render the locked Satori SVG once the copy is finalized — this is what the
-  // PNG export rasterizes, so what you see is what you export.
-  const ready = status === "done" && fields !== null;
-  const { svg, loading: svgLoading } = useCardSvg(ready, elementProps);
+  // PNG export rasterizes, so what you see is what you export. Paused while
+  // editing text (the editable DOM card is shown instead), so Satori doesn't
+  // re-rasterize on every keystroke.
+  const lockedReady = status === "done" && fields !== null && !editingText;
+  const { svg, loading: svgLoading } = useCardSvg(lockedReady, elementProps);
+  const showEditableCard = status === "done" && fields !== null && editingText && !!onEditField;
 
   async function onExport() {
     if (!svg) return;
@@ -162,60 +180,92 @@ export function CardPreview({
               <DraftingCard copy={copy} template={template} brand={brand} />
             </ScaledCardBox>
           )}
-          {ready && svg ? (
+          {showEditableCard ? (
+            // In-place editing: the real DOM card with contentEditable fields.
+            // `editKey` re-seeds the fields when the generation/template changes.
+            <ScaledCardBox key={editKey}>
+              {buildCardElement({ ...elementProps, edit: { onEdit: onEditField! } })}
+            </ScaledCardBox>
+          ) : lockedReady && svg ? (
             <img src={svgToDataUrl(svg)} alt="Card preview" className="block w-full" />
-          ) : ready ? (
+          ) : lockedReady ? (
             // Satori still rendering (or font load) — show the DOM card meanwhile.
             <ScaledCardBox>{buildCardElement(elementProps)}</ScaledCardBox>
           ) : null}
         </div>
       </div>
 
-      {/* Finishing actions, in one compact row at the base of the card: add/swap the
-          image (photo-led) and export. The image button is available while the copy
-          still streams (image selection is a parallel step); export appears once the
-          card is locked. Kept on one line so both stay in view under the card. */}
-      {(showAddImage || showExport) && (
+      {/* Finishing actions at the base of the card: add/swap the image (photo-led),
+          edit the copy in place, and export. Image is available while copy streams
+          (parallel step); edit + export appear once the card is locked. While
+          editing, a single "Done" action replaces the row and the export pauses. */}
+      {editingText ? (
         <div className="flex flex-col gap-2">
-          <div
-            className={cn("grid gap-2", showAddImage && showExport ? "grid-cols-2" : "grid-cols-1")}
-          >
-            {showAddImage && (
-              <Button
-                variant="secondary"
-                onClick={onAddImage}
-                className={cn(
-                  // Nudge the image as the next step once the card is ready but bare.
-                  status === "done" && !hasImage && "border-accent text-accent hover:bg-accent/5",
-                )}
-              >
-                <ImagePlus className="h-4 w-4" aria-hidden />
-                {hasImage ? "Change image" : "Add an image"}
-              </Button>
-            )}
+          <Button onClick={onToggleEditText}>
+            <Check className="h-4 w-4" aria-hidden />
+            Done editing
+          </Button>
+          <p className="text-center text-[11px] text-muted-foreground">
+            Click any field on the card to edit it. Changes save when you press “Save changes”.
+          </p>
+        </div>
+      ) : (
+        (showAddImage || showExport) && (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              {showAddImage && (
+                <Button
+                  variant="secondary"
+                  onClick={onAddImage}
+                  className={cn(
+                    "min-w-[120px] flex-1",
+                    // Nudge the image as the next step once the card is ready but bare.
+                    status === "done" && !hasImage && "border-accent text-accent hover:bg-accent/5",
+                  )}
+                >
+                  <ImagePlus className="h-4 w-4" aria-hidden />
+                  {hasImage ? "Change image" : "Add an image"}
+                </Button>
+              )}
+              {canEditText && (
+                <Button
+                  variant="secondary"
+                  onClick={onToggleEditText}
+                  className="min-w-[120px] flex-1"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden />
+                  Edit text
+                </Button>
+              )}
+              {showExport && (
+                <Button
+                  onClick={onExport}
+                  disabled={!svg || exporting}
+                  loading={exporting}
+                  className="min-w-[120px] flex-1"
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  {svgLoading && !svg ? "Preparing…" : "Export PNG"}
+                </Button>
+              )}
+            </div>
             {showExport && (
-              <Button onClick={onExport} disabled={!svg || exporting} loading={exporting}>
-                <Download className="h-4 w-4" aria-hidden />
-                {svgLoading && !svg ? "Preparing…" : "Export PNG"}
-              </Button>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Exports a crisp 1080×1350 PNG
+              </p>
+            )}
+            {imageError && (
+              <p role="alert" className="text-xs text-destructive">
+                {imageError}
+              </p>
+            )}
+            {exportError && (
+              <p role="alert" className="text-xs text-destructive">
+                {exportError}
+              </p>
             )}
           </div>
-          {showExport && (
-            <p className="text-center text-[11px] text-muted-foreground">
-              Exports a crisp 1080×1350 PNG
-            </p>
-          )}
-          {imageError && (
-            <p role="alert" className="text-xs text-destructive">
-              {imageError}
-            </p>
-          )}
-          {exportError && (
-            <p role="alert" className="text-xs text-destructive">
-              {exportError}
-            </p>
-          )}
-        </div>
+        )
       )}
     </div>
   );

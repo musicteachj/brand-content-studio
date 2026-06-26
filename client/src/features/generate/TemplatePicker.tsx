@@ -13,12 +13,15 @@ interface Props {
   value: CardTemplate | null;
   onChange: (t: CardTemplate) => void;
   disabled?: boolean;
+  /** Per-card accent override so the thumbnails preview the chosen accent. */
+  accentHex?: string | null;
 }
 
 /** Horizontal row of layout thumbnails (DESIGN §4). Selected = 2px accent border.
  *  Never auto-selects — the user must pick before generating. The mini previews
- *  use the workspace's own colors so the picker reflects the brand. */
-export function TemplatePicker({ brand, value, onChange, disabled }: Props) {
+ *  use the workspace's own colors so the picker reflects the brand. Reused for the
+ *  Phase 1.5 layout swap, where it re-renders the same copy with no generation. */
+export function TemplatePicker({ brand, value, onChange, disabled, accentHex }: Props) {
   return (
     <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Card template">
       {TEMPLATES.map((t) => {
@@ -38,7 +41,7 @@ export function TemplatePicker({ brand, value, onChange, disabled }: Props) {
                 : "border border-border hover:shadow-light",
             )}
           >
-            <Thumb template={t.id} brand={brand} />
+            <Thumb template={t.id} brand={brand} accentHex={accentHex} />
             <span className="px-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
               {t.label}
             </span>
@@ -49,8 +52,16 @@ export function TemplatePicker({ brand, value, onChange, disabled }: Props) {
   );
 }
 
-function Thumb({ template, brand }: { template: CardTemplate; brand: BrandProfile }) {
-  const c = cardColors(brand);
+function Thumb({
+  template,
+  brand,
+  accentHex,
+}: {
+  template: CardTemplate;
+  brand: BrandProfile;
+  accentHex?: string | null;
+}) {
+  const c = cardColors(brand, accentHex);
   const line = (w: string, color: string, h = 4) => (
     <div style={{ width: w, height: h, backgroundColor: color, borderRadius: 1 }} />
   );

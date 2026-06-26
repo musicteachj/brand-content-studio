@@ -1,9 +1,11 @@
 import { Outlet } from "react-router-dom";
+import { useAppearance } from "@/features/settings/useAppearance";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 
 /** Authenticated app frame: fixed sidebar + top bar + scrollable content. */
 export function AppShell() {
+  useAppearance();
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <SideNav />

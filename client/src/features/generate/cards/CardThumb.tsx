@@ -17,6 +17,7 @@ export function CardThumb({ output, brand }: { output: CardOutput; brand: BrandP
         brand,
         imageSrc,
         attribution: output.image?.attribution ?? null,
+        accentHex: output.accent_hex,
       })}
     </ScaledCardBox>
   );

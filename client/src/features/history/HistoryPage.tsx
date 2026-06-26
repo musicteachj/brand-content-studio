@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, Copy, Download, LayoutGrid, Trash2, X } from "lucide-react";
+import { Check, Copy, Download, LayoutGrid, Sliders, Trash2, X } from "lucide-react";
 import { useDeleteGeneration, useGenerations, type HistoryFilter } from "@/api/generations";
 import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
@@ -10,6 +11,7 @@ import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { injectBrandFontFaces } from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
+import { useGenerateStore } from "@/stores/generate";
 import type { BrandProfile, CardOutput, Generation, TextOutput } from "@/types";
 
 const FILTERS: { value: HistoryFilter; label: string }[] = [
@@ -234,11 +236,22 @@ function DetailDialog({
   onClose: () => void;
 }) {
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
+  const navigate = useNavigate();
+  const setHydrate = useGenerateStore((s) => s.setHydrate);
   const del = useDeleteGeneration(workspaceId);
   const { card, copied, copyText, downloading, downloadError, download } = useGenerationActions(
     gen,
     brand,
   );
+
+  function customize() {
+    if (!gen) return;
+    // Hand this card to the Generate editor (layout/accent/copy edits, image
+    // swap) — no model call. Cleared once consumed there.
+    setHydrate(gen);
+    onClose();
+    navigate("/generate");
+  }
 
   if (!gen) return null;
   // Re-opened from history: the timing/k envelope isn't persisted (only the
@@ -292,16 +305,22 @@ function DetailDialog({
           <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-3">
             <div className="flex items-center gap-2">
               {card ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={download}
-                  loading={downloading}
-                  disabled={!brand}
-                >
-                  <Download className="h-4 w-4" aria-hidden />
-                  Download PNG
-                </Button>
+                <>
+                  <Button variant="secondary" size="sm" onClick={customize} disabled={!brand}>
+                    <Sliders className="h-4 w-4" aria-hidden />
+                    Customize
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={download}
+                    loading={downloading}
+                    disabled={!brand}
+                  >
+                    <Download className="h-4 w-4" aria-hidden />
+                    Download PNG
+                  </Button>
+                </>
               ) : (
                 <Button variant="secondary" size="sm" onClick={copyText}>
                   {copied ? (
