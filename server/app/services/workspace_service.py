@@ -185,5 +185,6 @@ async def delete_workspace(db: AsyncIOMotorDatabase, workspace_id: str, owner_id
     oid = doc["_id"]
     await db.assets.delete_many({"workspace_id": oid})
     await db.generations.delete_many({"workspace_id": oid})
+    await db.templates.delete_many({"workspace_id": oid})
     await db.workspaces.delete_one({"_id": oid})
     return True

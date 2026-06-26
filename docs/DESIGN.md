@@ -203,6 +203,14 @@ foreground/background pairs for contrast independently per theme.
     past brand cards (4:5 thumbnails + the extracted style note + remove) and an "Add example card"
     upload that shows an extracting state. Persists immediately (like the logo); capped at 5 ("N of 5")
     and demo-disabled. The notes steer generated copy via a trusted prompt block (DECISIONS #23).
+- **Templates page (Phase 5) — bring your own branded file.** A nav entry (`LayoutTemplate`):
+  upload/list/delete `.docx`/`.pptx` templates (rows show format + placeholder count), then **Use** one
+  → a fill view with a field per `{{placeholder}}` (labelled by tag name) plus an optional **"Draft
+  with AI"** (a brief populates the fields, still editable) → **Download**. The output keeps the
+  template's *own* styling — we only swap text — so it's never re-skinned with Folio or `brand_profile`
+  (DECISIONS #24). Renders download immediately (not stored). Upload/delete are demo-disabled via the
+  shared `DemoNotice`; empty state prompts a first upload. The one fidelity caveat (a `.pptx` tag with
+  mixed inline formatting collapsing to its paragraph's first-run style) is noted to the user.
 - **Workspace switcher (Phase 4a) — TopBar dropdown.** Replaces the static workspace name in the top
   bar: the `Workspace` eyebrow + active name become a dropdown trigger (chevron) listing the owner's
   workspaces (active check), then **New workspace** and **Manage workspaces**. Switching persists the

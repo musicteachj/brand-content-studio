@@ -100,9 +100,12 @@ create/switch a 2nd brand, edit its profile in-app, generate on-brand in each, i
 Split into **PR-A** (4a switcher/manage + 4b brand editor + logo — *built*) and **PR-B** (4c
 vision brand-learning — *pending*). See [`phase-4-plan.md`](./phase-4-plan.md).
 
-### Phase 5 — On-brand templates (`v0.7.0`)
+### Phase 5 — On-brand templates (`v0.7.0`) — *PR-A built (document templates)*
 Uploadable **document templates** filled faithfully (tagged `{{placeholder}}` via python-docx/
-`docxtpl` + python-pptx) + **custom card presets**. **Acceptance:** upload a branded `.docx` template,
+`docxtpl` + python-pptx) + **custom card presets**. Split into **PR-A** (document templates — *built*;
+upload `.docx`/`.pptx`, discover placeholders, fill manually or via AI draft, render preserving the
+template's own styling, Templates page) and **PR-B** (custom card presets — *pending*). See
+[`phase-5` spec/plan under `docs/superpowers/`]. **Acceptance:** upload a branded `.docx` template,
 generate a new doc into it preserving the template's layout/styles.
 
 ### Phase 6 — Robustness & limits (`v0.8.0`)

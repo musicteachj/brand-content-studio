@@ -4,6 +4,7 @@ import {
   Files,
   LayoutDashboard,
   LayoutGrid,
+  LayoutTemplate,
   LogOut,
   PanelLeft,
   PanelLeftClose,
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { to: "/generate", label: "Generate", icon: PenLine },
   { to: "/history", label: "History", icon: LayoutGrid },
   { to: "/assets", label: "Assets", icon: Files },
+  { to: "/templates", label: "Templates", icon: LayoutTemplate },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

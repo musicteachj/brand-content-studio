@@ -20,6 +20,7 @@ from app.prompts.document import DOC_SECTIONS_TOOL
 from app.prompts.image_card import CARD_FIELDS_TOOL
 
 MAX_TOKENS = 1500
+TEMPLATE_FILL_MAX_TOKENS = 1500
 CARD_COPY_MAX_TOKENS = 600
 CARD_FIELDS_MAX_TOKENS = 700
 DOC_COPY_MAX_TOKENS = 1400
@@ -79,6 +80,13 @@ class GenerationService:
         """Forced strict tool-use call → the typed `DocumentModel` fields. Mirrors
         `extract_card_fields`: the structure is never parsed from the stream."""
         return await self._tool_call(system, user, DOC_SECTIONS_TOOL, DOC_SECTIONS_MAX_TOKENS)
+
+    async def fill_template_values(
+        self, system: str, user: str, tool: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Forced strict tool-use → a value per template placeholder. The tool
+        schema is built per-template from its discovered field names (Phase 5)."""
+        return await self._tool_call(system, user, tool, TEMPLATE_FILL_MAX_TOKENS)
 
     async def _tool_call(
         self, system: str, user: str, tool: dict[str, Any], max_tokens: int

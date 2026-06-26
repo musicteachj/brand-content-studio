@@ -18,6 +18,7 @@ from app.routes import (
     generations,
     health,
     images,
+    templates,
     workspaces,
 )
 
@@ -53,6 +54,9 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(workspaces.router, prefix="/api/workspaces", tags=["workspaces"])
 app.include_router(
     assets.router, prefix="/api/workspaces/{workspace_id}/assets", tags=["assets"]
+)
+app.include_router(
+    templates.router, prefix="/api/workspaces/{workspace_id}/templates", tags=["templates"]
 )
 app.include_router(
     generate.router, prefix="/api/workspaces/{workspace_id}/generate", tags=["generate"]
