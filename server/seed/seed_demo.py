@@ -9,6 +9,7 @@ re-run after adding the key.
 """
 import asyncio
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 
 from bson import ObjectId
@@ -18,10 +19,18 @@ from app.config import settings
 from app.rag.loaders import load_sections
 from app.rag.vector_store import get_vector_store
 from app.services.ingestion_service import build_chunks
-from app.services.storage_service import build_storage_key, get_storage
+from app.services.storage_service import build_image_key, build_storage_key, build_template_key, get_storage
+from app.services.template_service import discover_placeholders
 from app.utils.security import get_password_hash
 
 CORPUS_DIR = Path(__file__).resolve().parent / "verdure_corpus"
+
+# Verdure brand palette (RGB tuples for Pillow; hex for Office docs).
+_FOREST = (0x1C, 0x3A, 0x2E)
+_CREAM = (0xF4, 0xF1, 0xE9)
+_OCHRE = (0xC9, 0x8A, 0x3D)
+_FOREST_HEX = "1C3A2E"
+_OCHRE_HEX = "C98A3D"
 
 # (filename, content_type, asset_kind). The voice guide is ingested as a PDF to
 # exercise the pdfplumber path; the rest are markdown.
@@ -159,6 +168,227 @@ async def _ingest_corpus(db, workspace: dict) -> None:
     print(f"+ ingested Verdure corpus: {total_chunks} chunks across {asset_count} assets")
 
 
+# ---------------------------------------------------------------------------
+# Demo content generators (deterministic — no model calls, no external assets)
+# ---------------------------------------------------------------------------
+def _png_bytes(img) -> bytes:  # type: ignore[no-untyped-def]
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _font(size: int):  # type: ignore[no-untyped-def]
+    from PIL import ImageFont
+
+    return ImageFont.load_default(size=size)
+
+
+def _draw_wrapped(draw, text, font, fill, *, x, y, max_width, line_h):  # type: ignore[no-untyped-def]
+    words = text.split()
+    line = ""
+    for word in words:
+        trial = f"{line} {word}".strip()
+        if draw.textlength(trial, font=font) <= max_width or not line:
+            line = trial
+        else:
+            draw.text((x, y), line, font=font, fill=fill)
+            y += line_h
+            line = word
+    if line:
+        draw.text((x, y), line, font=font, fill=fill)
+
+
+def _generate_logo() -> bytes:
+    """A simple Verdure wordmark — forest field, cream text, ochre rule."""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (480, 480), _FOREST)
+    d = ImageDraw.Draw(img)
+    d.text((60, 200), "Verdure", font=_font(72), fill=_CREAM)
+    d.rectangle([60, 300, 300, 308], fill=_OCHRE)
+    d.text((62, 330), "MATERIALS", font=_font(34), fill=_OCHRE)
+    return _png_bytes(img)
+
+
+def _generate_card(eyebrow: str, headline: str) -> bytes:
+    """A 1080×1350 Verdure-styled card standing in for a past brand post."""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (1080, 1350), _FOREST)
+    d = ImageDraw.Draw(img)
+    d.text((90, 140), eyebrow.upper(), font=_font(40), fill=_OCHRE)
+    _draw_wrapped(d, headline, _font(92), _CREAM, x=90, y=320, max_width=900, line_h=112)
+    d.rectangle([90, 1180, 230, 1188], fill=_OCHRE)
+    d.text((90, 1210), "verdure-materials.example", font=_font(30), fill=_CREAM)
+    return _png_bytes(img)
+
+
+def _generate_docx_template() -> bytes:
+    """A Verdure-branded one-pager with {{placeholders}} to fill."""
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+
+    doc = Document()
+    normal = doc.styles["Normal"]
+    normal.font.name = "Spectral"
+    normal.font.size = Pt(11)
+
+    def add(text, *, size, color_hex, bold=False, upper=False):
+        para = doc.add_paragraph()
+        run = para.add_run(text.upper() if upper else text)
+        run.font.name = "DM Serif Display" if bold else "Spectral"
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.color.rgb = RGBColor.from_string(color_hex)
+        return para
+
+    add("VERDURE MATERIALS", size=10, color_hex=_OCHRE_HEX, upper=True)
+    add("{{project_title}}", size=24, color_hex=_FOREST_HEX, bold=True)
+    add("Prepared for {{client_name}} — {{date}}", size=11, color_hex="6C737A")
+    add("{{summary}}", size=12, color_hex="1A1D21")
+    add("Next steps", size=15, color_hex=_FOREST_HEX, bold=True)
+    add("{{next_steps}}", size=11, color_hex="1A1D21")
+    add("Prepared by {{prepared_by}}", size=9, color_hex="6C737A")
+
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def _generate_pptx_template() -> bytes:
+    """A Verdure-branded 16:9 deck (title + content slide) with {{placeholders}}."""
+    from pptx import Presentation
+    from pptx.dml.color import RGBColor as PptxRGB
+    from pptx.util import Inches, Pt
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank = prs.slide_layouts[6]
+
+    def add_line(tf, text, *, size, color_hex, bold=False, upper=False, first=False):
+        para = tf.paragraphs[0] if first else tf.add_paragraph()
+        run = para.add_run()
+        run.text = text.upper() if upper else text
+        run.font.name = "DM Serif Display" if bold else "Spectral"
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.color.rgb = PptxRGB.from_string(color_hex)
+
+    title = prs.slides.add_slide(blank).shapes.add_textbox(
+        Inches(0.9), Inches(2.4), Inches(11.5), Inches(3)
+    ).text_frame
+    title.word_wrap = True
+    add_line(title, "VERDURE MATERIALS", size=18, color_hex=_OCHRE_HEX, upper=True, first=True)
+    add_line(title, "{{title}}", size=44, color_hex=_FOREST_HEX, bold=True)
+    add_line(title, "{{subtitle}}", size=20, color_hex="1A1D21")
+
+    content = prs.slides.add_slide(blank).shapes.add_textbox(
+        Inches(0.9), Inches(0.8), Inches(11.5), Inches(5.9)
+    ).text_frame
+    content.word_wrap = True
+    add_line(content, "{{section_title}}", size=30, color_hex=_FOREST_HEX, bold=True, first=True)
+    add_line(content, "{{point_1}}", size=20, color_hex="1A1D21")
+    add_line(content, "{{point_2}}", size=20, color_hex="1A1D21")
+    add_line(content, "{{point_3}}", size=20, color_hex="1A1D21")
+
+    buf = BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Demo enrichment (idempotent; Verdure-only). Demo mutations are blocked, so we
+# seed the Phase 4–5 surfaces here or they'd only ever show empty states.
+# ---------------------------------------------------------------------------
+async def _ensure_logo(db, workspace: dict) -> None:
+    ws_id = str(workspace["_id"])
+    fresh = await db.workspaces.find_one({"_id": workspace["_id"]})
+    if (fresh.get("brand_profile") or {}).get("logo"):
+        print("✓ brand logo exists")
+        return
+    logo_id = str(ObjectId())
+    name = "verdure-logo.png"
+    key = build_image_key(ws_id, logo_id, name)
+    await get_storage().save(key, _generate_logo())
+    logo = {"storage_key": key, "url": f"/api/workspaces/{ws_id}/images/file/{logo_id}/{name}"}
+    await db.workspaces.update_one(
+        {"_id": workspace["_id"]},
+        {"$set": {"brand_profile.logo": logo, "updated_at": datetime.now(timezone.utc)}},
+    )
+    print("+ seeded brand logo")
+
+
+async def _ensure_exemplars(db, workspace: dict) -> None:
+    fresh = await db.workspaces.find_one({"_id": workspace["_id"]})
+    if (fresh.get("brand_profile") or {}).get("exemplars"):
+        print("✓ example cards exist")
+        return
+    ws_id = str(workspace["_id"])
+    cards = [
+        (
+            "Material notes",
+            "The carbon math is changing",
+            "Punchy declarative headline (<=8 words) over a deep forest field; ochre eyebrow kicker; one tight idea per card; calm, evidence-led tone.",
+        ),
+        (
+            "Field guide",
+            "Specify hempcrete early",
+            "Imperative how-to headline; generous negative space; cream type on forest; ends with a quiet, practical takeaway, never a hard sell.",
+        ),
+    ]
+    exemplars = []
+    for eyebrow, headline, note in cards:
+        ex_id = str(ObjectId())
+        name = f"exemplar-{ex_id}.png"
+        key = build_image_key(ws_id, ex_id, name)
+        await get_storage().save(key, _generate_card(eyebrow, headline))
+        exemplars.append(
+            {
+                "id": ex_id,
+                "storage_key": key,
+                "url": f"/api/workspaces/{ws_id}/images/file/{ex_id}/{name}",
+                "style_note": note,
+            }
+        )
+    await db.workspaces.update_one(
+        {"_id": workspace["_id"]},
+        {"$set": {"brand_profile.exemplars": exemplars, "updated_at": datetime.now(timezone.utc)}},
+    )
+    print(f"+ seeded {len(exemplars)} example cards")
+
+
+async def _ensure_templates(db, workspace: dict) -> None:
+    if await db.templates.count_documents({"workspace_id": workspace["_id"]}) > 0:
+        print("✓ templates exist")
+        return
+    ws_id = str(workspace["_id"])
+    now = datetime.now(timezone.utc)
+    files = [
+        ("Verdure one-pager.docx", "docx", _generate_docx_template()),
+        ("Verdure deck.pptx", "pptx", _generate_pptx_template()),
+    ]
+    for name, fmt, data in files:
+        template_oid = ObjectId()
+        key = build_template_key(ws_id, str(template_oid), name)
+        await get_storage().save(key, data)
+        placeholders = discover_placeholders(data, fmt)
+        await db.templates.insert_one(
+            {
+                "_id": template_oid,
+                "workspace_id": workspace["_id"],
+                "owner_id": workspace["owner_id"],
+                "name": name.replace(" ", "_"),
+                "format": fmt,
+                "storage_key": key,
+                "placeholders": placeholders,
+                "created_at": now,
+            }
+        )
+        print(f"  + {name} → {len(placeholders)} fields ({fmt})")
+    print("+ seeded document templates")
+
+
 async def main() -> None:
     client = AsyncIOMotorClient(settings.mongodb_url)
     db = client[settings.database_name]
@@ -167,6 +397,9 @@ async def main() -> None:
     owner_id = await _ensure_demo_user(db)
     workspace = await _ensure_workspace(db, owner_id)
     await _ingest_corpus(db, workspace)
+    await _ensure_logo(db, workspace)
+    await _ensure_exemplars(db, workspace)
+    await _ensure_templates(db, workspace)
 
     client.close()
     print("Done.")
