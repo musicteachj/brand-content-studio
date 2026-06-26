@@ -8,10 +8,16 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.database import get_database
 from app.models.common import BrandLogo
 from app.models.user import UserInDB
-from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
+from app.models.workspace import (
+    BrandExtractResponse,
+    WorkspaceCreate,
+    WorkspaceResponse,
+    WorkspaceUpdate,
+)
 from app.rag.vector_store import get_vector_store
 from app.routes.images import MAX_IMAGE_BYTES, resolve_image_content_type
 from app.services import workspace_service
+from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_image_key, get_storage, safe_filename
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
@@ -113,6 +119,31 @@ async def delete_logo(
     if old_key:
         await get_storage().delete(old_key)
     return updated
+
+
+@router.post("/{workspace_id}/brand/extract", response_model=BrandExtractResponse)
+async def extract_brand(
+    file: UploadFile,
+    workspace: dict = Depends(get_workspace_or_404),
+    service: BrandExtractService = Depends(BrandExtractService),
+):
+    """Propose a brand profile (palette + voice + fonts) from an uploaded image.
+
+    Returns a **proposal only** — nothing is persisted; the client reviews it and
+    applies it through the brand PATCH. Allowed for the demo user (it's generative,
+    not a mutation — DECISIONS #15); validated like the image/logo uploads."""
+    filename = file.filename or "image"
+    media_type = resolve_image_content_type(filename, file.content_type)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
+        )
+    _ = workspace  # ownership enforced by the dependency
+    return await service.propose(data, media_type)
 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -6,7 +6,17 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from app.models.common import BrandProfile
+from app.models.common import BrandColor, BrandFonts, BrandProfile
+
+
+class BrandExtractResponse(BaseModel):
+    """A *proposed* brand profile inferred from an uploaded image (Phase 4c).
+    Returned for client review; never persisted directly — the user accepts it
+    into the brand editor, which saves via the existing brand PATCH."""
+
+    colors: list[BrandColor] = Field(default_factory=list)
+    voice_summary: Optional[str] = None
+    fonts: BrandFonts = Field(default_factory=BrandFonts)
 
 
 class WorkspaceCreate(BaseModel):

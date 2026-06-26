@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { BrandProfile, Workspace } from "@/types";
+import type { BrandExtract, BrandProfile, Workspace } from "@/types";
 
 export function useWorkspaces() {
   return useQuery({
@@ -88,5 +88,18 @@ export function useDeleteLogo(workspaceId: string | null) {
   return useMutation({
     mutationFn: async () => (await api.delete<Workspace>(`/workspaces/${workspaceId}/logo`)).data,
     onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+// Phase 4c — propose a brand profile from an uploaded image. Returns a proposal
+// only (no server-side mutation), so there's nothing to invalidate; the user
+// reviews + applies it into the editor, which persists via the brand PATCH.
+export function useExtractBrand(workspaceId: string | null) {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<BrandExtract>(`/workspaces/${workspaceId}/brand/extract`, form)).data;
+    },
   });
 }

@@ -194,6 +194,11 @@ foreground/background pairs for contrast independently per theme.
     a native color-picker swatch, accent-from-palette select, font inputs, voice textarea, logo
     upload/preview/remove). Logo saves immediately; field edits save on **Save changes**. Disabled for
     the demo user. Resolved in [DECISIONS.md](./DECISIONS.md) #23.
+  - **Learn from an image (Phase 4c):** a dashed-border "Extract from image" affordance at the top of
+    the edit form. Uploading a logo/guideline image returns a **proposed** palette/voice/fonts shown in
+    a review panel (swatches + voice + fonts); **Apply to form** fills the fields for review, then the
+    normal **Save changes** persists — the proposal is never auto-applied. Allowed for the demo user
+    (generative preview, not a mutation).
 - **Workspace switcher (Phase 4a) — TopBar dropdown.** Replaces the static workspace name in the top
   bar: the `Workspace` eyebrow + active name become a dropdown trigger (chevron) listing the owner's
   workspaces (active check), then **New workspace** and **Manage workspaces**. Switching persists the
