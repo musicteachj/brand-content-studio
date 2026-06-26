@@ -30,6 +30,12 @@ export interface DocumentStreamBody {
   tone: string;
 }
 
+export interface PostPackStreamBody {
+  brief: string;
+  tone: string;
+  template_id: string;
+}
+
 /** POST a streaming request with the JWT + JSON body. Returns the Response, or
  *  null after invoking `onError` (network failure, non-OK status, no body). */
 async function openStream(
@@ -140,6 +146,24 @@ export async function streamCardGeneration(
 ): Promise<void> {
   const response = await openStream(
     `/api/workspaces/${workspaceId}/generate/card`,
+    body,
+    handlers.onError,
+    signal,
+  );
+  if (response) await readFrames(response, handlers);
+}
+
+/** Stream the "LinkedIn Post" objective: the caption streams as text, the
+ *  terminal meta carries the distilled card fields + image keywords (same meta
+ *  shape as a card). */
+export async function streamPostPackGeneration(
+  workspaceId: string,
+  body: PostPackStreamBody,
+  handlers: StreamHandlers<SSECardMetaFrame["meta"]>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await openStream(
+    `/api/workspaces/${workspaceId}/generate/post`,
     body,
     handlers.onError,
     signal,

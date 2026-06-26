@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, FileText, FileType, Image as ImageIcon, Sparkles, Type } from "lucide-react";
+import {
+  Check,
+  Copy,
+  FileText,
+  FileType,
+  Image as ImageIcon,
+  Megaphone,
+  Sparkles,
+  Type,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CardControlsPanel } from "@/features/generate/CardControlsPanel";
@@ -9,25 +18,30 @@ import { ControlsPanel } from "@/features/generate/ControlsPanel";
 import { DocumentControlsPanel } from "@/features/generate/DocumentControlsPanel";
 import { DocumentPreview } from "@/features/generate/DocumentPreview";
 import { ImagePickerPanel } from "@/features/generate/ImagePickerPanel";
+import { PostCaptionPanel } from "@/features/generate/PostCaptionPanel";
+import { PostControlsPanel } from "@/features/generate/PostControlsPanel";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { useCardEditor, type CardEditorBase } from "@/features/generate/useCardEditor";
 import { useCardGeneration } from "@/features/generate/useCardGeneration";
 import { useDocumentGeneration } from "@/features/generate/useDocumentGeneration";
+import { usePostPackGeneration } from "@/features/generate/usePostPackGeneration";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
 import { useGenerateStore } from "@/stores/generate";
 import type { CardTemplate, DocumentArchetype, Length, Tone } from "@/types";
 
-type Mode = "text" | "card" | "document";
+type Mode = "post" | "text" | "card" | "document";
 
 const MODES: { value: Mode; label: string; icon: typeof Type }[] = [
+  { value: "post", label: "LinkedIn post", icon: Megaphone },
   { value: "text", label: "Text post", icon: Type },
   { value: "card", label: "Image card", icon: ImageIcon },
   { value: "document", label: "Document", icon: FileType },
 ];
 
 const MODE_TITLE: Record<Mode, string> = {
+  post: "LinkedIn post — caption + card",
   text: "LinkedIn text post",
   card: "Brand image card",
   document: "Branded document",
@@ -35,9 +49,11 @@ const MODE_TITLE: Record<Mode, string> = {
 
 export function GeneratePage() {
   const { workspace } = useActiveWorkspace();
-  // Re-opened from History "Customize" → land directly in card mode.
-  const hydratePending = useGenerateStore((s) => s.hydrate !== null);
-  const [mode, setMode] = useState<Mode>(hydratePending ? "card" : "text");
+  // Re-opened from History "Customize" → land directly in the matching mode.
+  const hydrate = useGenerateStore((s) => s.hydrate);
+  const [mode, setMode] = useState<Mode>(
+    hydrate ? (hydrate.type === "post_pack" ? "post" : "card") : "text",
+  );
 
   const corpusReady = (workspace?.ready_chunk_count ?? 0) > 0;
   if (workspace && !corpusReady) {
@@ -78,9 +94,102 @@ export function GeneratePage() {
         </div>
       </header>
 
+      {mode === "post" && <PostPackMode />}
       {mode === "text" && <TextMode />}
       {mode === "card" && <CardMode />}
       {mode === "document" && <DocumentMode />}
+    </div>
+  );
+}
+
+function PostPackMode() {
+  const { workspace, workspaceId } = useActiveWorkspace();
+  const [brief, setBrief] = useState("");
+  const [tone, setTone] = useState<Tone>("default");
+  const [template, setTemplate] = useState<CardTemplate>("photo-led");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [captionDraft, setCaptionDraft] = useState("");
+  const gen = usePostPackGeneration(workspaceId);
+  const isStreaming = gen.status === "streaming";
+
+  // Consume a History → Customize hand-off once (no /generate).
+  const hydrate = useGenerateStore((s) => s.hydrate);
+  const setHydrate = useGenerateStore((s) => s.setHydrate);
+  useEffect(() => {
+    if (hydrate && hydrate.type === "post_pack") {
+      void gen.loadGeneration(hydrate);
+      setHydrate(null);
+    }
+    // Run once on mount; the hand-off is a one-shot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Seed the editable caption from the generated caption once the stream finishes.
+  useEffect(() => {
+    if (gen.status === "done") setCaptionDraft(gen.caption);
+  }, [gen.status, gen.caption]);
+
+  const brand = workspace?.brand_profile;
+  if (!brand) return null;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <PostControlsPanel
+          brand={brand}
+          brief={brief}
+          setBrief={setBrief}
+          tone={tone}
+          setTone={setTone}
+          template={template}
+          setTemplate={setTemplate}
+          isStreaming={isStreaming}
+          hasGenerated={gen.status !== "idle"}
+          onGenerate={() => gen.generate({ brief, tone, template_id: template })}
+          onStop={gen.stop}
+        />
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <div className="grid gap-6 xl:grid-cols-2">
+          <CardPreview
+            status={gen.status}
+            copy=""
+            template={gen.templateId}
+            fields={gen.fields}
+            brand={brand}
+            accentHex={gen.accentHex}
+            imageDataUrl={gen.imageDataUrl}
+            attribution={gen.image?.attribution ?? null}
+            error={gen.error}
+            hasImage={gen.image !== null}
+            imageError={gen.imageError}
+            onAddImage={() => setPickerOpen(true)}
+          />
+          <PostCaptionPanel
+            status={gen.status}
+            streamingText={gen.caption}
+            value={captionDraft}
+            onChange={setCaptionDraft}
+            error={gen.error}
+          />
+        </div>
+        <RetrievalDebugPanel retrieval={gen.retrieval} />
+      </div>
+
+      <ImagePickerPanel
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        workspaceId={workspaceId}
+        initialKeywords={gen.suggestedKeywords}
+        selectedKey={gen.image?.unsplash_id ?? gen.image?.storage_key ?? null}
+        onSelectUnsplash={(p) => {
+          void gen.selectUnsplash(p);
+        }}
+        onSelectUpload={(url, key) => {
+          void gen.selectUpload(url, key);
+        }}
+      />
     </div>
   );
 }

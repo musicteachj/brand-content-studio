@@ -14,10 +14,18 @@ import { injectBrandFontFaces } from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useGenerateStore } from "@/stores/generate";
-import type { BrandProfile, CardOutput, DocumentOutput, Generation, TextOutput } from "@/types";
+import type {
+  BrandProfile,
+  CardOutput,
+  DocumentOutput,
+  Generation,
+  PostPackOutput,
+  TextOutput,
+} from "@/types";
 
 const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: "all", label: "All" },
+  { value: "post_pack", label: "LinkedIn" },
   { value: "text", label: "Posts" },
   { value: "card", label: "Cards" },
   { value: "document", label: "Documents" },
@@ -43,6 +51,17 @@ function cardOutput(gen: Generation): CardOutput | null {
   return gen.type === "card" && out?.template_id ? out : null;
 }
 
+/** The renderable card for a generation: a `card` carries it at the top of
+ *  `output`; a `post_pack` nests it under `output.card`. */
+function cardFrom(gen: Generation): CardOutput | null {
+  if (gen.type === "card") return cardOutput(gen);
+  if (gen.type === "post_pack") {
+    const out = gen.output as unknown as PostPackOutput;
+    return out?.card?.template_id ? out.card : null;
+  }
+  return null;
+}
+
 function documentOutput(gen: Generation): DocumentOutput | null {
   const out = gen.output as unknown as DocumentOutput;
   return gen.type === "document" && out?.document ? out : null;
@@ -55,8 +74,9 @@ function useGenerationActions(gen: Generation | null, brand: BrandProfile | null
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  // Memoized so `download`'s dependency is stable across renders.
-  const card = useMemo(() => (gen ? cardOutput(gen) : null), [gen]);
+  // Memoized so `download`'s dependency is stable across renders. Covers cards
+  // and the nested card of a post_pack.
+  const card = useMemo(() => (gen ? cardFrom(gen) : null), [gen]);
 
   // Reset all transient action state when a different generation is opened
   // (the dialog reuses one hook instance across generations).
@@ -180,6 +200,7 @@ function HistoryCard({
     brand,
   );
   const doc = documentOutput(gen);
+  const isPost = gen.type === "post_pack";
   return (
     <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium">
       <button
@@ -189,7 +210,7 @@ function HistoryCard({
       >
         <div className="flex items-center gap-2">
           <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-            {gen.type}
+            {isPost ? "post + card" : gen.type}
           </span>
           <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
             {formatDate(gen.created_at)}
@@ -197,9 +218,16 @@ function HistoryCard({
         </div>
         <p className="mt-3 line-clamp-2 text-sm font-medium text-foreground">{gen.brief}</p>
         {card && brand ? (
-          <div className="mt-3 overflow-hidden rounded-md border border-border">
-            <CardThumb output={card} brand={brand} />
-          </div>
+          <>
+            <div className="mt-3 overflow-hidden rounded-md border border-border">
+              <CardThumb output={card} brand={brand} />
+            </div>
+            {isPost && (
+              <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                {postText(gen)}
+              </p>
+            )}
+          </>
         ) : doc && brand ? (
           <div className="mt-3 max-h-44 overflow-hidden rounded-md border border-border">
             <DocumentArtifact document={doc.document} brand={brand} compact />
@@ -215,16 +243,28 @@ function HistoryCard({
       </button>
       <div className="flex items-center gap-1 border-t border-border px-2 py-1.5">
         {card ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={download}
-            loading={downloading}
-            disabled={!brand}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            Download
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={download}
+              loading={downloading}
+              disabled={!brand}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              Download
+            </Button>
+            {isPost && (
+              <Button variant="ghost" size="sm" onClick={copyText}>
+                {copied ? (
+                  <Check className="h-4 w-4 text-success" aria-hidden />
+                ) : (
+                  <Copy className="h-4 w-4" aria-hidden />
+                )}
+                {copied ? "Copied" : "Caption"}
+              </Button>
+            )}
+          </>
         ) : doc ? (
           <DocumentDownloadRow
             workspaceId={workspaceId}
@@ -283,6 +323,7 @@ function DetailDialog({
 
   if (!gen) return null;
   const doc = documentOutput(gen);
+  const isPost = gen.type === "post_pack";
   // Re-opened from history: the timing/k envelope isn't persisted (only the
   // per-chunk snapshot is), so leave latency/k out rather than showing 0.
   const retrieval = {
@@ -320,9 +361,16 @@ function DetailDialog({
 
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {card && brand ? (
-              <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-lg border border-border shadow-light">
-                <CardThumb output={card} brand={brand} />
-              </div>
+              <>
+                <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-lg border border-border shadow-light">
+                  <CardThumb output={card} brand={brand} />
+                </div>
+                {isPost && (
+                  <article className="whitespace-pre-wrap rounded-lg border border-border bg-surface-variant/40 p-4 text-[15px] leading-relaxed text-foreground">
+                    {postText(gen)}
+                  </article>
+                )}
+              </>
             ) : doc && brand ? (
               <div className="overflow-hidden rounded-lg border border-border bg-surface p-3 shadow-light">
                 <DocumentArtifact document={doc.document} brand={brand} />
@@ -353,6 +401,16 @@ function DetailDialog({
                     <Download className="h-4 w-4" aria-hidden />
                     Download PNG
                   </Button>
+                  {isPost && (
+                    <Button variant="ghost" size="sm" onClick={copyText}>
+                      {copied ? (
+                        <Check className="h-4 w-4 text-success" aria-hidden />
+                      ) : (
+                        <Copy className="h-4 w-4" aria-hidden />
+                      )}
+                      {copied ? "Copied" : "Copy caption"}
+                    </Button>
+                  )}
                 </>
               ) : doc ? (
                 <DocumentDownloadRow workspaceId={workspaceId} generationId={gen.id} output={doc} />
