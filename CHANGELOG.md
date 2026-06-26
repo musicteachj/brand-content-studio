@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Demo seed enrichment (Verdure)
+
+The demo user can't create content (mutations are demo-blocked), so the new Phase 4–5 surfaces would otherwise show only empty states. `seed/seed_demo.py` now seeds — **deterministically, with no model calls** — a Verdure **brand logo**, **two example cards** (`brand_profile.exemplars` with hardcoded `style_note`s), and **two document templates** (a branded `.docx` one-pager + `.pptx` deck with `{{placeholders}}`, discovered via `template_service`). Images are generated with Pillow, Office files with python-docx/python-pptx. Idempotent (each step is a no-op if already present). This makes the brand editor, example-card steering, and the Templates page all demo with real content — and since render / AI-draft / brand-extract are demo-*allowed*, a visitor can actually fill and download a seeded template. Tests: pytest (+4, 91 total) lock the generated templates' discoverable placeholders + valid PNG output. *(A second demo brand stays deferred — it needs its own ingested corpus.)*
+
 ### Added — Phase 5: On-brand templates — `0.7.0` *(PR-A: document templates)*
 
 Bring your own branded `.docx`/`.pptx` and pour content into it — your own text (primary) or an AI draft (optional) — producing a download that keeps the template's **exact** styling. The faithful-template path R4/DECISIONS #21 promised; see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#24) and the spec/plan under `docs/superpowers/`. **Custom card presets (PR-B) is a separate later slice.**
