@@ -20,12 +20,20 @@ export interface BrandLogo {
   url: string | null;
 }
 
+export interface BrandExemplar {
+  id: string;
+  storage_key: string;
+  url: string | null;
+  style_note: string;
+}
+
 export interface BrandProfile {
   colors: BrandColor[];
   accent_hex: string | null;
   fonts: BrandFonts;
   logo: BrandLogo | null;
   voice_summary: string | null;
+  exemplars: BrandExemplar[];
 }
 
 // Phase 4c — a proposed brand profile inferred from an uploaded image. Returned

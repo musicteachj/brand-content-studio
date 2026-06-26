@@ -21,6 +21,15 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 4: Brand learning — `0.6.0` *(PR-C: slice 4c, exemplar steering)*
+
+Teach the studio your card style **by example**: upload a few past on-brand cards and new generated copy steers toward them. The "learn from examples" half of slice 4c (the second half after auto-extract); see [`docs/phase-4-plan.md`](./docs/phase-4-plan.md) and [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#23). Honesty stance fixed: we **approximate via our Satori archetypes — never pixel-clone** an uploaded card.
+
+- **`POST` / `DELETE /workspaces/{id}/exemplars`** — uploading a past card runs **one forced strict Claude vision tool-use call** (`EXEMPLAR_NOTE_TOOL`) that returns a short `style_note` (copy patterns + visual direction); the image is stored (same allow-list/size defenses + server-derived key as the logo) and the note is appended to `brand_profile.exemplars` via a targeted `$push` (cap **5**, **409** beyond). Delete `$pull`s the entry and removes the stored bytes. **Extract-before-store** keeps it atomic (a vision failure persists nothing). Demo-blocked (these mutate the workspace).
+- **Injection at generation** — `build_exemplar_guidance` joins the notes into a trusted "On-brand examples to emulate" block that `text_post.build_system` / `image_card.build_copy_system` append after the voice summary; the three generate routes (text, card, post_pack) pass it. The note extraction is pre-computed once on upload — generation injects text only, no per-generation image cost.
+- **Client — Settings "Example cards"** — `ExemplarsSection` lists exemplar thumbnails (auth-gated `fetchImageDataUrl`) + their style notes with remove, and an "Add example card" upload that shows an extracting state; disabled at the cap and for the demo user. `useAddExemplar`/`useRemoveExemplar` mutations.
+- **Tests** — pytest (+14, 72 total): `build_exemplar_guidance`, system-prompt threading, the `BrandExemplar` model, the vision tool/prompt, route add (appends + stores) / cap 409 / demo 403 / bad type, delete (`$pull` + removes bytes), and the generate route **injects the exemplar block into the system prompt**. Vitest (+3, 42 total): the cap/demo helper.
+
 ### Added — Phase 4: Brand learning — `0.6.0` *(PR-B: slice 4c, auto-extract)*
 
 Point the brand editor at an image — a logo or a page of a brand guideline — and get a **proposed** palette, voice, and fonts to review and apply, so a new workspace can be brand-shaped from a real input instead of typed from scratch. Implements the auto-extract half of slice 4c (the [`docs/phase-4-plan.md`](./docs/phase-4-plan.md) PR-B); see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#23). **Exemplar steering (the second half of 4c) is split out to a later PR-C.**

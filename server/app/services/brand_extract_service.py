@@ -24,6 +24,9 @@ from app.models.common import BrandColor, BrandFonts
 from app.models.workspace import BrandExtractResponse
 from app.prompts.brand_extract import (
     BRAND_EXTRACT_TOOL,
+    EXEMPLAR_NOTE_TOOL,
+    build_exemplar_system,
+    build_exemplar_user,
     build_extract_system,
     build_extract_user,
 )
@@ -90,20 +93,30 @@ class BrandExtractService:
             user=build_extract_user(detected),
             image_b64=base64.standard_b64encode(data).decode("ascii"),
             media_type=media_type,
+            tool=BRAND_EXTRACT_TOOL,
         )
         return build_extract_response(detected, result)
 
+    async def propose_exemplar_note(self, data: bytes, media_type: str) -> str:
+        """One vision tool-use call → a short style note for an uploaded card."""
+        result = await self._vision_tool_call(
+            system=build_exemplar_system(),
+            user=build_exemplar_user(),
+            image_b64=base64.standard_b64encode(data).decode("ascii"),
+            media_type=media_type,
+            tool=EXEMPLAR_NOTE_TOOL,
+        )
+        return str(result.get("style_note", "")).strip()
+
     async def _vision_tool_call(
-        self, system: str, user: str, image_b64: str, media_type: str
+        self, system: str, user: str, image_b64: str, media_type: str, tool: dict[str, Any]
     ) -> dict[str, Any]:
         message = await self.client.messages.create(
             model=settings.ai_model,
             max_tokens=EXTRACT_MAX_TOKENS,
             system=system,
-            tools=[cast(ToolParam, BRAND_EXTRACT_TOOL)],
-            tool_choice=cast(
-                ToolChoiceToolParam, {"type": "tool", "name": BRAND_EXTRACT_TOOL["name"]}
-            ),
+            tools=[cast(ToolParam, tool)],
+            tool_choice=cast(ToolChoiceToolParam, {"type": "tool", "name": tool["name"]}),
             messages=cast(
                 "list[MessageParam]",
                 [
@@ -127,4 +140,4 @@ class BrandExtractService:
         for block in message.content:
             if block.type == "tool_use":
                 return dict(block.input)  # type: ignore[arg-type]
-        raise RuntimeError("Model did not return the brand_profile tool call.")
+        raise RuntimeError(f"Model did not return the {tool['name']} tool call.")

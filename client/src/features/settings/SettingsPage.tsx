@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { DemoNotice } from "@/components/DemoNotice";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
+import { ExemplarsSection } from "./ExemplarsSection";
 import { WorkspacesSection } from "./WorkspacesSection";
 
 const THEMES: { value: ThemePref; label: string; icon: LucideIcon }[] = [
@@ -22,6 +25,7 @@ export function SettingsPage() {
   const setTheme = useSettingsStore((s) => s.setTheme);
   const brandTint = useSettingsStore((s) => s.brandTint);
   const setBrandTint = useSettingsStore((s) => s.setBrandTint);
+  const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const { hash } = useLocation();
 
   // Deep-link from the workspace switcher's "Manage workspaces" (/settings#workspaces).
@@ -43,6 +47,10 @@ export function SettingsPage() {
           Appearance
         </h1>
       </header>
+
+      {isDemo && (
+        <DemoNotice message="You're exploring as a demo — workspace management, brand identity, and example cards are read-only so the seeded Verdure workspace stays intact. Theme and appearance still work, and you can still generate posts, cards, and documents." />
+      )}
 
       <Section title="Theme" hint="Light is the studio default; pick what suits you.">
         <div
@@ -111,6 +119,15 @@ export function SettingsPage() {
           hint={`The palette, fonts, voice, and logo for ${workspace.name}. These drive generated cards — not the app chrome.`}
         >
           <BrandIdentityEditor workspace={workspace} />
+        </Section>
+      )}
+
+      {workspace && (
+        <Section
+          title="Example cards"
+          hint="Teach the studio your card style by example — uploads steer generated copy."
+        >
+          <ExemplarsSection workspace={workspace} />
         </Section>
       )}
     </div>

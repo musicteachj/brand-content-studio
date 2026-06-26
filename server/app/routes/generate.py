@@ -21,6 +21,7 @@ from app.models.generation import (
     TextGenerateRequest,
 )
 from app.prompts import image_card, post_pack, text_post
+from app.prompts.exemplars import build_exemplar_guidance
 from app.rag.vector_store import get_vector_store
 from app.services import generations_service, retrieval_service
 from app.services.generation_service import (
@@ -56,6 +57,9 @@ async def generate_text(
     namespace = workspace["vector_namespace"]
     brand_profile = workspace.get("brand_profile") or {}
     voice_summary = brand_profile.get("voice_summary")
+    exemplar_guidance = build_exemplar_guidance(
+        [e.get("style_note", "") for e in (brand_profile.get("exemplars") or [])]
+    )
 
     async def event_stream() -> AsyncGenerator[str, None]:
         parts: list[str] = []
@@ -67,7 +71,7 @@ async def generate_text(
                 yield _frame({"error": "No brand context could be retrieved for this brief."})
                 return
 
-            system = text_post.build_system(voice_summary)
+            system = text_post.build_system(voice_summary, exemplar_guidance)
             user = text_post.build_user(
                 payload.brief, payload.tone, payload.length, result.chunks
             )
@@ -123,6 +127,9 @@ async def generate_card(
     namespace = workspace["vector_namespace"]
     brand_profile = workspace.get("brand_profile") or {}
     voice_summary = brand_profile.get("voice_summary")
+    exemplar_guidance = build_exemplar_guidance(
+        [e.get("style_note", "") for e in (brand_profile.get("exemplars") or [])]
+    )
     template_id = payload.template_id.value
 
     async def event_stream() -> AsyncGenerator[str, None]:
@@ -135,7 +142,7 @@ async def generate_card(
                 yield _frame({"error": "No brand context could be retrieved for this brief."})
                 return
 
-            copy_system = image_card.build_copy_system(voice_summary)
+            copy_system = image_card.build_copy_system(voice_summary, exemplar_guidance)
             copy_user = image_card.build_copy_user(
                 payload.brief, payload.template_id, payload.tone, result.chunks
             )
@@ -206,6 +213,9 @@ async def generate_post(
     namespace = workspace["vector_namespace"]
     brand_profile = workspace.get("brand_profile") or {}
     voice_summary = brand_profile.get("voice_summary")
+    exemplar_guidance = build_exemplar_guidance(
+        [e.get("style_note", "") for e in (brand_profile.get("exemplars") or [])]
+    )
     template_id = payload.template_id.value
 
     async def event_stream() -> AsyncGenerator[str, None]:
@@ -219,7 +229,7 @@ async def generate_post(
                 return
 
             # 1) Stream the caption (a full LinkedIn post) for the live typing effect.
-            caption_system = text_post.build_system(voice_summary)
+            caption_system = text_post.build_system(voice_summary, exemplar_guidance)
             caption_user = text_post.build_user(
                 payload.brief, payload.tone, Length.medium, result.chunks
             )

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { AxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, Lock, Trash2, UploadCloud } from "lucide-react";
+import { FileText, Trash2, UploadCloud } from "lucide-react";
 import { useAssets, useDeleteAsset, useUploadAsset } from "@/api/assets";
+import { DemoNotice } from "@/components/DemoNotice";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -62,7 +63,11 @@ export function AssetsPage() {
         </p>
       </header>
 
-      {isDemo ? <DemoNotice /> : <UploadCard workspaceId={workspaceId} />}
+      {isDemo ? (
+        <DemoNotice message="You're exploring as a demo — the seeded Verdure corpus is read-only. Uploads and deletes are disabled so the demo stays intact. Everything else (generating posts, inspecting retrieval) works." />
+      ) : (
+        <UploadCard workspaceId={workspaceId} />
+      )}
 
       <section className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
         <h2 className="mb-3 text-sm font-semibold text-foreground">
@@ -213,19 +218,6 @@ function AssetRow({
         </button>
       )}
     </li>
-  );
-}
-
-function DemoNotice() {
-  return (
-    <div className="animate-fade-in-up flex items-start gap-3 rounded-lg border border-border bg-surface-variant/50 p-4">
-      <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      <p className="text-sm text-muted-foreground">
-        You're exploring as a demo — the seeded Verdure corpus is read-only. Uploads and deletes are
-        disabled so the demo stays intact. Everything else (generating posts, inspecting retrieval)
-        works.
-      </p>
-    </div>
   );
 }
 
