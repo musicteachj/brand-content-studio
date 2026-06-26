@@ -158,6 +158,14 @@ foreground/background pairs for contrast independently per theme.
   action returns to the locked preview. Edits are ephemeral until Save (which `PATCH`es); export and the
   History re-export never call the model. The same editor hydrates a **re-opened History card** (a
   *Customize* action on the detail dialog), so layout/accent/copy/image edits work there too.
+- **LinkedIn-post mode (Phase 3) — the first *objective*, a paired preview.** A Generate mode
+  (first in the toggle) that yields a post **caption + matching card** from one brief. The preview
+  pairs the **card** (the reused `CardPreview` — the visual hero) beside an **editable caption**
+  panel (`PostCaptionPanel`): the caption streams in live (`aria-live`, the same token motion),
+  then becomes a paste-ready textarea with a Copy action; the card resolves once distilled. Image
+  pick (parallel) + Export PNG live on the card; Copy lives on the caption. Both are workspace-brand
+  (the card never uses Folio chrome, DESIGN §7). History shows a post_pack as a card thumbnail +
+  caption snippet, with Customize / Download PNG / Copy caption on the detail dialog.
 - **Document mode (Phase 2) — the document is the hero, like the card.** A third Generate mode
   (Text / Card / **Document**) reusing the brief box + retrieval debug panel. The card-preview hero is
   swapped for a **`DocumentPreview`**: the draft streams as prose into a quiet "Drafting" panel

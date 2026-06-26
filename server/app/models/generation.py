@@ -18,6 +18,7 @@ class GenerationType(str, Enum):
     text = "text"
     card = "card"
     document = "document"
+    post_pack = "post_pack"  # Phase 3: a LinkedIn post caption + a matching card
 
 
 class GenerationStatus(str, Enum):
@@ -75,6 +76,15 @@ class DocumentGenerateRequest(BaseModel):
     tone: Tone = Tone.default
 
 
+class PostPackGenerateRequest(BaseModel):
+    """Phase 3 — the "LinkedIn Post" objective: one brief yields the post caption
+    AND a matching photo-led card, built together from one retrieval."""
+
+    brief: str = Field(min_length=3, max_length=2000)
+    tone: Tone = Tone.default
+    template_id: CardTemplate = CardTemplate.photo_led
+
+
 class TextOutput(BaseModel):
     post_text: str
     hashtags: list[str] = Field(default_factory=list)
@@ -118,6 +128,18 @@ class CardOutput(BaseModel):
     # fall back to the brand's default accent role. Validated against the
     # workspace palette in the PATCH route (membership needs the workspace).
     accent_hex: Optional[str] = None
+
+
+class PostPackOutput(BaseModel):
+    """Persisted `output` when `type == "post_pack"`: the LinkedIn caption (same
+    shape as `TextOutput`) plus the matching card (same shape as `CardOutput`).
+    The card's image is attached later via PATCH — which targets `output.card`
+    for a post_pack (the card is nested), not the top-level output."""
+
+    post_text: str = ""
+    hashtags: list[str] = Field(default_factory=list)
+    char_count: int = 0
+    card: CardOutput = Field(default_factory=CardOutput)
 
 
 class DocumentSection(BaseModel):

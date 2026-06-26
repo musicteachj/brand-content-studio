@@ -137,6 +137,68 @@ async def test_patch_accent_rejects_malformed_hex(client, test_db):
     assert resp.status_code == 422
 
 
+async def _seed_post_pack(test_db) -> str:
+    """A post_pack persists the caption at the top of `output` with the card
+    nested under `output.card` (Phase 3)."""
+    now = utcnow()
+    doc = {
+        "_id": ObjectId(),
+        "workspace_id": WORKSPACE_OID,
+        "owner_id": OWNER_OID,
+        "type": "post_pack",
+        "brief": "Hempcrete embodied carbon",
+        "status": "complete",
+        "output": {
+            "post_text": "Specify hempcrete early.\n\n#Hempcrete",
+            "hashtags": ["#Hempcrete"],
+            "char_count": 32,
+            "card": {
+                "template_id": "photo-led",
+                "fields": {"eyebrow": "MATERIALS", "headline": "Carbon, in the wall",
+                           "body": "", "cta": "Read on", "hashtag": "#Hempcrete"},
+                "image": None,
+                "suggested_keywords": ["hemp"],
+                "accent_hex": None,
+            },
+        },
+        "retrieved_chunk_ids": ["posts-asset:0"],
+        "retrieval_meta": [],
+        "model": settings.ai_model,
+        "embedding_query_model": settings.embedding_model,
+        "created_at": now,
+        "updated_at": now,
+    }
+    await test_db.generations.insert_one(doc)
+    return str(doc["_id"])
+
+
+@pytest.mark.asyncio
+async def test_patch_post_pack_attaches_image_into_nested_card(client, test_db):
+    gid = await _seed_post_pack(test_db)
+    resp = await client.patch(
+        _url(gid),
+        json={"image": {"source": "unsplash", "url": "http://x/i.jpg", "unsplash_id": "abc",
+                        "attribution": {"author": "Jo", "author_url": "http://x", "source_url": "http://x"}}},
+    )
+    assert resp.status_code == 200
+    out = resp.json()["output"]
+    # Image merges into output.card, not the top level; caption + card copy preserved.
+    assert out["card"]["image"]["unsplash_id"] == "abc"
+    assert "image" not in out or out.get("image") is None
+    assert out["post_text"].startswith("Specify hempcrete")
+    assert out["card"]["fields"]["headline"] == "Carbon, in the wall"
+
+
+@pytest.mark.asyncio
+async def test_patch_post_pack_accent_validates_against_palette(client, test_db):
+    gid = await _seed_post_pack(test_db)
+    ok = await client.patch(_url(gid), json={"accent_hex": "#C98A3D"})
+    assert ok.status_code == 200
+    assert ok.json()["output"]["card"]["accent_hex"] == "#C98A3D"
+    bad = await client.patch(_url(gid), json={"accent_hex": "#FF00FF"})
+    assert bad.status_code == 422
+
+
 @pytest.mark.asyncio
 async def test_patch_rejects_text_generation(client, test_db):
     gid = await _seed_card(test_db, type_="text")

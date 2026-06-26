@@ -56,7 +56,7 @@ async def list_generations(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, type_filter: str = "all"
 ) -> list[GenerationResponse]:
     query: dict = {"workspace_id": workspace_oid}
-    if type_filter in ("text", "card", "document"):
+    if type_filter in ("text", "card", "document", "post_pack"):
         query["type"] = type_filter
     cursor = db.generations.find(query).sort("created_at", -1)
     return [_to_response(doc) async for doc in cursor]
@@ -67,11 +67,15 @@ async def update_generation_output(
     workspace_oid: ObjectId,
     generation_id: str,
     output_patch: dict,
+    nested_key: Optional[str] = None,
 ) -> Optional[dict]:
     """Merge a partial patch into a generation's `output` (Phase 1b attaches the
     selected card image; Phase 1.5 extends to inline field/template edits). Only
     provided keys are written, so a partial patch never wipes the rest of the
-    output. Workspace-scoped, so a non-owner can't touch another's generation."""
+    output. Workspace-scoped, so a non-owner can't touch another's generation.
+
+    `nested_key` merges the patch into a sub-object instead of the top level —
+    a post_pack nests its card under `output.card` (Phase 3)."""
     try:
         oid = ObjectId(generation_id)
     except Exception:
@@ -80,7 +84,12 @@ async def update_generation_output(
     if not doc:
         return None
     output = dict(doc.get("output") or {})
-    output.update(output_patch)
+    if nested_key:
+        nested = dict(output.get(nested_key) or {})
+        nested.update(output_patch)
+        output[nested_key] = nested
+    else:
+        output.update(output_patch)
     now = utcnow()
     await db.generations.update_one(
         {"_id": oid, "workspace_id": workspace_oid},

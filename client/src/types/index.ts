@@ -62,7 +62,7 @@ export interface Asset {
   updated_at: string | null;
 }
 
-export type GenerationType = "text" | "card" | "document";
+export type GenerationType = "text" | "card" | "document" | "post_pack";
 export type GenerationStatus = "complete" | "error";
 export type Tone = "default" | "confident" | "warm" | "technical" | "provocative";
 export type Length = "short" | "medium" | "long";
@@ -86,6 +86,12 @@ export interface DocumentGenerateRequest {
   brief: string;
   archetype: DocumentArchetype;
   tone: Tone;
+}
+
+export interface PostPackGenerateRequest {
+  brief: string;
+  tone: Tone;
+  template_id: CardTemplate;
 }
 
 export interface TextOutput {
@@ -152,6 +158,16 @@ export interface DocumentOutput {
   formats: Partial<Record<DocumentFormat, DocumentFormatRef>>;
 }
 
+// Phase 3 — the "LinkedIn Post" objective. One generation holds the post caption
+// (TextOutput shape) plus the matching card nested under `card` (CardOutput shape).
+// PATCH (image attach / customization) targets `output.card` server-side.
+export interface PostPackOutput {
+  post_text: string;
+  hashtags: string[];
+  char_count: number;
+  card: CardOutput;
+}
+
 // Phase 1.5 client-side customization — partial PATCH onto a card's `output`.
 // Every field is a no-/generate edit (layout swap, inline copy, accent).
 export interface GenerationUpdate {
@@ -206,7 +222,7 @@ export interface Generation {
   type: GenerationType;
   brief: string;
   status: GenerationStatus;
-  output: TextOutput | DocumentOutput | Record<string, unknown>;
+  output: TextOutput | DocumentOutput | PostPackOutput | Record<string, unknown>;
   retrieved_chunk_ids: string[];
   retrieval_meta: RetrievalMetaItem[];
   model: string;

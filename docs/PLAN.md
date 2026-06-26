@@ -1,9 +1,9 @@
 # Build Plan — Phased Roadmap
 
 > The execution roadmap for Brand Content Studio (**what** to build, in what order). Decisions follow [DECISIONS.md](./DECISIONS.md); technical detail lives in [ARCHITECTURE.md](./ARCHITECTURE.md) and [DATA_MODEL.md](./DATA_MODEL.md); **how** we build it — vertical slices, front/back ordering, branching, commits — is in [WORKFLOW.md](./WORKFLOW.md).
-> **Status: planning complete, code not yet started.** This document is the build reference.
+> **Status: Phases 0–2 shipped; Phase 3 built (PR open). Phases 4–6 are the planned pre-deployment round.** This document is the build reference.
 
-Build order: **Phase 0 scaffold → 1a text posts → 1b image cards → 1.5 customization → 2 documents → deferred AWS deployment.** Each phase lists concrete steps, the files it touches, an acceptance criterion, and how to verify.
+Build order: **Phase 0 scaffold → 1a text posts → 1b image cards → 1.5 customization → 2 documents → 3 "LinkedIn Post" objective → 4 brand setup & learning → 5 on-brand templates → 6 robustness → deferred AWS deployment.** Each phase lists concrete steps, the files it touches, an acceptance criterion, and how to verify. Phases 3–6 (the pre-deployment enhancement round) are detailed in their own `docs/phase-N-plan.md` and [DECISIONS.md](./DECISIONS.md) (#22+); summarized below.
 
 Frontend views are built with the Claude design skills (`frontend-design` / `impeccable` / `ui-ux-pro-max`); the `mocks/` + [`DESIGN.md`](./DESIGN.md) are a **reference, not a pixel-exact spec** — adopt a better UI/UX option when a skill offers one and fold it back into `DESIGN.md` (see [DECISIONS.md](./DECISIONS.md) #18).
 
@@ -77,6 +77,37 @@ Layout swap (re-render same copy in a different archetype), image swap without r
 Branded `.docx` (python-docx), `.pptx` (python-pptx), and PDF (preserves formatting). New `routes/documents.py` + `services/document_service.py` reusing the retrieval step. Add the deps to `requirements.txt`.
 
 **Acceptance:** Generate a branded one-pager `.docx` and matching PDF from a brief, downloaded with workspace colors/fonts applied.
+
+---
+
+## Pre-deployment enhancement round (Phases 3–6)
+
+A round of objective-driven features + multi-use hardening before deploy, reframing the app from
+format generators toward an **objective-driven, brand-learning studio.** Full detail in the
+`docs/phase-N-plan.md` files and DECISIONS #22+.
+
+### Phase 3 — "LinkedIn Post" objective (`v0.5.0`) — *built*
+One brief → a post **caption + matching card**, built together from one retrieval (caption streamed,
+card distilled from it). New `type:"post_pack"` (card nested under `output.card`); near-total reuse of
+the text + card pipelines. **Acceptance:** a coherent on-brand caption + card from one brief; image
+attach + copy/export with no `/generate`. See [`phase-3-plan.md`](./phase-3-plan.md).
+
+### Phase 4 — Brand setup & learning (`v0.6.0`)
+In-app **brand editor** (colors/fonts/voice/accent) + **logo upload** + **multi-workspace
+switcher/manage** + **brand-guideline/logo auto-extract** (Pillow + Claude vision) + **example-card
+exemplar steering**. Makes the app genuinely multi-brand, learned from real inputs. **Acceptance:**
+create/switch a 2nd brand, edit its profile in-app, generate on-brand in each, isolation holds.
+
+### Phase 5 — On-brand templates (`v0.7.0`)
+Uploadable **document templates** filled faithfully (tagged `{{placeholder}}` via python-docx/
+`docxtpl` + python-pptx) + **custom card presets**. **Acceptance:** upload a branded `.docx` template,
+generate a new doc into it preserving the template's layout/styles.
+
+### Phase 6 — Robustness & limits (`v0.8.0`)
+The final pre-deploy hardening: **pagination** (History/Assets), **ingestion safety** (parse timeout,
+chunk/size caps, retry), **generation concurrency/state** fixes, **demo-guard reconcile**, and an
+**HTTP-level cross-workspace isolation** test. **Acceptance:** the multi-use QA checklist passes; no
+known scaling/safety gaps ship.
 
 ---
 
