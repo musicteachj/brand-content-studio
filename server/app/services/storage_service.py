@@ -32,6 +32,18 @@ def build_image_key(workspace_id: str, image_id: str, filename: str) -> str:
     return f"{workspace_id}/images/{image_id}/{safe_filename(filename)}"
 
 
+# Generated documents (Phase 2). Allow-listed formats only; the key is fully
+# server-derived from (workspace, generation, format), so the download route
+# never trusts a stored or client-supplied key — it rebuilds this and reads it.
+DOCUMENT_FORMATS = ("docx", "pdf", "pptx")
+
+
+def build_document_key(workspace_id: str, generation_id: str, fmt: str) -> str:
+    if fmt not in DOCUMENT_FORMATS:
+        raise ValueError(f"Unsupported document format: {fmt!r}")
+    return f"{safe_filename(workspace_id)}/documents/{safe_filename(generation_id)}/document.{fmt}"
+
+
 class StorageBackend(Protocol):
     async def save(self, key: str, data: bytes) -> None: ...
     async def read(self, key: str) -> bytes: ...

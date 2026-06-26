@@ -1,27 +1,37 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, FileText, Image as ImageIcon, Sparkles, Type } from "lucide-react";
+import { Check, Copy, FileText, FileType, Image as ImageIcon, Sparkles, Type } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CardControlsPanel } from "@/features/generate/CardControlsPanel";
 import { CardCustomizePanel } from "@/features/generate/CardCustomizePanel";
 import { CardPreview } from "@/features/generate/CardPreview";
 import { ControlsPanel } from "@/features/generate/ControlsPanel";
+import { DocumentControlsPanel } from "@/features/generate/DocumentControlsPanel";
+import { DocumentPreview } from "@/features/generate/DocumentPreview";
 import { ImagePickerPanel } from "@/features/generate/ImagePickerPanel";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { useCardEditor, type CardEditorBase } from "@/features/generate/useCardEditor";
 import { useCardGeneration } from "@/features/generate/useCardGeneration";
+import { useDocumentGeneration } from "@/features/generate/useDocumentGeneration";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
 import { useGenerateStore } from "@/stores/generate";
-import type { CardTemplate, Length, Tone } from "@/types";
+import type { CardTemplate, DocumentArchetype, Length, Tone } from "@/types";
 
-type Mode = "text" | "card";
+type Mode = "text" | "card" | "document";
 
 const MODES: { value: Mode; label: string; icon: typeof Type }[] = [
   { value: "text", label: "Text post", icon: Type },
   { value: "card", label: "Image card", icon: ImageIcon },
+  { value: "document", label: "Document", icon: FileType },
 ];
+
+const MODE_TITLE: Record<Mode, string> = {
+  text: "LinkedIn text post",
+  card: "Brand image card",
+  document: "Branded document",
+};
 
 export function GeneratePage() {
   const { workspace } = useActiveWorkspace();
@@ -42,7 +52,7 @@ export function GeneratePage() {
             Generate
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
-            {mode === "text" ? "LinkedIn text post" : "Brand image card"}
+            {MODE_TITLE[mode]}
           </h1>
         </div>
         <div className="flex gap-1 rounded-md border border-border bg-surface p-1">
@@ -68,7 +78,53 @@ export function GeneratePage() {
         </div>
       </header>
 
-      {mode === "text" ? <TextMode /> : <CardMode />}
+      {mode === "text" && <TextMode />}
+      {mode === "card" && <CardMode />}
+      {mode === "document" && <DocumentMode />}
+    </div>
+  );
+}
+
+function DocumentMode() {
+  const { workspace, workspaceId } = useActiveWorkspace();
+  const [brief, setBrief] = useState("");
+  const [tone, setTone] = useState<Tone>("default");
+  const [archetype, setArchetype] = useState<DocumentArchetype>("one-pager");
+  const gen = useDocumentGeneration(workspaceId);
+  const isStreaming = gen.status === "streaming";
+  const brand = workspace?.brand_profile ?? null;
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <DocumentControlsPanel
+          brief={brief}
+          setBrief={setBrief}
+          archetype={archetype}
+          setArchetype={setArchetype}
+          tone={tone}
+          setTone={setTone}
+          isStreaming={isStreaming}
+          onGenerate={() => gen.generate({ brief, archetype, tone })}
+          onStop={gen.stop}
+        />
+      </div>
+      <div className="flex flex-col gap-6">
+        {brand && (
+          <DocumentPreview
+            status={gen.status}
+            text={gen.text}
+            document={gen.document}
+            archetype={gen.archetype}
+            formats={gen.formats}
+            generationId={gen.generationId}
+            workspaceId={workspaceId}
+            brand={brand}
+            error={gen.error}
+          />
+        )}
+        <RetrievalDebugPanel retrieval={gen.retrieval} />
+      </div>
     </div>
   );
 }

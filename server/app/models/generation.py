@@ -17,6 +17,7 @@ _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 class GenerationType(str, Enum):
     text = "text"
     card = "card"
+    document = "document"
 
 
 class GenerationStatus(str, Enum):
@@ -47,6 +48,15 @@ class CardTemplate(str, Enum):
     quote = "quote"
 
 
+class DocumentArchetype(str, Enum):
+    """Document archetypes (Phase 2). One-pager drives the .docx + PDF (slice 2a);
+    short-deck drives the .pptx (slice 2b). One shared `DocumentModel` renders to
+    every format, so the formats match by construction."""
+
+    one_pager = "one-pager"
+    short_deck = "short-deck"
+
+
 class TextGenerateRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=2000)
     tone: Tone = Tone.default
@@ -56,6 +66,12 @@ class TextGenerateRequest(BaseModel):
 class CardGenerateRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=2000)
     template_id: CardTemplate = CardTemplate.photo_led
+    tone: Tone = Tone.default
+
+
+class DocumentGenerateRequest(BaseModel):
+    brief: str = Field(min_length=3, max_length=2000)
+    archetype: DocumentArchetype = DocumentArchetype.one_pager
     tone: Tone = Tone.default
 
 
@@ -102,6 +118,45 @@ class CardOutput(BaseModel):
     # fall back to the brand's default accent role. Validated against the
     # workspace palette in the PATCH route (membership needs the workspace).
     accent_hex: Optional[str] = None
+
+
+class DocumentSection(BaseModel):
+    """One section of a document — a heading, a prose body, and optional bullets.
+    Bounded in length/count when shaped server-side so a runaway model response
+    can't balloon the built file (ARCHITECTURE gotcha #9)."""
+
+    heading: str = ""
+    body: str = ""
+    bullets: list[str] = Field(default_factory=list)
+
+
+class DocumentModel(BaseModel):
+    """The single structured source of truth a document is rendered from. The
+    same model drives the .docx and the PDF (and, in slice 2b, the .pptx), so the
+    formats match by construction — there is no docx→PDF conversion."""
+
+    archetype: DocumentArchetype = DocumentArchetype.one_pager
+    title: str = ""
+    eyebrow: str = ""
+    lede: str = ""
+    sections: list[DocumentSection] = Field(default_factory=list)
+    footer: str = ""
+
+
+class DocumentFormatRef(BaseModel):
+    """Pointer to a built file in storage. The key is server-derived
+    (`build_document_key`), never client-supplied."""
+
+    storage_key: str
+
+
+class DocumentOutput(BaseModel):
+    """Persisted `output` when `type == "document"`: the structured model plus a
+    per-format map of storage keys (`docx`/`pdf`; `pptx` added in slice 2b). The
+    files are downloaded through an auth-gated route, never served by raw key."""
+
+    document: DocumentModel = Field(default_factory=DocumentModel)
+    formats: dict[str, DocumentFormatRef] = Field(default_factory=dict)
 
 
 class GenerationUpdate(BaseModel):

@@ -62,11 +62,13 @@ export interface Asset {
   updated_at: string | null;
 }
 
-export type GenerationType = "text" | "card";
+export type GenerationType = "text" | "card" | "document";
 export type GenerationStatus = "complete" | "error";
 export type Tone = "default" | "confident" | "warm" | "technical" | "provocative";
 export type Length = "short" | "medium" | "long";
 export type CardTemplate = "photo-led" | "statement" | "quote";
+export type DocumentArchetype = "one-pager" | "short-deck";
+export type DocumentFormat = "docx" | "pdf" | "pptx";
 
 export interface TextGenerateRequest {
   brief: string;
@@ -77,6 +79,12 @@ export interface TextGenerateRequest {
 export interface CardGenerateRequest {
   brief: string;
   template_id: CardTemplate;
+  tone: Tone;
+}
+
+export interface DocumentGenerateRequest {
+  brief: string;
+  archetype: DocumentArchetype;
   tone: Tone;
 }
 
@@ -116,6 +124,32 @@ export interface CardOutput {
   // Phase 1.5: which brand-palette color this card uses as its accent
   // (null = the brand's default accent role).
   accent_hex: string | null;
+}
+
+// Phase 2 — document output. One structured model is rendered server-side into
+// each branded format; the files are pulled through an auth-gated download route.
+export interface DocumentSection {
+  heading: string;
+  body: string;
+  bullets: string[];
+}
+
+export interface DocumentModel {
+  archetype: DocumentArchetype;
+  title: string;
+  eyebrow: string;
+  lede: string;
+  sections: DocumentSection[];
+  footer: string;
+}
+
+export interface DocumentFormatRef {
+  storage_key: string;
+}
+
+export interface DocumentOutput {
+  document: DocumentModel;
+  formats: Partial<Record<DocumentFormat, DocumentFormatRef>>;
 }
 
 // Phase 1.5 client-side customization — partial PATCH onto a card's `output`.
@@ -172,7 +206,7 @@ export interface Generation {
   type: GenerationType;
   brief: string;
   status: GenerationStatus;
-  output: TextOutput | Record<string, unknown>;
+  output: TextOutput | DocumentOutput | Record<string, unknown>;
   retrieved_chunk_ids: string[];
   retrieval_meta: RetrievalMetaItem[];
   model: string;
@@ -205,6 +239,17 @@ export interface SSECardMetaFrame {
     template_id: CardTemplate;
     fields: CardFields;
     suggested_keywords: string[];
+    retrieval: RetrievalEnvelope;
+  };
+}
+// Terminal meta for /generate/document — the structured model + the per-format
+// storage keys, alongside the retrieval snapshot.
+export interface SSEDocumentMetaFrame {
+  meta: {
+    generation_id: string;
+    archetype: DocumentArchetype;
+    document: DocumentModel;
+    formats: Partial<Record<DocumentFormat, DocumentFormatRef>>;
     retrieval: RetrievalEnvelope;
   };
 }

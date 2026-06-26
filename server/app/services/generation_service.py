@@ -16,11 +16,14 @@ from anthropic import AsyncAnthropic
 from anthropic.types import ToolChoiceToolParam, ToolParam
 
 from app.config import settings
+from app.prompts.document import DOC_SECTIONS_TOOL
 from app.prompts.image_card import CARD_FIELDS_TOOL
 
 MAX_TOKENS = 1500
 CARD_COPY_MAX_TOKENS = 600
 CARD_FIELDS_MAX_TOKENS = 700
+DOC_COPY_MAX_TOKENS = 1400
+DOC_SECTIONS_MAX_TOKENS = 1600
 _HASHTAG_RE = re.compile(r"#\w[\w-]*")
 
 
@@ -58,20 +61,40 @@ class GenerationService:
         `tool_choice` forces the single tool, so the response's first tool_use
         block carries the validated input. Non-streaming: this is a short, final
         structured call, not the live-typing surface."""
+        return await self._tool_call(system, user, CARD_FIELDS_TOOL, CARD_FIELDS_MAX_TOKENS)
+
+    async def stream_document(self, system: str, user: str) -> AsyncGenerator[str, None]:
+        """Stream a full document as natural prose for the live drafting preview.
+        Larger budget than card copy — a one-pager is longer than a card."""
+        async with self.client.messages.stream(
+            model=settings.ai_model,
+            max_tokens=DOC_COPY_MAX_TOKENS,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+
+    async def extract_document_sections(self, system: str, user: str) -> dict[str, Any]:
+        """Forced strict tool-use call → the typed `DocumentModel` fields. Mirrors
+        `extract_card_fields`: the structure is never parsed from the stream."""
+        return await self._tool_call(system, user, DOC_SECTIONS_TOOL, DOC_SECTIONS_MAX_TOKENS)
+
+    async def _tool_call(
+        self, system: str, user: str, tool: dict[str, Any], max_tokens: int
+    ) -> dict[str, Any]:
         message = await self.client.messages.create(
             model=settings.ai_model,
-            max_tokens=CARD_FIELDS_MAX_TOKENS,
+            max_tokens=max_tokens,
             system=system,
-            tools=[cast(ToolParam, CARD_FIELDS_TOOL)],
-            tool_choice=cast(
-                ToolChoiceToolParam, {"type": "tool", "name": CARD_FIELDS_TOOL["name"]}
-            ),
+            tools=[cast(ToolParam, tool)],
+            tool_choice=cast(ToolChoiceToolParam, {"type": "tool", "name": tool["name"]}),
             messages=[{"role": "user", "content": user}],
         )
         for block in message.content:
             if block.type == "tool_use":
                 return dict(block.input)  # type: ignore[arg-type]
-        raise RuntimeError("Model did not return the card_fields tool call.")
+        raise RuntimeError(f"Model did not return the {tool['name']} tool call.")
 
 
 def parse_post(text: str) -> dict:

@@ -4,7 +4,7 @@
 // terminated by `data: [DONE]`. Text and card generation share this reader and
 // frame shape (gotcha #3) — only the terminal `meta` payload differs.
 import { useAuthStore } from "@/stores/auth";
-import type { SSECardMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
+import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
 export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
@@ -21,6 +21,12 @@ export interface TextStreamBody {
 export interface CardStreamBody {
   brief: string;
   template_id: string;
+  tone: string;
+}
+
+export interface DocumentStreamBody {
+  brief: string;
+  archetype: string;
   tone: string;
 }
 
@@ -134,6 +140,23 @@ export async function streamCardGeneration(
 ): Promise<void> {
   const response = await openStream(
     `/api/workspaces/${workspaceId}/generate/card`,
+    body,
+    handlers.onError,
+    signal,
+  );
+  if (response) await readFrames(response, handlers);
+}
+
+/** Stream a document generation: the draft streams as text, the terminal meta
+ *  carries the structured model + the per-format storage keys. */
+export async function streamDocumentGeneration(
+  workspaceId: string,
+  body: DocumentStreamBody,
+  handlers: StreamHandlers<SSEDocumentMetaFrame["meta"]>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await openStream(
+    `/api/workspaces/${workspaceId}/generate/document`,
     body,
     handlers.onError,
     signal,

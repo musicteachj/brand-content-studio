@@ -28,10 +28,13 @@ async def create_generation(
     output: dict,
     retrieved_chunk_ids: list[str],
     retrieval_meta: list[dict],
+    gen_id: Optional[ObjectId] = None,
 ) -> dict:
+    """`gen_id` lets the caller pre-generate the id (documents derive their file
+    storage keys from it, so the files are built before the row is persisted)."""
     now = utcnow()
     doc = {
-        "_id": ObjectId(),
+        "_id": gen_id or ObjectId(),
         "workspace_id": workspace_oid,
         "owner_id": owner_oid,
         "type": type,
@@ -53,7 +56,7 @@ async def list_generations(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, type_filter: str = "all"
 ) -> list[GenerationResponse]:
     query: dict = {"workspace_id": workspace_oid}
-    if type_filter in ("text", "card"):
+    if type_filter in ("text", "card", "document"):
         query["type"] = type_filter
     cursor = db.generations.find(query).sort("created_at", -1)
     return [_to_response(doc) async for doc in cursor]

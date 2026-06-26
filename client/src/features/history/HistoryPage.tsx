@@ -5,6 +5,8 @@ import { Check, Copy, Download, LayoutGrid, Sliders, Trash2, X } from "lucide-re
 import { useDeleteGeneration, useGenerations, type HistoryFilter } from "@/api/generations";
 import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
+import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
+import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
 import { downloadCardPng } from "@/features/generate/useCardExport";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
@@ -12,12 +14,13 @@ import { injectBrandFontFaces } from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useGenerateStore } from "@/stores/generate";
-import type { BrandProfile, CardOutput, Generation, TextOutput } from "@/types";
+import type { BrandProfile, CardOutput, DocumentOutput, Generation, TextOutput } from "@/types";
 
 const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "text", label: "Posts" },
   { value: "card", label: "Cards" },
+  { value: "document", label: "Documents" },
 ];
 
 function formatDate(iso: string | null): string {
@@ -38,6 +41,11 @@ function postText(gen: Generation): string {
 function cardOutput(gen: Generation): CardOutput | null {
   const out = gen.output as unknown as CardOutput;
   return gen.type === "card" && out?.template_id ? out : null;
+}
+
+function documentOutput(gen: Generation): DocumentOutput | null {
+  const out = gen.output as unknown as DocumentOutput;
+  return gen.type === "document" && out?.document ? out : null;
 }
 
 /** Copy-text (posts) + download-PNG (cards) actions, shared by the grid card and
@@ -133,7 +141,13 @@ export function HistoryPage() {
       {generations && generations.length > 0 && (
         <div className="grid animate-fade-in-up gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {generations.map((gen) => (
-            <HistoryCard key={gen.id} gen={gen} brand={brand} onOpen={() => setOpen(gen)} />
+            <HistoryCard
+              key={gen.id}
+              gen={gen}
+              brand={brand}
+              workspaceId={workspaceId}
+              onOpen={() => setOpen(gen)}
+            />
           ))}
         </div>
       )}
@@ -151,10 +165,12 @@ export function HistoryPage() {
 function HistoryCard({
   gen,
   brand,
+  workspaceId,
   onOpen,
 }: {
   gen: Generation;
   brand: BrandProfile | null;
+  workspaceId: string | null;
   onOpen: () => void;
 }) {
   // Outer is a div (not a button) so the inline action buttons aren't nested
@@ -163,6 +179,7 @@ function HistoryCard({
     gen,
     brand,
   );
+  const doc = documentOutput(gen);
   return (
     <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium">
       <button
@@ -182,6 +199,10 @@ function HistoryCard({
         {card && brand ? (
           <div className="mt-3 overflow-hidden rounded-md border border-border">
             <CardThumb output={card} brand={brand} />
+          </div>
+        ) : doc && brand ? (
+          <div className="mt-3 max-h-44 overflow-hidden rounded-md border border-border">
+            <DocumentArtifact document={doc.document} brand={brand} compact />
           </div>
         ) : (
           <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
@@ -204,6 +225,13 @@ function HistoryCard({
             <Download className="h-4 w-4" aria-hidden />
             Download
           </Button>
+        ) : doc ? (
+          <DocumentDownloadRow
+            workspaceId={workspaceId}
+            generationId={gen.id}
+            output={doc}
+            className="px-1"
+          />
         ) : (
           <Button variant="ghost" size="sm" onClick={copyText}>
             {copied ? (
@@ -254,6 +282,7 @@ function DetailDialog({
   }
 
   if (!gen) return null;
+  const doc = documentOutput(gen);
   // Re-opened from history: the timing/k envelope isn't persisted (only the
   // per-chunk snapshot is), so leave latency/k out rather than showing 0.
   const retrieval = {
@@ -294,6 +323,10 @@ function DetailDialog({
               <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-lg border border-border shadow-light">
                 <CardThumb output={card} brand={brand} />
               </div>
+            ) : doc && brand ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-surface p-3 shadow-light">
+                <DocumentArtifact document={doc.document} brand={brand} />
+              </div>
             ) : (
               <article className="whitespace-pre-wrap rounded-lg border border-border bg-surface-variant/40 p-4 text-[15px] leading-relaxed text-foreground">
                 {postText(gen)}
@@ -321,6 +354,8 @@ function DetailDialog({
                     Download PNG
                   </Button>
                 </>
+              ) : doc ? (
+                <DocumentDownloadRow workspaceId={workspaceId} generationId={gen.id} output={doc} />
               ) : (
                 <Button variant="secondary" size="sm" onClick={copyText}>
                   {copied ? (
@@ -364,7 +399,7 @@ function EmptyHistory() {
       </span>
       <p className="mt-4 text-sm font-medium text-foreground">No generations yet</p>
       <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-        Generated posts and cards land here, with their retrieval snapshot.
+        Generated posts, cards, and documents land here, with their retrieval snapshot.
       </p>
     </div>
   );

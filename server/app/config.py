@@ -1,4 +1,5 @@
 """Application settings (pydantic-settings). Loads from server/.env."""
+from pathlib import Path
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,6 +44,12 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     storage_local_dir: str = "./storage"
     s3_bucket: str = ""
+
+    # Documents (Phase 2) — optional brand-font TTFs for exact PDF font embedding.
+    # Drop `<font-slug>.ttf` files here (e.g. dm-serif-display.ttf) to embed real
+    # brand fonts in generated PDFs; missing fonts fall back to a serif/sans base
+    # font. No runtime network fetch — keeps the request path SSRF-free.
+    brand_fonts_dir: str = str(Path(__file__).resolve().parent / "assets" / "fonts")
 
     # Images
     unsplash_access_key: str = ""
