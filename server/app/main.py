@@ -10,7 +10,16 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
 from app.rag.vector_store import get_vector_store
-from app.routes import assets, auth, generate, generations, health, images, workspaces
+from app.routes import (
+    assets,
+    auth,
+    documents,
+    generate,
+    generations,
+    health,
+    images,
+    workspaces,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -49,9 +58,17 @@ app.include_router(
     generate.router, prefix="/api/workspaces/{workspace_id}/generate", tags=["generate"]
 )
 app.include_router(
+    documents.router, prefix="/api/workspaces/{workspace_id}/generate", tags=["documents"]
+)
+app.include_router(
     generations.router,
     prefix="/api/workspaces/{workspace_id}/generations",
     tags=["generations"],
+)
+app.include_router(
+    documents.download_router,
+    prefix="/api/workspaces/{workspace_id}/generations",
+    tags=["documents"],
 )
 app.include_router(images.router, prefix="/api/images", tags=["images"])
 app.include_router(

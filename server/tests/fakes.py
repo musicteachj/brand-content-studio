@@ -82,10 +82,34 @@ class FakeGenerationService:
         "hashtag": "#EmbodiedCarbon",
         "suggested_keywords": ["hempcrete wall", "natural building material", "construction site"],
     }
+    DOC_DRAFT = (
+        "Recycled-denim insulation turns post-consumer jeans into a high-performance "
+        "thermal envelope. It cuts embodied carbon, is safe to handle without gloves, "
+        "and meets the same R-value targets as mineral wool."
+    )
+    DOC_SECTIONS = {
+        "title": "Recycled-Denim Insulation",
+        "eyebrow": "Product brief",
+        "lede": "A high-performance insulation made from post-consumer denim, built for low-carbon construction.",
+        "sections": [
+            {
+                "heading": "Why it matters",
+                "body": "It diverts textile waste while cutting the embodied carbon of the wall assembly.",
+                "bullets": ["Lower embodied carbon", "Safe to handle without PPE"],
+            },
+            {
+                "heading": "Specifications",
+                "body": "Performance matches conventional batts.",
+                "bullets": ["R-value 3.7 per inch", "Class A fire rating"],
+            },
+        ],
+        "footer": "Verdure Materials — build with what's already here.",
+    }
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
         self.card_field_calls: list[tuple[str, str]] = []
+        self.doc_section_calls: list[tuple[str, str]] = []
 
     async def stream_text(self, system: str, user: str) -> AsyncGenerator[str, None]:
         self.calls.append((system, user))
@@ -100,3 +124,14 @@ class FakeGenerationService:
     async def extract_card_fields(self, system: str, user: str) -> dict:
         self.card_field_calls.append((system, user))
         return dict(self.CARD_FIELDS)
+
+    async def stream_document(self, system: str, user: str) -> AsyncGenerator[str, None]:
+        self.calls.append((system, user))
+        for token in self.DOC_DRAFT.split(" "):
+            yield token + " "
+
+    async def extract_document_sections(self, system: str, user: str) -> dict:
+        self.doc_section_calls.append((system, user))
+        import copy
+
+        return copy.deepcopy(self.DOC_SECTIONS)

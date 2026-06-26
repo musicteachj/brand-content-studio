@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[GenerationResponse])
 async def list_generations(
-    type: str = Query("all", pattern="^(all|text|card)$"),
+    type: str = Query("all", pattern="^(all|text|card|document)$"),
     workspace: dict = Depends(get_workspace_or_404),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
