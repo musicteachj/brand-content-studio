@@ -68,7 +68,7 @@ async def unsplash_track(
         pass
 
 
-def _resolve_image_content_type(filename: str, provided: str | None) -> str:
+def resolve_image_content_type(filename: str, provided: str | None) -> str:
     ext = os.path.splitext(filename)[1].lower()
     if ext in _IMAGE_CONTENT_TYPE:
         return _IMAGE_CONTENT_TYPE[ext]
@@ -86,7 +86,7 @@ async def upload_image(
     workspace: dict = Depends(get_workspace_or_404),
 ):
     filename = file.filename or "image"
-    content_type = _resolve_image_content_type(filename, file.content_type)
+    content_type = resolve_image_content_type(filename, file.content_type)
     data = await file.read()
     if not data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")

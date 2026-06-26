@@ -92,11 +92,13 @@ card distilled from it). New `type:"post_pack"` (card nested under `output.card`
 the text + card pipelines. **Acceptance:** a coherent on-brand caption + card from one brief; image
 attach + copy/export with no `/generate`. See [`phase-3-plan.md`](./phase-3-plan.md).
 
-### Phase 4 — Brand setup & learning (`v0.6.0`)
+### Phase 4 — Brand setup & learning (`v0.6.0`) — *PR-A built (4a+4b)*
 In-app **brand editor** (colors/fonts/voice/accent) + **logo upload** + **multi-workspace
 switcher/manage** + **brand-guideline/logo auto-extract** (Pillow + Claude vision) + **example-card
 exemplar steering**. Makes the app genuinely multi-brand, learned from real inputs. **Acceptance:**
 create/switch a 2nd brand, edit its profile in-app, generate on-brand in each, isolation holds.
+Split into **PR-A** (4a switcher/manage + 4b brand editor + logo — *built*) and **PR-B** (4c
+vision brand-learning — *pending*). See [`phase-4-plan.md`](./phase-4-plan.md).
 
 ### Phase 5 — On-brand templates (`v0.7.0`)
 Uploadable **document templates** filled faithfully (tagged `{{placeholder}}` via python-docx/

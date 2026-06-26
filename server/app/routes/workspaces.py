@@ -1,14 +1,18 @@
 """Workspace CRUD routes. All workspace-scoped sub-routers (assets, generate,
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
+from app.models.common import BrandLogo
 from app.models.user import UserInDB
 from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 from app.rag.vector_store import get_vector_store
+from app.routes.images import MAX_IMAGE_BYTES, resolve_image_content_type
 from app.services import workspace_service
+from app.services.storage_service import build_image_key, get_storage, safe_filename
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
 router = APIRouter()
@@ -52,6 +56,62 @@ async def update_workspace(
     )
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
+
+
+@router.post("/{workspace_id}/logo", response_model=WorkspaceResponse)
+async def upload_logo(
+    file: UploadFile,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Upload a brand logo. Mirrors the card-image upload defenses (allow-listed
+    type, size cap, server-derived key) and stores the result on
+    `brand_profile.logo`. Served by the existing image route."""
+    filename = file.filename or "logo"
+    resolve_image_content_type(filename, file.content_type)  # validates type (415)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
+        )
+
+    workspace_id = str(workspace["_id"])
+    logo_id = str(ObjectId())
+    clean_name = safe_filename(filename)
+    storage_key = build_image_key(workspace_id, logo_id, clean_name)
+    await get_storage().save(storage_key, data)
+    logo = BrandLogo(
+        storage_key=storage_key,
+        url=f"/api/workspaces/{workspace_id}/images/file/{logo_id}/{clean_name}",
+    )
+    updated = await workspace_service.set_workspace_logo(
+        db, workspace_id, current_user.id, logo
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
+
+
+@router.delete("/{workspace_id}/logo", response_model=WorkspaceResponse)
+async def delete_logo(
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Remove the brand logo and delete its stored bytes."""
+    result = await workspace_service.clear_workspace_logo(
+        db, str(workspace["_id"]), current_user.id
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    updated, old_key = result
+    if old_key:
+        await get_storage().delete(old_key)
     return updated
 
 
