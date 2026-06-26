@@ -66,6 +66,7 @@ export type GenerationType = "text" | "card";
 export type GenerationStatus = "complete" | "error";
 export type Tone = "default" | "confident" | "warm" | "technical" | "provocative";
 export type Length = "short" | "medium" | "long";
+export type CardTemplate = "photo-led" | "statement" | "quote";
 
 export interface TextGenerateRequest {
   brief: string;
@@ -73,10 +74,71 @@ export interface TextGenerateRequest {
   length: Length;
 }
 
+export interface CardGenerateRequest {
+  brief: string;
+  template_id: CardTemplate;
+  tone: Tone;
+}
+
 export interface TextOutput {
   post_text: string;
   hashtags: string[];
   char_count: number;
+}
+
+export interface CardFields {
+  eyebrow: string;
+  headline: string;
+  body: string;
+  cta: string;
+  hashtag: string;
+}
+
+export interface ImageAttribution {
+  author: string;
+  author_url: string;
+  source_url: string;
+}
+
+export interface CardImage {
+  source: "unsplash" | "upload";
+  url: string | null;
+  storage_key: string | null;
+  unsplash_id: string | null;
+  attribution: ImageAttribution | null;
+}
+
+export interface CardOutput {
+  template_id: CardTemplate;
+  fields: CardFields;
+  image: CardImage | null;
+  suggested_keywords: string[];
+}
+
+// Unsplash search results (server-proxied, attribution normalized).
+export interface UnsplashPhoto {
+  id: string;
+  description: string | null;
+  thumb_url: string;
+  preview_url: string;
+  width: number;
+  height: number;
+  color: string | null;
+  attribution: ImageAttribution;
+  download_location: string;
+}
+
+export interface UnsplashSearchResponse {
+  query: string;
+  page: number;
+  total_pages: number;
+  results: UnsplashPhoto[];
+}
+
+export interface ImageUploadResponse {
+  source: "upload";
+  storage_key: string;
+  url: string;
 }
 
 export interface RetrievalMetaItem {
@@ -111,15 +173,27 @@ export interface Generation {
 export interface SSETextFrame {
   text: string;
 }
+export interface RetrievalEnvelope {
+  k: number;
+  retrieved: RetrievalMetaItem[];
+  embedding_model: string;
+  latency_ms: number;
+}
 export interface SSEMetaFrame {
   meta: {
     generation_id: string;
-    retrieval: {
-      k: number;
-      retrieved: RetrievalMetaItem[];
-      embedding_model: string;
-      latency_ms: number;
-    };
+    retrieval: RetrievalEnvelope;
+  };
+}
+// Terminal meta for /generate/card — carries the structured fields + image
+// keywords alongside the retrieval snapshot.
+export interface SSECardMetaFrame {
+  meta: {
+    generation_id: string;
+    template_id: CardTemplate;
+    fields: CardFields;
+    suggested_keywords: string[];
+    retrieval: RetrievalEnvelope;
   };
 }
 export interface SSEErrorFrame {

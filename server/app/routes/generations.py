@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.generation import GenerationResponse
+from app.models.generation import GenerationResponse, GenerationUpdate
 from app.services import generations_service
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
 
@@ -28,6 +28,39 @@ async def get_generation(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     doc = await generations_service.get_generation(db, workspace["_id"], generation_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
+    return generations_service.to_response(doc)
+
+
+@router.patch("/{generation_id}", response_model=GenerationResponse)
+async def update_generation(
+    generation_id: str,
+    payload: GenerationUpdate,
+    workspace: dict = Depends(get_workspace_or_404),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Attach the selected card image (and, from Phase 1.5, inline field/template
+    edits) to a generation's `output`. Allowed for the demo user — these are the
+    user's own generations, not the protected seed corpus."""
+    patch = payload.model_dump(exclude_none=True)
+    if not patch:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
+        )
+    existing = await generations_service.get_generation(db, workspace["_id"], generation_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
+    # These fields are card-only (image/template/fields); refuse to merge them into
+    # a text generation's output, which would corrupt its shape.
+    if existing.get("type") != "card":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only card generations can be edited.",
+        )
+    doc = await generations_service.update_generation_output(
+        db, workspace["_id"], generation_id, patch
+    )
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
     return generations_service.to_response(doc)

@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { LayoutGrid, Trash2, X } from "lucide-react";
+import { Check, Copy, Download, LayoutGrid, Trash2, X } from "lucide-react";
 import { useDeleteGeneration, useGenerations, type HistoryFilter } from "@/api/generations";
 import { Button } from "@/components/ui/button";
+import { CardThumb } from "@/features/generate/cards/CardThumb";
+import { downloadCardPng } from "@/features/generate/useCardExport";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
+import { injectBrandFontFaces } from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
-import type { Generation, TextOutput } from "@/types";
+import type { BrandProfile, CardOutput, Generation, TextOutput } from "@/types";
 
 const FILTERS: { value: HistoryFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -30,11 +33,63 @@ function postText(gen: Generation): string {
   return typeof out?.post_text === "string" ? out.post_text : "";
 }
 
+function cardOutput(gen: Generation): CardOutput | null {
+  const out = gen.output as unknown as CardOutput;
+  return gen.type === "card" && out?.template_id ? out : null;
+}
+
+/** Copy-text (posts) + download-PNG (cards) actions, shared by the grid card and
+ *  the detail dialog. The PNG download re-exports from the persisted output with
+ *  no model call. Transient state resets when the generation changes. */
+function useGenerationActions(gen: Generation | null, brand: BrandProfile | null) {
+  const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  // Memoized so `download`'s dependency is stable across renders.
+  const card = useMemo(() => (gen ? cardOutput(gen) : null), [gen]);
+
+  // Reset all transient action state when a different generation is opened
+  // (the dialog reuses one hook instance across generations).
+  useEffect(() => {
+    setCopied(false);
+    setDownloading(false);
+    setDownloadError(null);
+  }, [gen?.id]);
+
+  const copyText = useCallback(async () => {
+    if (!gen) return;
+    await navigator.clipboard.writeText(postText(gen));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [gen]);
+
+  const download = useCallback(async () => {
+    if (!card || !brand) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadCardPng(card, brand);
+    } catch (err) {
+      setDownloadError((err as Error).message);
+    } finally {
+      setDownloading(false);
+    }
+  }, [card, brand]);
+
+  return { card, copied, copyText, downloading, downloadError, download };
+}
+
 export function HistoryPage() {
-  const { workspaceId } = useActiveWorkspace();
+  const { workspace, workspaceId } = useActiveWorkspace();
+  const brand = workspace?.brand_profile ?? null;
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const { data: generations, isLoading, isError } = useGenerations(workspaceId, filter);
   const [open, setOpen] = useState<Generation | null>(null);
+
+  // Load workspace fonts so card thumbnails render in the brand type.
+  useEffect(() => {
+    if (brand) injectBrandFontFaces(brand.fonts);
+  }, [brand]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,53 +131,114 @@ export function HistoryPage() {
       {generations && generations.length > 0 && (
         <div className="grid animate-fade-in-up gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {generations.map((gen) => (
-            <HistoryCard key={gen.id} gen={gen} onOpen={() => setOpen(gen)} />
+            <HistoryCard key={gen.id} gen={gen} brand={brand} onOpen={() => setOpen(gen)} />
           ))}
         </div>
       )}
 
-      <DetailDialog gen={open} workspaceId={workspaceId} onClose={() => setOpen(null)} />
+      <DetailDialog
+        gen={open}
+        brand={brand}
+        workspaceId={workspaceId}
+        onClose={() => setOpen(null)}
+      />
     </div>
   );
 }
 
-function HistoryCard({ gen, onOpen }: { gen: Generation; onOpen: () => void }) {
+function HistoryCard({
+  gen,
+  brand,
+  onOpen,
+}: {
+  gen: Generation;
+  brand: BrandProfile | null;
+  onOpen: () => void;
+}) {
+  // Outer is a div (not a button) so the inline action buttons aren't nested
+  // inside an interactive element. The content area is its own trigger button.
+  const { card, copied, copyText, downloading, downloadError, download } = useGenerationActions(
+    gen,
+    brand,
+  );
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="flex flex-col rounded-lg border border-border bg-surface p-4 text-left shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <div className="flex items-center gap-2">
-        <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-          {gen.type}
+    <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex flex-1 flex-col rounded-t-lg p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <div className="flex items-center gap-2">
+          <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+            {gen.type}
+          </span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+            {formatDate(gen.created_at)}
+          </span>
+        </div>
+        <p className="mt-3 line-clamp-2 text-sm font-medium text-foreground">{gen.brief}</p>
+        {card && brand ? (
+          <div className="mt-3 overflow-hidden rounded-md border border-border">
+            <CardThumb output={card} brand={brand} />
+          </div>
+        ) : (
+          <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+            {postText(gen)}
+          </p>
+        )}
+        <span className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          {gen.retrieved_chunk_ids.length} sources
         </span>
-        <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-          {formatDate(gen.created_at)}
-        </span>
+      </button>
+      <div className="flex items-center gap-1 border-t border-border px-2 py-1.5">
+        {card ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={download}
+            loading={downloading}
+            disabled={!brand}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Download
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" onClick={copyText}>
+            {copied ? (
+              <Check className="h-4 w-4 text-success" aria-hidden />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        )}
+        {downloadError && (
+          <span role="alert" className="truncate text-xs text-destructive">
+            {downloadError}
+          </span>
+        )}
       </div>
-      <p className="mt-3 line-clamp-2 text-sm font-medium text-foreground">{gen.brief}</p>
-      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-        {postText(gen)}
-      </p>
-      <span className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-        {gen.retrieved_chunk_ids.length} sources
-      </span>
-    </button>
+    </div>
   );
 }
 
 function DetailDialog({
   gen,
+  brand,
   workspaceId,
   onClose,
 }: {
   gen: Generation | null;
+  brand: BrandProfile | null;
   workspaceId: string | null;
   onClose: () => void;
 }) {
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const del = useDeleteGeneration(workspaceId);
+  const { card, copied, copyText, downloading, downloadError, download } = useGenerationActions(
+    gen,
+    brand,
+  );
 
   if (!gen) return null;
   // Re-opened from history: the timing/k envelope isn't persisted (only the
@@ -161,14 +277,48 @@ function DetailDialog({
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            <article className="whitespace-pre-wrap rounded-lg border border-border bg-surface-variant/40 p-4 text-[15px] leading-relaxed text-foreground">
-              {postText(gen)}
-            </article>
+            {card && brand ? (
+              <div className="mx-auto w-full max-w-[320px] overflow-hidden rounded-lg border border-border shadow-light">
+                <CardThumb output={card} brand={brand} />
+              </div>
+            ) : (
+              <article className="whitespace-pre-wrap rounded-lg border border-border bg-surface-variant/40 p-4 text-[15px] leading-relaxed text-foreground">
+                {postText(gen)}
+              </article>
+            )}
             <RetrievalDebugPanel retrieval={retrieval} />
           </div>
 
-          {!isDemo && (
-            <div className="flex justify-end border-t border-border px-6 py-3">
+          <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-3">
+            <div className="flex items-center gap-2">
+              {card ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={download}
+                  loading={downloading}
+                  disabled={!brand}
+                >
+                  <Download className="h-4 w-4" aria-hidden />
+                  Download PNG
+                </Button>
+              ) : (
+                <Button variant="secondary" size="sm" onClick={copyText}>
+                  {copied ? (
+                    <Check className="h-4 w-4 text-success" aria-hidden />
+                  ) : (
+                    <Copy className="h-4 w-4" aria-hidden />
+                  )}
+                  {copied ? "Copied" : "Copy text"}
+                </Button>
+              )}
+              {downloadError && (
+                <span role="alert" className="text-xs text-destructive">
+                  {downloadError}
+                </span>
+              )}
+            </div>
+            {!isDemo && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -179,8 +329,8 @@ function DetailDialog({
                 <Trash2 className="h-4 w-4" aria-hidden />
                 Delete
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

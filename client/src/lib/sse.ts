@@ -1,13 +1,14 @@
 // SSE reader for streaming generation. Uses fetch + ReadableStream (NOT
 // EventSource) so we can send a POST body and the JWT auth header
 // (ARCHITECTURE gotcha #3). Decodes the EMS frame shape: `data: {json}\n\n`
-// terminated by `data: [DONE]`.
+// terminated by `data: [DONE]`. Text and card generation share this reader and
+// frame shape (gotcha #3) — only the terminal `meta` payload differs.
 import { useAuthStore } from "@/stores/auth";
-import type { SSEMetaFrame, SSETextFrame } from "@/types";
+import type { SSECardMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
-export interface StreamHandlers {
+export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
-  onMeta: (meta: SSEMetaFrame["meta"]) => void;
+  onMeta: (meta: Meta) => void;
   onError: (message: string) => void;
 }
 
@@ -17,18 +18,24 @@ export interface TextStreamBody {
   length: string;
 }
 
-/** Stream a text-post generation. Returns when the stream completes ([DONE]),
- *  errors, or is aborted. */
-export async function streamTextGeneration(
-  workspaceId: string,
-  body: TextStreamBody,
-  handlers: StreamHandlers,
+export interface CardStreamBody {
+  brief: string;
+  template_id: string;
+  tone: string;
+}
+
+/** POST a streaming request with the JWT + JSON body. Returns the Response, or
+ *  null after invoking `onError` (network failure, non-OK status, no body). */
+async function openStream(
+  url: string,
+  body: unknown,
+  onError: (message: string) => void,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<Response | null> {
   const token = useAuthStore.getState().token;
   let response: Response;
   try {
-    response = await fetch(`/api/workspaces/${workspaceId}/generate/text`, {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -38,9 +45,9 @@ export async function streamTextGeneration(
       signal,
     });
   } catch (err) {
-    if ((err as Error).name === "AbortError") return;
-    handlers.onError("Network error — is the server running?");
-    return;
+    if ((err as Error).name === "AbortError") return null;
+    onError("Network error — is the server running?");
+    return null;
   }
 
   if (!response.ok) {
@@ -52,16 +59,20 @@ export async function streamTextGeneration(
     } catch {
       /* ignore */
     }
-    handlers.onError(detail);
-    return;
+    onError(detail);
+    return null;
   }
 
   if (!response.body) {
-    handlers.onError("Streaming is not supported in this environment.");
-    return;
+    onError("Streaming is not supported in this environment.");
+    return null;
   }
+  return response;
+}
 
-  const reader = response.body.getReader();
+/** Read decoded SSE frames until `[DONE]`, the stream ends, or it is aborted. */
+async function readFrames<Meta>(response: Response, handlers: StreamHandlers<Meta>): Promise<void> {
+  const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -83,7 +94,7 @@ export async function streamTextGeneration(
         try {
           const payload = JSON.parse(line);
           if ("text" in payload) handlers.onText((payload as SSETextFrame).text);
-          else if ("meta" in payload) handlers.onMeta((payload as SSEMetaFrame).meta);
+          else if ("meta" in payload) handlers.onMeta((payload as { meta: Meta }).meta);
           else if ("error" in payload) handlers.onError(payload.error);
         } catch {
           /* ignore malformed frame */
@@ -95,4 +106,37 @@ export async function streamTextGeneration(
   } finally {
     reader.releaseLock();
   }
+}
+
+/** Stream a text-post generation. Resolves on [DONE], error, or abort. */
+export async function streamTextGeneration(
+  workspaceId: string,
+  body: TextStreamBody,
+  handlers: StreamHandlers<SSEMetaFrame["meta"]>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await openStream(
+    `/api/workspaces/${workspaceId}/generate/text`,
+    body,
+    handlers.onError,
+    signal,
+  );
+  if (response) await readFrames(response, handlers);
+}
+
+/** Stream an image-card generation: copy streams as text, the terminal meta
+ *  carries the structured fields + image keywords. */
+export async function streamCardGeneration(
+  workspaceId: string,
+  body: CardStreamBody,
+  handlers: StreamHandlers<SSECardMetaFrame["meta"]>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await openStream(
+    `/api/workspaces/${workspaceId}/generate/card`,
+    body,
+    handlers.onError,
+    signal,
+  );
+  if (response) await readFrames(response, handlers);
 }

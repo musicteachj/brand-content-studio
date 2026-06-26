@@ -34,16 +34,75 @@ class Length(str, Enum):
     long = "long"
 
 
+class CardTemplate(str, Enum):
+    """The three card archetypes (DESIGN §4 template picker). The user picks one
+    explicitly — there is no auto-select."""
+
+    photo_led = "photo-led"
+    statement = "statement"
+    quote = "quote"
+
+
 class TextGenerateRequest(BaseModel):
     brief: str = Field(min_length=3, max_length=2000)
     tone: Tone = Tone.default
     length: Length = Length.medium
 
 
+class CardGenerateRequest(BaseModel):
+    brief: str = Field(min_length=3, max_length=2000)
+    template_id: CardTemplate = CardTemplate.photo_led
+    tone: Tone = Tone.default
+
+
 class TextOutput(BaseModel):
     post_text: str
     hashtags: list[str] = Field(default_factory=list)
     char_count: int = 0
+
+
+class CardFields(BaseModel):
+    """The structured card copy, obtained via Anthropic tool-use (not parsed from
+    the stream — ARCHITECTURE gotcha #8)."""
+
+    eyebrow: str = ""
+    headline: str = ""
+    body: str = ""
+    cta: str = ""
+    hashtag: str = ""
+
+
+class ImageAttribution(BaseModel):
+    """Required when an image's source is Unsplash — rendered on the card AND in
+    the picker (license requirement, ARCHITECTURE gotcha #4)."""
+
+    author: str
+    author_url: str
+    source_url: str
+
+
+class CardImage(BaseModel):
+    source: str  # "unsplash" | "upload"
+    url: Optional[str] = None
+    storage_key: Optional[str] = None
+    unsplash_id: Optional[str] = None
+    attribution: Optional[ImageAttribution] = None  # required when source == "unsplash"
+
+
+class CardOutput(BaseModel):
+    template_id: CardTemplate = CardTemplate.photo_led
+    fields: CardFields = Field(default_factory=CardFields)
+    image: Optional[CardImage] = None
+    suggested_keywords: list[str] = Field(default_factory=list)
+
+
+class GenerationUpdate(BaseModel):
+    """Partial update applied to a card generation's `output` — Phase 1b attaches
+    the selected image; Phase 1.5 extends this to inline field/template edits."""
+
+    template_id: Optional[CardTemplate] = None
+    fields: Optional[CardFields] = None
+    image: Optional[CardImage] = None
 
 
 class RetrievalMetaItem(BaseModel):

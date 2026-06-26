@@ -53,6 +53,15 @@ def _override_workspace(ready_chunk_count: int) -> None:
 
 
 URL = f"/api/workspaces/{WORKSPACE_OID}/generate/text"
+CARD_URL = f"/api/workspaces/{WORKSPACE_OID}/generate/card"
+
+
+def _sse_frames(text: str) -> list[str]:
+    return [
+        line[len("data: ") :]
+        for line in text.splitlines()
+        if line.startswith("data: ")
+    ]
 
 
 @pytest.mark.asyncio
@@ -95,3 +104,48 @@ async def test_generate_text_persists_retrieved_chunk_ids(client, test_db):
     assert doc["retrieved_chunk_ids"], "retrieved chunk ids persisted"
     assert doc["retrieval_meta"], "retrieval snapshot persisted"
     assert doc["output"]["post_text"]
+
+
+@pytest.mark.asyncio
+async def test_empty_corpus_blocks_card_generation(client):
+    _override_workspace(ready_chunk_count=0)
+    resp = await client.post(
+        CARD_URL, json={"brief": "Hempcrete", "template_id": "photo-led", "tone": "default"}
+    )
+    assert resp.status_code == 409
+    assert client.fake_gen.calls == []  # Claude must not have been called
+
+
+@pytest.mark.asyncio
+async def test_generate_card_streams_copy_then_persists_fields(client, test_db):
+    _override_workspace(ready_chunk_count=12)
+    resp = await client.post(
+        CARD_URL,
+        json={"brief": "Hempcrete embodied carbon", "template_id": "statement", "tone": "confident"},
+    )
+    assert resp.status_code == 200
+
+    frames = _sse_frames(resp.text)
+    assert frames[-1] == "[DONE]"
+    payloads = [json.loads(f) for f in frames if f != "[DONE]"]
+    assert any("text" in p for p in payloads), "copy streamed as text frames"
+
+    meta_frames = [p["meta"] for p in payloads if "meta" in p]
+    assert len(meta_frames) == 1
+    meta = meta_frames[0]
+    assert meta["template_id"] == "statement"
+    assert meta["fields"]["headline"], "structured fields returned via tool-use"
+    assert meta["suggested_keywords"], "image keywords returned"
+    assert meta["retrieval"]["retrieved"], "retrieval debug payload present"
+    assert client.fake_gen.card_field_calls, "tool-use extraction was called"
+
+    # Persisted as a card generation, image null until selected, keywords stored.
+    doc = await test_db.generations.find_one({"_id": ObjectId(meta["generation_id"])})
+    assert doc is not None
+    assert doc["type"] == "card"
+    assert doc["status"] == "complete"
+    assert doc["output"]["template_id"] == "statement"
+    assert doc["output"]["fields"]["headline"]
+    assert doc["output"]["image"] is None
+    assert doc["output"]["suggested_keywords"]
+    assert doc["retrieved_chunk_ids"], "retrieved chunk ids persisted"

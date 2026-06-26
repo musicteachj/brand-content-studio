@@ -80,9 +80,20 @@ export default {
           from: { opacity: "0", transform: "translateY(12px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-in-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both",
+        // Image picker panel (DESIGN §5): slides in from the right, 250ms ease-out.
+        "slide-in-right": "slide-in-right 0.25s ease-out both",
+        "fade-in": "fade-in 0.2s ease-out both",
       },
     },
   },

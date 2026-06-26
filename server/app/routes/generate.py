@@ -14,11 +14,15 @@ from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.generation import TextGenerateRequest
-from app.prompts import text_post
+from app.models.generation import CardGenerateRequest, TextGenerateRequest
+from app.prompts import image_card, text_post
 from app.rag.vector_store import get_vector_store
 from app.services import generations_service, retrieval_service
-from app.services.generation_service import GenerationService, parse_post
+from app.services.generation_service import (
+    GenerationService,
+    build_card_output,
+    parse_post,
+)
 from app.utils.dependencies import get_workspace_or_404
 
 router = APIRouter()
@@ -83,6 +87,88 @@ async def generate_text(
             )
             yield _frame(
                 {"meta": {"generation_id": str(doc["_id"]), "retrieval": result.envelope()}}
+            )
+        except Exception as exc:  # surface to the client without crashing the stream
+            yield _frame({"error": str(exc)})
+        finally:
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(), media_type="text/event-stream", headers=_SSE_HEADERS
+    )
+
+
+@router.post("/card")
+async def generate_card(
+    payload: CardGenerateRequest,
+    service: GenerationService = Depends(),
+    workspace: dict = Depends(get_workspace_or_404),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Stream card copy for the live typing effect, then resolve the structured
+    fields + image keywords via a forced tool-use call (ARCHITECTURE gotcha #8).
+    Frame shapes mirror /text: `{text}` deltas → terminal `{meta}` → `[DONE]`."""
+    if int(workspace.get("ready_chunk_count", 0)) <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workspace has no ingested brand assets yet. Ingest assets first.",
+        )
+
+    namespace = workspace["vector_namespace"]
+    brand_profile = workspace.get("brand_profile") or {}
+    voice_summary = brand_profile.get("voice_summary")
+    template_id = payload.template_id.value
+
+    async def event_stream() -> AsyncGenerator[str, None]:
+        parts: list[str] = []
+        try:
+            result = await retrieval_service.retrieve(
+                get_vector_store(), namespace, payload.brief, k=6
+            )
+            if not result.chunks:
+                yield _frame({"error": "No brand context could be retrieved for this brief."})
+                return
+
+            copy_system = image_card.build_copy_system(voice_summary)
+            copy_user = image_card.build_copy_user(
+                payload.brief, payload.template_id, payload.tone, result.chunks
+            )
+            async for delta in service.stream_copy(copy_system, copy_user):
+                parts.append(delta)
+                yield _frame({"text": delta})
+
+            copy = "".join(parts).strip()
+            if not copy:
+                yield _frame({"error": "The model returned an empty response. Try again."})
+                return
+
+            extracted = await service.extract_card_fields(
+                image_card.build_fields_system(),
+                image_card.build_fields_user(payload.brief, payload.template_id, copy),
+            )
+            output = build_card_output(template_id, extracted)
+
+            doc = await generations_service.create_generation(
+                db,
+                workspace_oid=workspace["_id"],
+                owner_oid=workspace["owner_id"],
+                type="card",
+                brief=payload.brief,
+                status="complete",
+                output=output,
+                retrieved_chunk_ids=result.chunk_ids,
+                retrieval_meta=result.meta,
+            )
+            yield _frame(
+                {
+                    "meta": {
+                        "generation_id": str(doc["_id"]),
+                        "template_id": template_id,
+                        "fields": output["fields"],
+                        "suggested_keywords": output["suggested_keywords"],
+                        "retrieval": result.envelope(),
+                    }
+                }
             )
         except Exception as exc:  # surface to the client without crashing the stream
             yield _frame({"error": str(exc)})
