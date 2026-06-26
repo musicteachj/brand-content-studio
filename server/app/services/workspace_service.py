@@ -9,7 +9,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
-from app.models.common import serialize_doc, utcnow
+from app.models.common import BrandLogo, serialize_doc, utcnow
 from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
@@ -95,6 +95,44 @@ async def update_workspace(
     await db.workspaces.update_one({"_id": doc["_id"]}, {"$set": updates})
     doc.update(updates)
     return _to_response(doc)
+
+
+async def set_workspace_logo(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, logo: BrandLogo
+) -> Optional[WorkspaceResponse]:
+    """Set just `brand_profile.logo` (a targeted update, so it never clobbers the
+    rest of the profile). Returns the updated workspace, or None if not owned."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {"brand_profile.logo": logo.model_dump(), "updated_at": now}},
+    )
+    doc.setdefault("brand_profile", {})["logo"] = logo.model_dump()
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
+async def clear_workspace_logo(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str
+) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+    """Unset `brand_profile.logo`. Returns the updated workspace plus the old
+    storage key (so the caller can delete the stored bytes), or None if not owned."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    old = (doc.get("brand_profile") or {}).get("logo") or {}
+    old_key = old.get("storage_key")
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$set": {"brand_profile.logo": None, "updated_at": now}},
+    )
+    doc.setdefault("brand_profile", {})["logo"] = None
+    doc["updated_at"] = now
+    return _to_response(doc), old_key
 
 
 async def delete_workspace(db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str) -> bool:

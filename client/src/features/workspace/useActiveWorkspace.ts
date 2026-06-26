@@ -3,8 +3,11 @@ import { useWorkspaces } from "@/api/workspaces";
 import { useWorkspaceStore } from "@/stores/workspace";
 import type { Workspace } from "@/types";
 
-/** Resolves the active workspace, auto-selecting the first one when none is
- *  chosen yet (Phase 1a is single-workspace per user). */
+/** Resolves the active workspace (Phase 4: multi-workspace). The persisted
+ *  `activeId` wins when it still points at an existing workspace, so an explicit
+ *  switch survives reload; we only fall back to the first workspace when nothing
+ *  is chosen yet or the stored id is stale (e.g. after a delete), persisting that
+ *  recovery so the UI and store stay in sync. */
 export function useActiveWorkspace() {
   const { data: workspaces, isLoading, isError } = useWorkspaces();
   const activeId = useWorkspaceStore((s) => s.activeId);

@@ -182,10 +182,23 @@ foreground/background pairs for contrast independently per theme.
     (`DeckPreview` — title slide → content slides → closing, → `.pptx`). Both render from the one
     `DocumentModel` in workspace colors/fonts, mirroring the generated file; `compact` (title-slide /
     header-only) drives History thumbnails. The download row shows whichever formats the archetype built.
-- **Settings page (Phase 1.5) — quiet appearance controls.** Sectioned, single-column, `max-w-2xl`:
+- **Settings page — appearance + brand management.** Sectioned, single-column, `max-w-2xl`:
   a **Theme** segmented control (Light / Dark / System), a **Brand color tint** pill switch (the
-  optional workspace `--accent` override, default on; cosmetic only), and a read-only **Brand identity**
-  card (palette swatches + workspace fonts). No account or destructive controls.
+  optional workspace `--accent` override, default on; cosmetic only), a **Workspaces** section, and a
+  **Brand identity** card.
+  - **Workspaces section (Phase 4a):** a bordered list of the owner's workspaces — active badge,
+    inline **rename**, and **delete** (confirm Dialog, keeps ≥1) — plus a **New workspace** button
+    routing to `/setup`. Anchored `#workspaces` (the switcher's "Manage workspaces" deep-links here).
+  - **Brand identity card (Phase 4b):** read-only by default (palette swatches + accent marker +
+    fonts + voice + logo) with an **Edit** affordance that reveals the editable form (palette CRUD with
+    a native color-picker swatch, accent-from-palette select, font inputs, voice textarea, logo
+    upload/preview/remove). Logo saves immediately; field edits save on **Save changes**. Disabled for
+    the demo user. Resolved in [DECISIONS.md](./DECISIONS.md) #23.
+- **Workspace switcher (Phase 4a) — TopBar dropdown.** Replaces the static workspace name in the top
+  bar: the `Workspace` eyebrow + active name become a dropdown trigger (chevron) listing the owner's
+  workspaces (active check), then **New workspace** and **Manage workspaces**. Switching persists the
+  active id (survives reload); create/manage are demo-aware. Built on a Folio `dropdown-menu` wrapper
+  over Radix (`z-dropdown`, surface/border/`shadow-heavy`, matching the Dialog).
 - **Generation loading state:** Skeleton shimmer on card text areas only (warm, not blue). Image slot
   shows a neutral placeholder until Unsplash result loads. No full-page spinners.
 - **Ingestion progress indicator:** Compact status bar in the Asset Manager when a new document is being

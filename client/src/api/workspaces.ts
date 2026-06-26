@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Workspace } from "@/types";
+import type { BrandProfile, Workspace } from "@/types";
 
 export function useWorkspaces() {
   return useQuery({
@@ -30,5 +30,63 @@ export function useCreateWorkspace() {
     mutationFn: async (input: CreateWorkspaceInput) =>
       (await api.post<Workspace>("/workspaces", input)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] }),
+  });
+}
+
+// PATCH merges partial updates server-side. `brand_profile` is REPLACED whole
+// (not deep-merged) — send the full profile when editing it (workspace_service.py).
+export interface UpdateWorkspaceInput {
+  name?: string;
+  brand_profile?: BrandProfile;
+}
+
+export function useUpdateWorkspace(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UpdateWorkspaceInput) =>
+      (await api.patch<Workspace>(`/workspaces/${workspaceId}`, input)).data,
+    onSuccess: (ws) => {
+      qc.invalidateQueries({ queryKey: ["workspace", ws.id] });
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
+    },
+  });
+}
+
+export function useDeleteWorkspace() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (workspaceId: string) => {
+      await api.delete(`/workspaces/${workspaceId}`);
+      return workspaceId;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] }),
+  });
+}
+
+function invalidateWorkspace(qc: ReturnType<typeof useQueryClient>, ws: Workspace) {
+  qc.invalidateQueries({ queryKey: ["workspace", ws.id] });
+  qc.invalidateQueries({ queryKey: ["workspaces"] });
+}
+
+// Logo upload/delete use a targeted server-side update of brand_profile.logo
+// (they never clobber the rest of the profile), so they persist immediately,
+// separate from the brand-editor Save.
+export function useUploadLogo(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<Workspace>(`/workspaces/${workspaceId}/logo`, form)).data;
+    },
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useDeleteLogo(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.delete<Workspace>(`/workspaces/${workspaceId}/logo`)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
   });
 }

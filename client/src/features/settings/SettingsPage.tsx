@@ -1,8 +1,11 @@
+import { useEffect } from "react";
 import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
-import type { BrandProfile } from "@/types";
+import { BrandIdentityEditor } from "./BrandIdentityEditor";
+import { WorkspacesSection } from "./WorkspacesSection";
 
 const THEMES: { value: ThemePref; label: string; icon: LucideIcon }[] = [
   { value: "light", label: "Light", icon: Sun },
@@ -19,6 +22,13 @@ export function SettingsPage() {
   const setTheme = useSettingsStore((s) => s.setTheme);
   const brandTint = useSettingsStore((s) => s.brandTint);
   const setBrandTint = useSettingsStore((s) => s.setBrandTint);
+  const { hash } = useLocation();
+
+  // Deep-link from the workspace switcher's "Manage workspaces" (/settings#workspaces).
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+  }, [hash]);
 
   const brand = workspace?.brand_profile ?? null;
   const primary = brand?.colors.find((c) => c.role === "primary")?.hex ?? null;
@@ -87,12 +97,20 @@ export function SettingsPage() {
         </div>
       </Section>
 
-      {brand && (
+      <Section
+        id="workspaces"
+        title="Workspaces"
+        hint="Switch from the top bar; rename or delete here. Each workspace is an isolated brand."
+      >
+        <WorkspacesSection />
+      </Section>
+
+      {workspace && (
         <Section
           title="Brand identity"
-          hint={`Read-only — from ${workspace?.name ?? "the workspace"}.`}
+          hint={`The palette, fonts, voice, and logo for ${workspace.name}. These drive generated cards — not the app chrome.`}
         >
-          <BrandIdentity brand={brand} />
+          <BrandIdentityEditor workspace={workspace} />
         </Section>
       )}
     </div>
@@ -100,16 +118,18 @@ export function SettingsPage() {
 }
 
 function Section({
+  id,
   title,
   hint,
   children,
 }: {
+  id?: string;
   title: string;
   hint: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 animate-fade-in-up">
+    <section id={id} className="flex flex-col gap-3 animate-fade-in-up scroll-mt-6">
       <div>
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
@@ -148,58 +168,5 @@ function Toggle({
         )}
       />
     </button>
-  );
-}
-
-function BrandIdentity({ brand }: { brand: BrandProfile }) {
-  const fonts = [
-    ["Heading", brand.fonts.heading],
-    ["Body", brand.fonts.body],
-    ["Mono", brand.fonts.mono],
-  ].filter(([, v]) => v) as [string, string][];
-
-  return (
-    <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-light">
-      <div className="flex flex-col gap-2.5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Colors
-        </span>
-        <div className="flex flex-wrap gap-3">
-          {brand.colors.map((c) => (
-            <div key={`${c.hex}-${c.name}`} className="flex items-center gap-2">
-              <span
-                className="h-7 w-7 rounded-md border border-border"
-                style={{ backgroundColor: c.hex }}
-                aria-hidden
-              />
-              <div className="flex flex-col leading-tight">
-                <span className="text-xs font-medium text-foreground">{c.name}</span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                  {c.hex}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {fonts.length > 0 && (
-        <div className="flex flex-col gap-2.5 border-t border-border pt-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Typography
-          </span>
-          <dl className="flex flex-col gap-1.5">
-            {fonts.map(([role, name]) => (
-              <div key={role} className="flex items-baseline justify-between gap-4">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                  {role}
-                </dt>
-                <dd className="text-sm text-foreground">{name}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-    </div>
   );
 }
