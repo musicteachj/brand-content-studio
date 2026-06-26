@@ -65,6 +65,38 @@ def _sse_frames(text: str) -> list[str]:
     ]
 
 
+def _workspace_with_exemplars() -> dict:
+    return {
+        "_id": WORKSPACE_OID,
+        "owner_id": OWNER_OID,
+        "vector_namespace": NS_A,
+        "ready_chunk_count": 12,
+        "brand_profile": {
+            "voice_summary": "Grounded, data-first voice.",
+            "exemplars": [
+                {
+                    "id": "e1",
+                    "storage_key": "k",
+                    "url": None,
+                    "style_note": "Punchy hook, earthy photography.",
+                }
+            ],
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_text_generation_injects_exemplar_guidance(client):
+    app.dependency_overrides[get_workspace_or_404] = lambda: _workspace_with_exemplars()
+    resp = await client.post(
+        URL, json={"brief": "hempcrete", "tone": "default", "length": "medium"}
+    )
+    assert resp.status_code == 200
+    system_prompt = client.fake_gen.calls[0][0]  # (system, user) of stream_text
+    assert "Punchy hook, earthy photography." in system_prompt
+    assert "examples to emulate" in system_prompt.lower()
+
+
 @pytest.mark.asyncio
 async def test_empty_corpus_blocks_generation(client):
     _override_workspace(ready_chunk_count=0)

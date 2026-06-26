@@ -82,3 +82,32 @@ BRAND_EXTRACT_TOOL = {
         "required": ["colors", "voice_summary", "fonts"],
     },
 }
+
+
+_EXEMPLAR_SYSTEM = """You are a brand designer studying one of a brand's own past social cards (the attached image). In 1-3 sentences, describe the STYLE to emulate when writing new on-brand cards: the copy patterns (hook, rhythm, length, diction, how the CTA reads) and the visual direction (mood, composition, imagery). Describe patterns to emulate through our own card templates — do NOT instruct a pixel-faithful copy of this exact layout, and do not invent facts. Call the exemplar_note tool with one concise note."""
+
+
+def build_exemplar_system() -> str:
+    return _EXEMPLAR_SYSTEM
+
+
+def build_exemplar_user() -> str:
+    return "Study the attached brand card and record a concise style note to emulate in future cards."
+
+
+EXEMPLAR_NOTE_TOOL = {
+    "name": "exemplar_note",
+    "description": "Record a concise style note (copy + visual direction) to emulate from a past brand card.",
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "style_note": {
+                "type": "string",
+                "description": "1-3 sentences on the copy patterns and visual direction to emulate.",
+            }
+        },
+        "required": ["style_note"],
+    },
+}

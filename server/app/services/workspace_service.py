@@ -9,10 +9,12 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
-from app.models.common import BrandLogo, serialize_doc, utcnow
+from app.models.common import BrandExemplar, BrandLogo, serialize_doc, utcnow
 from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
+
+MAX_EXEMPLARS = 5
 
 
 def _slugify(name: str) -> str:
@@ -131,6 +133,45 @@ async def clear_workspace_logo(
         {"$set": {"brand_profile.logo": None, "updated_at": now}},
     )
     doc.setdefault("brand_profile", {})["logo"] = None
+    doc["updated_at"] = now
+    return _to_response(doc), old_key
+
+
+async def add_workspace_exemplar(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, exemplar: BrandExemplar
+) -> Optional[WorkspaceResponse]:
+    """Append an exemplar to `brand_profile.exemplars` (targeted $push)."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$push": {"brand_profile.exemplars": exemplar.model_dump()}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp.setdefault("exemplars", []).append(exemplar.model_dump())
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
+async def remove_workspace_exemplar(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, exemplar_id: str
+) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+    """Pull an exemplar by id; return the updated workspace + its storage key (so
+    the caller can delete the bytes), or None if not owned."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    exemplars = (doc.get("brand_profile") or {}).get("exemplars") or []
+    old_key = next((e.get("storage_key") for e in exemplars if e.get("id") == exemplar_id), None)
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$pull": {"brand_profile.exemplars": {"id": exemplar_id}}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp["exemplars"] = [e for e in exemplars if e.get("id") != exemplar_id]
     doc["updated_at"] = now
     return _to_response(doc), old_key
 

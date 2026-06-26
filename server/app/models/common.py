@@ -30,6 +30,16 @@ class BrandLogo(BaseModel):
     url: Optional[str] = None
 
 
+class BrandExemplar(BaseModel):
+    """A past on-brand card the owner uploaded; we store the image + a short
+    extracted style note that steers generation (Phase 4c)."""
+
+    id: str
+    storage_key: str
+    url: Optional[str] = None
+    style_note: str
+
+
 class BrandProfile(BaseModel):
     """Workspace brand identity. These fonts/colors drive the card preview —
     never the app's own Folio chrome (DESIGN.md §7)."""
@@ -39,6 +49,7 @@ class BrandProfile(BaseModel):
     fonts: BrandFonts = Field(default_factory=BrandFonts)
     logo: Optional[BrandLogo] = None
     voice_summary: Optional[str] = None  # cached blurb injected into the prompt header
+    exemplars: list[BrandExemplar] = Field(default_factory=list)
 
 
 def serialize_doc(doc: dict[str, Any]) -> dict[str, Any]:
