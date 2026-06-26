@@ -76,6 +76,7 @@ export async function downloadCardPng(output: CardOutput, brand: BrandProfile): 
     brand,
     imageSrc,
     attribution: output.image?.attribution ?? null,
+    accentHex: output.accent_hex,
   });
   const png = await svgToPng(svg);
   downloadBlob(png, cardPngName(output.fields.headline));
@@ -103,6 +104,7 @@ export function useCardSvg(enabled: boolean, props: CardElementProps) {
   const key = JSON.stringify({
     t: props.template,
     f: props.fields,
+    a: props.accentHex ?? null,
     img: props.imageSrc ? props.imageSrc.length : null,
     attr: props.attribution,
     fonts: props.brand.fonts,

@@ -5,7 +5,9 @@ import { streamCardGeneration, type CardStreamBody } from "@/lib/sse";
 import type {
   CardFields,
   CardImage,
+  CardOutput,
   CardTemplate,
+  Generation,
   RetrievalEnvelope,
   SSECardMetaFrame,
   UnsplashPhoto,
@@ -19,6 +21,7 @@ interface State {
   fields: CardFields | null; // structured fields (from tool-use, on done)
   suggestedKeywords: string[];
   templateId: CardTemplate;
+  accentHex: string | null; // per-card accent (null for a fresh card; set on history hydrate)
   generationId: string | null;
   retrieval: RetrievalEnvelope | null;
   image: CardImage | null; // persisted shape
@@ -33,6 +36,7 @@ const initial = (templateId: CardTemplate): State => ({
   fields: null,
   suggestedKeywords: [],
   templateId,
+  accentHex: null,
   generationId: null,
   retrieval: null,
   image: null,
@@ -94,6 +98,39 @@ export function useCardGeneration(workspaceId: string | null) {
     },
     [workspaceId],
   );
+
+  /** Load a persisted card generation (re-opened from History) into a "done"
+   *  state so it can be customized — layout/accent/copy edits and image swaps —
+   *  with NO model call. Image bytes are fetched fresh for render/export. */
+  const loadGeneration = useCallback(async (gen: Generation) => {
+    if (gen.type !== "card") return;
+    abortRef.current?.abort();
+    const out = gen.output as unknown as CardOutput;
+    // The image is already persisted on this generation, so suppress the
+    // auto-PATCH effect for it (only a *new* selection should re-PATCH).
+    const imageKey = out.image?.unsplash_id ?? out.image?.storage_key ?? "none";
+    persistedKeyRef.current = `${gen.id}:${imageKey}`;
+    setState({
+      ...initial(out.template_id),
+      status: "done",
+      fields: out.fields,
+      suggestedKeywords: out.suggested_keywords ?? [],
+      templateId: out.template_id,
+      accentHex: out.accent_hex ?? null,
+      generationId: gen.id,
+      image: out.image ?? null,
+    });
+    if (out.image?.url) {
+      try {
+        const dataUrl = await fetchImageDataUrl(out.image.url);
+        setState((s) => (s.generationId === gen.id ? { ...s, imageDataUrl: dataUrl } : s));
+      } catch {
+        setState((s) =>
+          s.generationId === gen.id ? { ...s, imageError: "Couldn’t load the image." } : s,
+        );
+      }
+    }
+  }, []);
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
@@ -170,5 +207,14 @@ export function useCardGeneration(workspaceId: string | null) {
       });
   }, [workspaceId, state.generationId, state.image]);
 
-  return { ...state, generate, stop, reset, selectUnsplash, selectUpload, clearImage };
+  return {
+    ...state,
+    generate,
+    loadGeneration,
+    stop,
+    reset,
+    selectUnsplash,
+    selectUpload,
+    clearImage,
+  };
 }

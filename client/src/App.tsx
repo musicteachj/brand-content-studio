@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/ComingSoon";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { AssetsPage } from "@/features/assets/AssetsPage";
 import { GeneratePage } from "@/features/generate/GeneratePage";
 import { HistoryPage } from "@/features/history/HistoryPage";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 import { WorkspaceSetupPage } from "@/features/workspace-setup/WorkspaceSetupPage";
 import { useAuthStore } from "@/stores/auth";
 
@@ -37,7 +37,7 @@ export default function App() {
         <Route path="generate" element={<GeneratePage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="assets" element={<AssetsPage />} />
-        <Route path="settings" element={<ComingSoon title="Settings" phase="Phase 1.5" />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

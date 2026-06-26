@@ -7,7 +7,8 @@
 // ways: the live DOM typing preview, the locked Satori preview, and the PNG
 // export. Because all three consume the same element + the same fonts, the
 // preview equals the export by construction (ARCHITECTURE §5).
-import type { CSSProperties, ReactElement } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactElement } from "react";
+import { fitTextSize } from "@/features/generate/cards/fitText";
 import { bodyFamily, headingFamily } from "@/styles/brandFonts";
 import type { BrandProfile, CardFields, CardTemplate, ImageAttribution } from "@/types";
 
@@ -30,14 +31,25 @@ function roleHex(brand: BrandProfile, role: string, fallback: string): string {
   return brand.colors.find((c) => c.role === role)?.hex ?? fallback;
 }
 
-export function cardColors(brand: BrandProfile): CardColors {
+/** Resolve the card's three working colors. A per-card `accentOverride` (Phase
+ *  1.5 accent toggle) wins over the workspace `--accent` tint, which wins over
+ *  the brand's accent/secondary role. The override is validated against the
+ *  palette server-side, so it is always an on-brand color. */
+export function cardColors(brand: BrandProfile, accentOverride?: string | null): CardColors {
   const ink = roleHex(brand, "primary", "#1C3A2E");
   const paper = roleHex(brand, "neutral", "#F4F1E9");
-  const accent =
+  const fallbackAccent =
     brand.accent_hex && brand.accent_hex !== ink
       ? brand.accent_hex
       : roleHex(brand, "accent", roleHex(brand, "secondary", "#C98A3D"));
+  const accent = accentOverride && accentOverride !== ink ? accentOverride : fallbackAccent;
   return { ink, paper, accent };
+}
+
+/** When present (DOM edit mode only — never Satori/export), the card's text
+ *  fields render as in-place contentEditable nodes wired to `onEdit`. */
+export interface CardEditHandlers {
+  onEdit: (key: keyof CardFields, value: string) => void;
 }
 
 export interface CardElementProps {
@@ -46,9 +58,36 @@ export interface CardElementProps {
   brand: BrandProfile;
   imageSrc: string | null; // data URL (export + DOM) for photo-led
   attribution: ImageAttribution | null;
+  accentHex?: string | null; // per-card accent override (Phase 1.5)
+  edit?: CardEditHandlers; // in-place inline editing (Phase 1.5); DOM-only
 }
 
 const PAD = 88;
+const INNER_W = CARD_W - PAD * 2;
+
+// Per-archetype headline fit: the design ("max") size and how much vertical room
+// the headline may take before it crowds the rest of the card. fitTextSize steps
+// down from max so long / swapped-in copy never clips (Phase 1.5).
+const HEADLINE_FIT: Record<
+  CardTemplate,
+  { max: number; min: number; lineHeight: number; boxHeight: number }
+> = {
+  "photo-led": { max: 80, min: 46, lineHeight: 1.04, boxHeight: 470 },
+  statement: { max: 94, min: 50, lineHeight: 1.02, boxHeight: 600 },
+  quote: { max: 70, min: 42, lineHeight: 1.16, boxHeight: 540 },
+};
+
+function headlineSize(template: CardTemplate, text: string): number {
+  const f = HEADLINE_FIT[template];
+  return fitTextSize({
+    text,
+    max: f.max,
+    min: f.min,
+    lineHeight: f.lineHeight,
+    boxWidth: INNER_W,
+    boxHeight: f.boxHeight,
+  });
+}
 
 // The brand web fonts are loaded as the "latin" subset, which has no arrows,
 // emoji, or symbol glyphs — Satori renders those as a missing-glyph box (tofu).
@@ -71,6 +110,71 @@ function cleanFields(fields: CardFields): CardFields {
     cta: cleanGlyphs(fields.cta),
     hashtag: cleanGlyphs(fields.hashtag),
   };
+}
+
+/** A single contentEditable card field. Uncontrolled: seeded once on mount and
+ *  never re-written from props, so the caret never jumps while typing; edits flow
+ *  out via `onInput`. Remount (via a `key` on the parent) re-seeds when the
+ *  generation/template changes. The placeholder + dashed affordance come from the
+ *  `.card-edit-field` class (index.css) so empty fields stay clickable. */
+function EditableText({
+  fieldKey,
+  initial,
+  style,
+  placeholder,
+  onEdit,
+}: {
+  fieldKey: keyof CardFields;
+  initial: string;
+  style: CSSProperties;
+  placeholder: string;
+  onEdit: CardEditHandlers["onEdit"];
+}): ReactElement {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && el.textContent !== initial) el.textContent = initial;
+    // Seed once; intentionally not reacting to `initial` changes (would reset caret).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-label={placeholder}
+      data-placeholder={placeholder}
+      tabIndex={0}
+      spellCheck={false}
+      onInput={(e) => onEdit(fieldKey, e.currentTarget.textContent ?? "")}
+      className="card-edit-field"
+      style={{ ...style, whiteSpace: "pre-wrap" }}
+    />
+  );
+}
+
+/** Render a card text field: an editable node in edit mode, else the static text
+ *  (hidden when empty, matching the locked layout). */
+function text(
+  edit: CardEditHandlers | undefined,
+  key: keyof CardFields,
+  value: string,
+  style: CSSProperties,
+  placeholder: string,
+): ReactElement | null {
+  if (edit) {
+    return (
+      <EditableText
+        fieldKey={key}
+        initial={value}
+        style={style}
+        placeholder={placeholder}
+        onEdit={edit.onEdit}
+      />
+    );
+  }
+  return value ? <div style={style}>{value}</div> : null;
 }
 
 function eyebrowStyle(color: string, body: string): CSSProperties {
@@ -105,8 +209,8 @@ function attributionEl(attribution: ImageAttribution, color: string, body: strin
 }
 
 function PhotoLed(props: CardElementProps): ReactElement {
-  const { fields, brand, imageSrc, attribution } = props;
-  const c = cardColors(brand);
+  const { fields, brand, imageSrc, attribution, edit } = props;
+  const c = cardColors(brand, props.accentHex);
   const heading = headingFamily(brand.fonts);
   const body = bodyFamily(brand.fonts);
   return (
@@ -150,40 +254,47 @@ function PhotoLed(props: CardElementProps): ReactElement {
           bottom: 96,
         }}
       >
-        {fields.eyebrow ? (
-          <div style={{ ...eyebrowStyle(c.accent, body), marginBottom: 22 }}>{fields.eyebrow}</div>
-        ) : null}
-        <div
-          style={{
+        {text(
+          edit,
+          "eyebrow",
+          fields.eyebrow,
+          { ...eyebrowStyle(c.accent, body), marginBottom: 22 },
+          "Eyebrow",
+        )}
+        {text(
+          edit,
+          "headline",
+          fields.headline,
+          {
             fontFamily: heading,
-            fontSize: 80,
+            fontSize: headlineSize("photo-led", fields.headline),
             fontWeight: 700,
             lineHeight: 1.04,
             color: c.paper,
-          }}
-        >
-          {fields.headline}
-        </div>
-        {fields.body ? (
-          <div
-            style={{
-              fontFamily: body,
-              fontSize: 30,
-              lineHeight: 1.4,
-              color: c.paper,
-              opacity: 0.9,
-              marginTop: 26,
-            }}
-          >
-            {fields.body}
-          </div>
-        ) : null}
+          },
+          "Headline",
+        )}
+        {text(
+          edit,
+          "body",
+          fields.body,
+          {
+            fontFamily: body,
+            fontSize: 30,
+            lineHeight: 1.4,
+            color: c.paper,
+            opacity: 0.9,
+            marginTop: 26,
+          },
+          "Body",
+        )}
         <Footer
           cta={fields.cta}
           hashtag={fields.hashtag}
           color={c.paper}
           accent={c.accent}
           body={body}
+          edit={edit}
         />
       </div>
       {attribution ? attributionEl(attribution, c.paper, body) : null}
@@ -192,8 +303,8 @@ function PhotoLed(props: CardElementProps): ReactElement {
 }
 
 function Statement(props: CardElementProps): ReactElement {
-  const { fields, brand } = props;
-  const c = cardColors(brand);
+  const { fields, brand, edit } = props;
+  const c = cardColors(brand, props.accentHex);
   const heading = headingFamily(brand.fonts);
   const body = bodyFamily(brand.fonts);
   return (
@@ -211,7 +322,7 @@ function Statement(props: CardElementProps): ReactElement {
       }}
     >
       <div style={{ display: "flex" }}>
-        {fields.eyebrow ? <div style={eyebrowStyle(c.accent, body)}>{fields.eyebrow}</div> : null}
+        {text(edit, "eyebrow", fields.eyebrow, eyebrowStyle(c.accent, body), "Eyebrow")}
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div
@@ -223,31 +334,33 @@ function Statement(props: CardElementProps): ReactElement {
             marginBottom: 40,
           }}
         />
-        <div
-          style={{
+        {text(
+          edit,
+          "headline",
+          fields.headline,
+          {
             fontFamily: heading,
-            fontSize: 94,
+            fontSize: headlineSize("statement", fields.headline),
             fontWeight: 700,
             lineHeight: 1.02,
             color: c.paper,
-          }}
-        >
-          {fields.headline}
-        </div>
-        {fields.body ? (
-          <div
-            style={{
-              fontFamily: body,
-              fontSize: 30,
-              lineHeight: 1.45,
-              color: c.paper,
-              opacity: 0.82,
-              marginTop: 34,
-            }}
-          >
-            {fields.body}
-          </div>
-        ) : null}
+          },
+          "Headline",
+        )}
+        {text(
+          edit,
+          "body",
+          fields.body,
+          {
+            fontFamily: body,
+            fontSize: 30,
+            lineHeight: 1.45,
+            color: c.paper,
+            opacity: 0.82,
+            marginTop: 34,
+          },
+          "Body",
+        )}
       </div>
       <Footer
         cta={fields.cta}
@@ -255,14 +368,15 @@ function Statement(props: CardElementProps): ReactElement {
         color={c.paper}
         accent={c.accent}
         body={body}
+        edit={edit}
       />
     </div>
   );
 }
 
 function Quote(props: CardElementProps): ReactElement {
-  const { fields, brand } = props;
-  const c = cardColors(brand);
+  const { fields, brand, edit } = props;
+  const c = cardColors(brand, props.accentHex);
   const heading = headingFamily(brand.fonts);
   const body = bodyFamily(brand.fonts);
   return (
@@ -280,9 +394,13 @@ function Quote(props: CardElementProps): ReactElement {
       }}
     >
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {fields.eyebrow ? (
-          <div style={{ ...eyebrowStyle(c.accent, body), marginBottom: 8 }}>{fields.eyebrow}</div>
-        ) : null}
+        {text(
+          edit,
+          "eyebrow",
+          fields.eyebrow,
+          { ...eyebrowStyle(c.accent, body), marginBottom: 8 },
+          "Eyebrow",
+        )}
         <div
           style={{
             display: "flex",
@@ -295,38 +413,35 @@ function Quote(props: CardElementProps): ReactElement {
           &ldquo;
         </div>
       </div>
-      <div
-        style={{
+      {text(
+        edit,
+        "headline",
+        fields.headline,
+        {
           fontFamily: heading,
-          fontSize: 70,
+          fontSize: headlineSize("quote", fields.headline),
           fontWeight: 400,
           lineHeight: 1.16,
           color: c.ink,
           marginTop: -40,
-        }}
-      >
-        {fields.headline}
-      </div>
+        },
+        "Headline",
+      )}
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {fields.body ? (
-          <div
-            style={{
-              fontFamily: body,
-              fontSize: 27,
-              color: c.ink,
-              opacity: 0.75,
-              marginBottom: 18,
-            }}
-          >
-            {fields.body}
-          </div>
-        ) : null}
+        {text(
+          edit,
+          "body",
+          fields.body,
+          { fontFamily: body, fontSize: 27, color: c.ink, opacity: 0.75, marginBottom: 18 },
+          "Body",
+        )}
         <Footer
           cta={fields.cta}
           hashtag={fields.hashtag}
           color={c.ink}
           accent={c.accent}
           body={body}
+          edit={edit}
         />
       </div>
     </div>
@@ -339,14 +454,18 @@ function Footer({
   color,
   accent,
   body,
+  edit,
 }: {
   cta: string;
   hashtag: string;
   color: string;
   accent: string;
   body: string;
+  edit?: CardEditHandlers;
 }): ReactElement | null {
-  if (!cta && !hashtag) return null;
+  // Locked render hides an empty footer; edit mode always shows both fields so
+  // they can be filled in.
+  if (!edit && !cta && !hashtag) return null;
   return (
     <div
       style={{
@@ -356,18 +475,31 @@ function Footer({
         marginTop: 38,
       }}
     >
-      <div style={{ fontFamily: body, fontSize: 28, fontWeight: 600, color }}>{cta}</div>
-      {hashtag ? (
-        <div style={{ fontFamily: body, fontSize: 26, color: accent }}>{hashtag}</div>
-      ) : null}
+      {text(
+        edit,
+        "cta",
+        cta,
+        { fontFamily: body, fontSize: 28, fontWeight: 600, color },
+        "Call to action",
+      ) ?? <div />}
+      {text(
+        edit,
+        "hashtag",
+        hashtag,
+        { fontFamily: body, fontSize: 26, color: accent },
+        "#hashtag",
+      )}
     </div>
   );
 }
 
 export function buildCardElement(props: CardElementProps): ReactElement {
   // Sanitize once here so every render path (preview, export, history thumbnail)
-  // is glyph-safe.
-  const safe: CardElementProps = { ...props, fields: cleanFields(props.fields) };
+  // is glyph-safe. While editing, keep the user's raw text so the caret/content
+  // isn't mutated mid-keystroke; the locked preview + export re-clean on save.
+  const safe: CardElementProps = props.edit
+    ? props
+    : { ...props, fields: cleanFields(props.fields) };
   switch (safe.template) {
     case "statement":
       return <Statement {...safe} />;
