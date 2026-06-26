@@ -199,6 +199,10 @@ foreground/background pairs for contrast independently per theme.
     a review panel (swatches + voice + fonts); **Apply to form** fills the fields for review, then the
     normal **Save changes** persists — the proposal is never auto-applied. Allowed for the demo user
     (generative preview, not a mutation).
+  - **Example cards (Phase 4c):** a separate "Example cards" Settings section — a list of uploaded
+    past brand cards (4:5 thumbnails + the extracted style note + remove) and an "Add example card"
+    upload that shows an extracting state. Persists immediately (like the logo); capped at 5 ("N of 5")
+    and demo-disabled. The notes steer generated copy via a trusted prompt block (DECISIONS #23).
 - **Workspace switcher (Phase 4a) — TopBar dropdown.** Replaces the static workspace name in the top
   bar: the `Workspace` eyebrow + active name become a dropdown trigger (chevron) listing the owner's
   workspaces (active check), then **New workspace** and **Manage workspaces**. Switching persists the

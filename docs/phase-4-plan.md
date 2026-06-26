@@ -1,11 +1,11 @@
 # Phase 4 — Brand setup & learning (slice plan)
 
-> **Status: PR-A (4a + 4b) merged to `dev` (PR #7). PR-B (4c auto-extract) built on
-> `feat/4c-brand-learning`.** Both gates green (PR-B: ruff + mypy + 58 pytest; tsc + eslint +
-> prettier + build + 39 vitest). Pending PR-B: live verify (real vision call) → Tier-2 review gate →
-> commit → push → PR into `dev`. **4c was split: PR-B = auto-extract (this); PR-C = exemplar
-> steering (deferred — it touches the generation pipeline).** Phase-boundary `dev → main` + tag
-> `v0.6.0` stays deferred per [bcs-phase-state] (releases cut closer to deploy).
+> **Status: PR-A (4a + 4b) + PR-B (4c auto-extract) merged to `dev` (PRs #7, #8). PR-C (4c
+> exemplar steering) built on `feat/4c-exemplars`.** PR-C gates green (ruff + mypy + 72 pytest;
+> tsc + eslint + prettier + build + 42 vitest). Pending PR-C: live verify (real vision call) →
+> Tier-2 review gate → owner commit/push approval → PR into `dev`. **4c was split: PR-B =
+> auto-extract; PR-C = exemplar steering.** Phase-boundary `dev → main` + tag `v0.6.0` stays
+> deferred per [bcs-phase-state] (releases cut closer to deploy).
 >
 > The second phase of the pre-deployment enhancements plan. Follows the approved roadmap
 > (LinkedIn-post objective → **brand setup & learning** → on-brand templates → robustness),
@@ -89,13 +89,25 @@ input for v1 (no PDF-raster dep); **demo allowed** for extract (apply stays demo
   replaces palette/fonts/voice, clears accent) → user reviews → **Save** (the existing PATCH). Never
   silently applied.
 
-## PR-C design (exemplar steering — deferred)
+## PR-C design (exemplar steering — built)
 
-- Uploaded past brand cards (images); vision extracts copy patterns + visual direction stored on the
-  workspace and injected as extra brand context into the generate prompts. **Honesty guard
-  (DECISIONS #23 / R2): approximate via our Satori archetypes — never pixel-clone.** Decide storage
-  shape (`brand_profile.exemplars` vs. a small collection) at the PR-C contract step. Branches off
-  `dev` after PR-B merges.
+Decisions (owner-confirmed): **pre-extract to text** on upload (not per-generation multimodal);
+**store on `brand_profile.exemplars`** (cap 5); inject into the **generate trio** (text/card/post).
+Full design: `docs/superpowers/specs/2026-06-26-exemplar-steering-design.md`; plan:
+`docs/superpowers/plans/2026-06-26-exemplar-steering.md`.
+
+- Upload a past card → one forced strict Claude **vision** tool-use call (`EXEMPLAR_NOTE_TOOL` in
+  `prompts/brand_extract.py`, `propose_exemplar_note` in `brand_extract_service`) extracts a short
+  `style_note`; stored on `brand_profile.exemplars` via targeted `add_workspace_exemplar`
+  (`$push`)/`remove_workspace_exemplar` (`$pull` + delete bytes). `POST`/`DELETE
+  /workspaces/{id}/exemplars` — same upload defenses as the logo, **409 at cap 5**, demo-blocked,
+  **extract-before-store** (a vision failure persists nothing).
+- At generation, `build_exemplar_guidance(notes)` joins the notes into a trusted block that
+  `text_post.build_system` / `image_card.build_copy_system` append after the voice summary; the three
+  generate routes pass it (post_pack's caption uses `text_post.build_system`).
+- Client: `useAddExemplar`/`useRemoveExemplar` + a Settings **Example cards** section
+  (`ExemplarsSection`) — thumbnails + notes + add/remove, disabled at cap / for demo.
+- **Honesty guard (DECISIONS #23 / R2): approximate via our Satori archetypes — never pixel-clone.**
 
 ---
 
