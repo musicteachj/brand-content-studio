@@ -158,6 +158,22 @@ foreground/background pairs for contrast independently per theme.
   action returns to the locked preview. Edits are ephemeral until Save (which `PATCH`es); export and the
   History re-export never call the model. The same editor hydrates a **re-opened History card** (a
   *Customize* action on the detail dialog), so layout/accent/copy/image edits work there too.
+- **Document mode (Phase 2) — the document is the hero, like the card.** A third Generate mode
+  (Text / Card / **Document**) reusing the brief box + retrieval debug panel. The card-preview hero is
+  swapped for a **`DocumentPreview`**: the draft streams as prose into a quiet "Drafting" panel
+  (`aria-live`, the same token-by-token motion as text/card — no extra animation), then resolves into the
+  branded one-pager **"paper"** (`DocumentPage`) on the `--preview-bg` surround. The paper renders in the
+  **workspace's own colors + fonts** (title/headings = brand primary, eyebrow/bullets = brand accent,
+  body = document ink on white — never Folio chrome, DESIGN §7); the on-screen page mirrors the generated
+  `.docx`/PDF by construction (one server-side `DocumentModel` drives both). A **format download row**
+  (`.docx` · PDF) sits under the page; each button pulls the pre-rendered file through the auth-gated
+  download route with **no model call**. In History, a document generation shows a compact thumbnail
+  (header-only) + the same multi-format download row on the grid card and the detail dialog.
+  - **Archetypes render in their own shape (`DocumentArtifact`):** the **one-pager** is "paper"
+    (`DocumentPage`, → `.docx`/PDF); the **short-deck** is a stack of branded 16:9 **slide cards**
+    (`DeckPreview` — title slide → content slides → closing, → `.pptx`). Both render from the one
+    `DocumentModel` in workspace colors/fonts, mirroring the generated file; `compact` (title-slide /
+    header-only) drives History thumbnails. The download row shows whichever formats the archetype built.
 - **Settings page (Phase 1.5) — quiet appearance controls.** Sectioned, single-column, `max-w-2xl`:
   a **Theme** segmented control (Light / Dark / System), a **Brand color tint** pill switch (the
   optional workspace `--accent` override, default on; cosmetic only), and a read-only **Brand identity**
