@@ -133,3 +133,13 @@ def build_card_output(template_id: str, extracted: dict) -> dict:
         "image": None,
         "suggested_keywords": [str(k).strip() for k in keywords if str(k).strip()][:6],
     }
+
+
+def build_post_pack_output(caption: str, template_id: str, extracted: dict) -> dict:
+    """Shape a post_pack `output` (Phase 3): the LinkedIn caption (TextOutput
+    shape) plus the matching card nested under `card` (CardOutput shape). The
+    card image is null until attached via PATCH — which targets `output.card`."""
+    return {
+        **parse_post(caption),
+        "card": build_card_output(template_id, extracted),
+    }

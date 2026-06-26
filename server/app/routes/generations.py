@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[GenerationResponse])
 async def list_generations(
-    type: str = Query("all", pattern="^(all|text|card|document)$"),
+    type: str = Query("all", pattern="^(all|text|card|document|post_pack)$"),
     workspace: dict = Depends(get_workspace_or_404),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
@@ -51,12 +51,18 @@ async def update_generation(
     existing = await generations_service.get_generation(db, workspace["_id"], generation_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
-    # These fields are card-only (image/template/fields); refuse to merge them into
-    # a text generation's output, which would corrupt its shape.
-    if existing.get("type") != "card":
+    # These fields are card-shaped (image/template/fields/accent). A `card` carries
+    # them at the top of `output`; a `post_pack` nests its card under `output.card`.
+    # Refuse anything else (text/document) — merging would corrupt its shape.
+    gen_type = existing.get("type")
+    if gen_type == "card":
+        nested_key = None
+    elif gen_type == "post_pack":
+        nested_key = "card"
+    else:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Only card generations can be edited.",
+            detail="Only card and post-pack generations can be edited.",
         )
     # The per-card accent must be one of the workspace's own brand-palette colors —
     # never an arbitrary hex (keeps cards on-brand; DESIGN §7).
@@ -73,7 +79,7 @@ async def update_generation(
                 detail="accent_hex must be one of the workspace's brand colors.",
             )
     doc = await generations_service.update_generation_output(
-        db, workspace["_id"], generation_id, patch
+        db, workspace["_id"], generation_id, patch, nested_key=nested_key
     )
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")

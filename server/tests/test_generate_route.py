@@ -54,6 +54,7 @@ def _override_workspace(ready_chunk_count: int) -> None:
 
 URL = f"/api/workspaces/{WORKSPACE_OID}/generate/text"
 CARD_URL = f"/api/workspaces/{WORKSPACE_OID}/generate/card"
+POST_URL = f"/api/workspaces/{WORKSPACE_OID}/generate/post"
 
 
 def _sse_frames(text: str) -> list[str]:
@@ -148,4 +149,50 @@ async def test_generate_card_streams_copy_then_persists_fields(client, test_db):
     assert doc["output"]["fields"]["headline"]
     assert doc["output"]["image"] is None
     assert doc["output"]["suggested_keywords"]
+    assert doc["retrieved_chunk_ids"], "retrieved chunk ids persisted"
+
+
+@pytest.mark.asyncio
+async def test_empty_corpus_blocks_post_pack(client):
+    _override_workspace(ready_chunk_count=0)
+    resp = await client.post(POST_URL, json={"brief": "Hempcrete", "tone": "default"})
+    assert resp.status_code == 409
+    assert client.fake_gen.calls == []  # Claude must not have been called
+
+
+@pytest.mark.asyncio
+async def test_generate_post_streams_caption_then_distills_card(client, test_db):
+    _override_workspace(ready_chunk_count=12)
+    resp = await client.post(
+        POST_URL,
+        json={"brief": "Hempcrete embodied carbon", "tone": "confident", "template_id": "photo-led"},
+    )
+    assert resp.status_code == 200
+
+    frames = _sse_frames(resp.text)
+    assert frames[-1] == "[DONE]"
+    payloads = [json.loads(f) for f in frames if f != "[DONE]"]
+    assert any("text" in p for p in payloads), "caption streamed as text frames"
+
+    meta_frames = [p["meta"] for p in payloads if "meta" in p]
+    assert len(meta_frames) == 1
+    meta = meta_frames[0]
+    assert meta["template_id"] == "photo-led"
+    assert meta["fields"]["headline"], "card fields distilled via tool-use"
+    assert meta["suggested_keywords"], "image keywords returned"
+    assert meta["retrieval"]["retrieved"], "retrieval debug payload present"
+    assert client.fake_gen.calls, "caption (stream_text) was called"
+    assert client.fake_gen.card_field_calls, "card distillation (tool-use) was called"
+
+    # Persisted as a post_pack: caption at top, card nested, image null until PATCH.
+    doc = await test_db.generations.find_one({"_id": ObjectId(meta["generation_id"])})
+    assert doc is not None
+    assert doc["type"] == "post_pack"
+    assert doc["status"] == "complete"
+    assert doc["output"]["post_text"], "caption persisted"
+    assert isinstance(doc["output"]["hashtags"], list)
+    assert doc["output"]["card"]["template_id"] == "photo-led"
+    assert doc["output"]["card"]["fields"]["headline"]
+    assert doc["output"]["card"]["image"] is None
+    assert doc["output"]["card"]["suggested_keywords"]
     assert doc["retrieved_chunk_ids"], "retrieved chunk ids persisted"
