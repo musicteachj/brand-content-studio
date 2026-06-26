@@ -7,7 +7,11 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
+
+_HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
 class GenerationType(str, Enum):
@@ -94,15 +98,30 @@ class CardOutput(BaseModel):
     fields: CardFields = Field(default_factory=CardFields)
     image: Optional[CardImage] = None
     suggested_keywords: list[str] = Field(default_factory=list)
+    # Phase 1.5: which brand-palette color this card uses as its accent. Null =
+    # fall back to the brand's default accent role. Validated against the
+    # workspace palette in the PATCH route (membership needs the workspace).
+    accent_hex: Optional[str] = None
 
 
 class GenerationUpdate(BaseModel):
     """Partial update applied to a card generation's `output` — Phase 1b attaches
-    the selected image; Phase 1.5 extends this to inline field/template edits."""
+    the selected image; Phase 1.5 adds inline field/template edits + the per-card
+    accent. Every field is client-side customization: no `/generate` call."""
 
     template_id: Optional[CardTemplate] = None
     fields: Optional[CardFields] = None
     image: Optional[CardImage] = None
+    accent_hex: Optional[str] = None
+
+    @field_validator("accent_hex")
+    @classmethod
+    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+        # Shape-check only here; palette membership is enforced in the route,
+        # which has the workspace's brand colors.
+        if v is not None and not _HEX_RE.match(v):
+            raise ValueError("accent_hex must be a hex color like #1C3A2E")
+        return v
 
 
 class RetrievalMetaItem(BaseModel):

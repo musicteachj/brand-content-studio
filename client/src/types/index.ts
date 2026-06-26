@@ -113,6 +113,18 @@ export interface CardOutput {
   fields: CardFields;
   image: CardImage | null;
   suggested_keywords: string[];
+  // Phase 1.5: which brand-palette color this card uses as its accent
+  // (null = the brand's default accent role).
+  accent_hex: string | null;
+}
+
+// Phase 1.5 client-side customization — partial PATCH onto a card's `output`.
+// Every field is a no-/generate edit (layout swap, inline copy, accent).
+export interface GenerationUpdate {
+  template_id?: CardTemplate;
+  fields?: CardFields;
+  image?: CardImage;
+  accent_hex?: string;
 }
 
 // Unsplash search results (server-proxied, attribution normalized).
