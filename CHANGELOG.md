@@ -17,6 +17,19 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 1.5: Customization — `0.3.0`
+
+Make a generated card editable after the fact — change the copy, swap the layout, swap the image, pick the accent — and re-export **without ever re-calling Claude**. The model wrote the card once; customization is a client-side design loop. Implements Phase 1.5 of [`docs/PLAN.md`](./docs/PLAN.md); resolves the two open questions in [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#20).
+
+- **Contract (one change)** — `accent_hex` added to `CardOutput` + `GenerationUpdate` (hex-shape validated in the model; **palette membership** enforced in the PATCH route against the workspace's own brand colors, so a card accent is always on-brand). The existing `PATCH /generations/{id}` already merged partial `output`; it now carries layout, inline fields, and the accent. PATCH stays allowed for the demo user (their own generations); only delete/asset/workspace mutations are `is_demo`-guarded.
+- **Layout swap, no regenerate** — re-render the same `output.fields` in a different archetype via the editor + `TemplatePicker` (now reused post-generation); `PATCH template_id`. Copy is preserved; **no `/generate` call**.
+- **Per-card accent** — a brand-palette swatch picker on the recessed *Customize* panel sets `output.accent_hex`; `cardColors()` threads a per-card override that wins over the workspace tint and re-renders the card client-side.
+- **Inline text editing on the card** — an *Edit text* toggle swaps the locked Satori image for the live DOM card with `contentEditable` fields, wired through the **same** `buildCardElement` (the `edit` handler path is DOM-only, never Satori), so preview == export still holds. Edits are a local **draft**, ephemeral until an explicit **Save** (PATCH only the changed keys) with **Discard**; long/edited/swapped headlines **auto-fit** the fixed 1080×1350 bounds via a deterministic `fitTextSize` scaler (identical in preview and export).
+- **Workspace brand-color UI tint** — resolved as a **Settings toggle, default on** (`useAppearance` → `applyAccentTint` overrides `--accent`/`--accent-strong`/`--ring`/`--accent-foreground` with the workspace primary). **Cosmetic only** — never touches semantic tokens (success/warning/destructive), DESIGN §7.
+- **Settings page** — replaces the “Coming soon” stub: Theme (light/dark/system, the app's first dark-mode wiring), the brand-tint toggle, and a read-only brand-identity card (palette + fonts). Quiet, no account/destructive controls.
+- **History → Customize** — a re-opened card **hydrates** into the same Generate editor (ephemeral `useGenerateStore` hand-off + `useCardGeneration.loadGeneration`, no model call), so layout/accent/copy edits **and image swap** work on saved cards, not just the live session.
+- **Tests** — pytest: PATCH updates `output.fields`, swaps `template_id` keeping copy, accepts a palette accent, rejects non-palette + malformed hex, rejects text generations, rejects empty payloads (31 total, +7). Vitest: `fitTextSize` shrink/min/monotonic, per-card accent precedence in `cardColors`, in-place `contentEditable` rendering + `onEdit` emission, and `useCardEditor` save → **PATCH with only changed keys, asserted to make no `/generate` call** (20 total, +17).
+
 ### Added — Phase 1b: Image cards + PNG export (the design system) — `0.2.0`
 
 Generate a designed 1080×1350 card in the workspace's brand and export it as a crisp PNG. Implements Phase 1b of [`docs/PLAN.md`](./docs/PLAN.md); resolves the Phase 1b open question in [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#19).
