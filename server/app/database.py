@@ -43,4 +43,5 @@ async def ensure_indexes() -> None:
     await database.assets.create_index([("workspace_id", 1), ("ingestion_status", 1)])
     await database.generations.create_index([("workspace_id", 1), ("created_at", -1)])
     await database.generations.create_index([("workspace_id", 1), ("type", 1)])
+    await database.templates.create_index("workspace_id")
     logging.info("Mongo indexes ensured")

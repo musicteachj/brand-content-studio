@@ -44,6 +44,12 @@ def build_document_key(workspace_id: str, generation_id: str, fmt: str) -> str:
     return f"{safe_filename(workspace_id)}/documents/{safe_filename(generation_id)}/document.{fmt}"
 
 
+def build_template_key(workspace_id: str, template_id: str, filename: str) -> str:
+    """Uploaded fill-in templates live under a `templates/` prefix, separate from
+    the ingested corpus, card images, and generated documents."""
+    return f"{safe_filename(workspace_id)}/templates/{safe_filename(template_id)}/{safe_filename(filename)}"
+
+
 class StorageBackend(Protocol):
     async def save(self, key: str, data: bytes) -> None: ...
     async def read(self, key: str) -> bytes: ...
