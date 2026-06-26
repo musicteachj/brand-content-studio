@@ -21,6 +21,16 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 4: Brand learning — `0.6.0` *(PR-B: slice 4c, auto-extract)*
+
+Point the brand editor at an image — a logo or a page of a brand guideline — and get a **proposed** palette, voice, and fonts to review and apply, so a new workspace can be brand-shaped from a real input instead of typed from scratch. Implements the auto-extract half of slice 4c (the [`docs/phase-4-plan.md`](./docs/phase-4-plan.md) PR-B); see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#23). **Exemplar steering (the second half of 4c) is split out to a later PR-C.**
+
+- **`POST /workspaces/{id}/brand/extract`** — multipart image upload (same allow-list/size defenses as the logo route), validated then passed to a two-step extractor: **Pillow** quantizes the image to its exact dominant hexes (deterministic), then a forced, strict Claude **vision** tool-use call (`prompts/brand_extract.py` `BRAND_EXTRACT_TOOL`) takes the image + those hexes and returns named, role-assigned colors + a justified `voice_summary` + best-effort font names. Returns a **proposal only — nothing is persisted** (the route never touches the DB). Allowed for the demo user (it's generative, not a mutation — DECISIONS #15), mirroring the tool-use pattern in `generation_service` (gotcha #8).
+- **Honesty stance baked in** — the system prompt tells the model to use the detected hexes verbatim (never invent colors), to keep voice tentative/empty when it's just a logo, and to name fonts only when confident; the proposal is **never auto-applied**.
+- **Client review/apply** — an "Extract from image" affordance in the brand editor shows the proposal as a **review panel** (swatches + voice + fonts); **Apply to form** populates the editor fields (palette/fonts/voice, and clears the accent since the old one may not be in the new palette) for the user to review and **Save** — a second, explicit confirmation. `useExtractBrand` issues no invalidation (no server mutation). Pure `proposalToForm` mapper in `brandIdentity.ts`.
+- **Tests** — pytest (+9, 58 total): `extract_palette` is deterministic (dominant-first, de-duped, single-color); `build_extract_response` normalizes blanks → null and falls back to the detected palette; the route returns a proposal with the vision service **faked** (no model call), **never mutates** the workspace, validates type/size/empty, and is **allowed for demo**. Vitest (+2, 39 total): `proposalToForm` maps null→'' and yields a schema-valid form patch.
+- **Deps** — server `Pillow` (declared; already present transitively via pdfplumber).
+
 ### Added — Phase 4: Brand setup & learning — `0.6.0` *(PR-A: slices 4a + 4b)*
 
 Make the app genuinely **multi-brand and editable in-app**: switch between workspaces from the top bar, manage them, and edit a workspace's whole brand identity (palette, fonts, voice, accent, logo) from Settings — no more single auto-selected seed. Implements slices 4a + 4b of [`docs/phase-4-plan.md`](./docs/phase-4-plan.md); see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#23). The backend was already multi-tenant, so this is reuse-heavy; **slice 4c (vision brand-learning) lands in PR-B.**

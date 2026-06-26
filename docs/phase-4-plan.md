@@ -1,11 +1,11 @@
 # Phase 4 — Brand setup & learning (slice plan)
 
-> **Status: PR-A (4a + 4b) built + verified on `feat/4-workspace`.** Server gate (ruff + mypy +
-> 49 pytest) and client gate (tsc + eslint + prettier + build + 37 vitest) green; live acceptance
-> run passed (create/switch a 2nd brand surviving reload; edit palette/fonts/voice/accent + logo
-> upload; demo blocked). Pending PR-A: Tier-2 review gate → commit → push → PR into `dev`.
-> **PR-B (4c — vision brand-learning) not started.** Phase-boundary `dev → main` + tag `v0.6.0`
-> stays deferred per [bcs-phase-state] (releases cut closer to deploy).
+> **Status: PR-A (4a + 4b) merged to `dev` (PR #7). PR-B (4c auto-extract) built on
+> `feat/4c-brand-learning`.** Both gates green (PR-B: ruff + mypy + 58 pytest; tsc + eslint +
+> prettier + build + 39 vitest). Pending PR-B: live verify (real vision call) → Tier-2 review gate →
+> commit → push → PR into `dev`. **4c was split: PR-B = auto-extract (this); PR-C = exemplar
+> steering (deferred — it touches the generation pipeline).** Phase-boundary `dev → main` + tag
+> `v0.6.0` stays deferred per [bcs-phase-state] (releases cut closer to deploy).
 >
 > The second phase of the pre-deployment enhancements plan. Follows the approved roadmap
 > (LinkedIn-post objective → **brand setup & learning** → on-brand templates → robustness),
@@ -71,19 +71,31 @@ section, the brand editor, and the two logo routes.
 
 ---
 
-## PR-B design (4c — pending)
+## PR-B design (4c auto-extract — built)
 
-- **`services/brand_extract_service.py`** — Pillow dominant-color palette + Claude **multimodal**
-  (forced strict tool-use, reuse the generation tool-use pattern) → a structured
-  `{colors[], voice_summary, fonts?}` **proposal**. Add `Pillow` to `requirements.txt`.
-- **`POST /workspaces/{id}/brand/extract`** (multipart) → returns the proposal (never auto-applied);
-  reuse the upload validation/storage helpers.
-- **Example-card exemplar steering** — uploaded past brand cards (images); vision extracts copy
-  patterns + visual direction stored on the workspace and injected as extra brand context. **Honesty
-  guard (DECISIONS #23 / R2): approximate via our Satori archetypes — never pixel-clone.** Decide
-  storage shape (`brand_profile.exemplars` vs. a small collection) at the PR-B contract step.
-- **Client** — an "Extract from upload" affordance in the brand editor that shows the proposal as a
-  **diff to review + apply** (never silent overwrite), then saves via the existing PATCH.
+Decisions (owner-confirmed): **split 4c** (B = auto-extract, C = exemplar steering); **image-only**
+input for v1 (no PDF-raster dep); **demo allowed** for extract (apply stays demo-blocked).
+
+- **`services/brand_extract_service.py`** — `extract_palette` (Pillow MEDIANCUT quantize → exact
+  dominant hexes, deterministic/unit-testable) + `BrandExtractService.propose` (forced strict Claude
+  **vision** tool-use: the image + detected hexes → `{colors, voice_summary, fonts}`), shaped by
+  `build_extract_response` (blanks → null; falls back to the detected palette). `Pillow` declared in
+  `requirements.txt`. Tool/prompt in `prompts/brand_extract.py` (`BRAND_EXTRACT_TOOL`).
+- **`POST /workspaces/{id}/brand/extract`** (multipart, image-only) — same allow-list/size defenses
+  as the logo route; `get_workspace_or_404` ownership, **no `require_not_demo`** (generative, not a
+  mutation); returns `BrandExtractResponse` and **never touches the DB**.
+- **Client** — `useExtractBrand` (no invalidation); the brand editor's "Extract from image"
+  affordance shows the proposal as a **review panel** → **Apply to form** (`proposalToForm` →
+  replaces palette/fonts/voice, clears accent) → user reviews → **Save** (the existing PATCH). Never
+  silently applied.
+
+## PR-C design (exemplar steering — deferred)
+
+- Uploaded past brand cards (images); vision extracts copy patterns + visual direction stored on the
+  workspace and injected as extra brand context into the generate prompts. **Honesty guard
+  (DECISIONS #23 / R2): approximate via our Satori archetypes — never pixel-clone.** Decide storage
+  shape (`brand_profile.exemplars` vs. a small collection) at the PR-C contract step. Branches off
+  `dev` after PR-B merges.
 
 ---
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { BrandProfile, ColorRole } from "@/types";
+import type { BrandExtract, BrandProfile, ColorRole } from "@/types";
 
 // Pure brand-profile form schema + mappers (kept out of the component file so
 // fast-refresh stays component-only, and so they're unit-testable).
@@ -44,6 +44,24 @@ export function toForm(brand: BrandProfile): BrandForm {
     },
     voice_summary: brand.voice_summary ?? "",
     accent_hex: brand.accent_hex ?? "",
+  };
+}
+
+/** Map an extracted proposal (Phase 4c) into the form-field shape so it can be
+ *  applied into the editor for review. Colors/fonts/voice only — accent and logo
+ *  are untouched. Applying replaces the palette + fonts + voice; the user still
+ *  reviews and explicitly Saves (the proposal is never persisted directly). */
+export function proposalToForm(
+  p: BrandExtract,
+): Pick<BrandForm, "colors" | "fonts" | "voice_summary"> {
+  return {
+    colors: p.colors.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
+    fonts: {
+      heading: p.fonts.heading ?? "",
+      body: p.fonts.body ?? "",
+      mono: p.fonts.mono ?? "",
+    },
+    voice_summary: p.voice_summary ?? "",
   };
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { BrandProfile } from "@/types";
-import { brandSchema, buildBrandProfile, toForm } from "./brandIdentity";
+import type { BrandExtract, BrandProfile } from "@/types";
+import { brandSchema, buildBrandProfile, proposalToForm, toForm } from "./brandIdentity";
 
 const BRAND: BrandProfile = {
   colors: [
@@ -59,5 +59,32 @@ describe("brand identity mapping (Phase 4b)", () => {
     const form = toForm(BRAND);
     form.accent_hex = "";
     expect(brandSchema.safeParse(form).success).toBe(true);
+  });
+});
+
+describe("proposalToForm (Phase 4c)", () => {
+  const PROPOSAL: BrandExtract = {
+    colors: [{ name: "Forest", hex: "#1C3A2E", role: "primary" }],
+    voice_summary: null,
+    fonts: { heading: "Fraunces", body: null, mono: null },
+  };
+
+  it("maps a proposal into form fields, null fonts/voice → ''", () => {
+    const out = proposalToForm(PROPOSAL);
+    expect(out.colors).toEqual([{ name: "Forest", hex: "#1C3A2E", role: "primary" }]);
+    expect(out.fonts).toEqual({ heading: "Fraunces", body: "", mono: "" });
+    expect(out.voice_summary).toBe("");
+  });
+
+  it("produces a form patch the schema accepts", () => {
+    const base = toForm({
+      colors: [],
+      accent_hex: null,
+      fonts: { heading: null, body: null, mono: null },
+      logo: null,
+      voice_summary: null,
+    });
+    const merged = { ...base, ...proposalToForm(PROPOSAL), accent_hex: "" };
+    expect(brandSchema.safeParse(merged).success).toBe(true);
   });
 });

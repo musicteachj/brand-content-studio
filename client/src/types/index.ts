@@ -28,6 +28,14 @@ export interface BrandProfile {
   voice_summary: string | null;
 }
 
+// Phase 4c — a proposed brand profile inferred from an uploaded image. Returned
+// by POST /workspaces/{id}/brand/extract for review; applied via the brand PATCH.
+export interface BrandExtract {
+  colors: BrandColor[];
+  voice_summary: string | null;
+  fonts: BrandFonts;
+}
+
 export interface Workspace {
   id: string;
   owner_id: string;
