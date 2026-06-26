@@ -38,6 +38,7 @@ The product itself is unchanged: a **RAG**-powered studio that ingests a brand's
 | 16 | Retrieval strategy | **Hybrid**: always inject the brand `voice_summary` + content pillars, then add semantic top-k (k≈6) exemplars | — | Always-needed brand fundamentals shouldn't depend on a similarity hit; naive top-k can miss them. |
 | 17 | API cost control | **Hard usage limit set on the Anthropic console** for the project API key (platform-level); in-app per-user caps deferred | — | The console cap bounds spend regardless of demo traffic; SRB-style in-app caps are unnecessary at portfolio scale. |
 | 18 | Design approach | Build the frontend UI/UX with the Claude **design skills** (`frontend-design`, `impeccable`, `ui-ux-pro-max`). `DESIGN.md` + the `mocks/` are a **reference / starting point, not a pixel-exact spec** — adopt a better UI/UX option when a skill offers one, and fold the improvement back into `DESIGN.md`. | — | The mocks are AI-generated references; the design skills can produce higher-quality, less-generic UI. Keep Folio's tokens/identity as the baseline and let the system evolve. |
+| 19 | Card copy streaming (Phase 1b) | **Confirmed** the leaning: stream natural copy into a lightweight **React** "drafting" preview for the live typing effect, get the final structured fields (`eyebrow/headline/body/cta/hashtag`) + `suggested_keywords` via a forced, **strict Anthropic tool-use** call (two model calls — never parse markers mid-stream), and render the locked preview + PNG export via **Satori**. The *same* archetype element drives the live DOM preview, the locked Satori preview, and the resvg export, so preview == export by construction. | resolved open question | A typed tool schema is cleaner than parsing `<<markers>>`; one shared element guarantees parity; SSE frame shapes stay identical to Phase 1a (`{text}` → `{meta}` → `[DONE]`). |
 
 ---
 
@@ -65,6 +66,5 @@ The product itself is unchanged: a **RAG**-powered studio that ingests a brand's
 
 ## Open questions (revisit before the relevant phase)
 
-- **Card copy streaming** — leaning: stream natural text into a lightweight **React** preview for the live "typing" effect, and obtain the final **structured fields** via an Anthropic **tool-use** call (cleaner than parsing `<<markers>>` mid-stream); render the final/exported card via **Satori**. (Confirm at Phase 1b.)
 - **Workspace brand-color UI tint** — the optional `--accent` override (DESIGN §4) needs a trigger: always-on when a workspace is active, or a user toggle. (Decide at Phase 1.5 alongside the accent toggle.)
 - **Local image/object storage** — plain local filesystem vs. MinIO (S3-compatible) for dev. Default to filesystem unless S3 parity becomes useful. (Decide at Phase 1a.)

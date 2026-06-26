@@ -131,6 +131,16 @@ foreground/background pairs for contrast independently per theme.
   (processing / ready / error) as a small pill — never color alone, always paired with icon and label.
 - **Template picker:** Horizontal scroll row of 2-3 card layout thumbnails. Selected state = 2px `accent`
   border + `shadow-light`. Hover = `shadow-light`. Never auto-select — user must choose explicitly.
+- **Card generation flow — guided in place, not a wizard** (Phase 1b, evolved from the build): the card
+  has implicit steps (template → brief → generate → image → export), so the Generate page makes them
+  legible *without* a multi-screen stepper, which would fight the North Star (the preview is the hero and
+  cards are generated in quick succession). The left controls panel carries **numbered step markers** in
+  the mono eyebrow style — `STEP 1 · TEMPLATE`, `STEP 2 · BRIEF` — where a completed step shows an
+  `accent` check and the current step is outlined in `accent`. The two **finishing actions live on the card
+  itself** (right column, under the preview): *Add an image* (photo-led; image selection is parallel and
+  available while copy still streams) and *Export*. Once the card is ready but image-less, the *Add an
+  image* button is outlined in `accent` to mark it as the suggested next step. Wizards remain reserved for
+  genuine one-time setup (Workspace Setup), not for the in-tool creative loop.
 - **Unsplash image picker:** Panel slides in from the right over the Generate page. Search input at top,
   masonry grid of results below. Selected image = `accent` ring. Attribution line ("Photo by X on
   Unsplash") rendered automatically — non-negotiable, required by Unsplash license.

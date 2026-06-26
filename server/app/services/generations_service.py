@@ -59,6 +59,35 @@ async def list_generations(
     return [_to_response(doc) async for doc in cursor]
 
 
+async def update_generation_output(
+    db: AsyncIOMotorDatabase,
+    workspace_oid: ObjectId,
+    generation_id: str,
+    output_patch: dict,
+) -> Optional[dict]:
+    """Merge a partial patch into a generation's `output` (Phase 1b attaches the
+    selected card image; Phase 1.5 extends to inline field/template edits). Only
+    provided keys are written, so a partial patch never wipes the rest of the
+    output. Workspace-scoped, so a non-owner can't touch another's generation."""
+    try:
+        oid = ObjectId(generation_id)
+    except Exception:
+        return None
+    doc = await db.generations.find_one({"_id": oid, "workspace_id": workspace_oid})
+    if not doc:
+        return None
+    output = dict(doc.get("output") or {})
+    output.update(output_patch)
+    now = utcnow()
+    await db.generations.update_one(
+        {"_id": oid, "workspace_id": workspace_oid},
+        {"$set": {"output": output, "updated_at": now}},
+    )
+    doc["output"] = output
+    doc["updated_at"] = now
+    return doc
+
+
 async def get_generation(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, generation_id: str
 ) -> Optional[dict]:

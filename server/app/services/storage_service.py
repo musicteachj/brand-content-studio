@@ -26,8 +26,15 @@ def build_storage_key(workspace_id: str, asset_id: str, filename: str) -> str:
     return f"{workspace_id}/{asset_id}/{safe_filename(filename)}"
 
 
+def build_image_key(workspace_id: str, image_id: str, filename: str) -> str:
+    """Uploaded card images live under an `images/` prefix, separate from the
+    ingested asset corpus."""
+    return f"{workspace_id}/images/{image_id}/{safe_filename(filename)}"
+
+
 class StorageBackend(Protocol):
     async def save(self, key: str, data: bytes) -> None: ...
+    async def read(self, key: str) -> bytes: ...
     def local_path(self, key: str) -> str: ...  # for sync parsers (pdfplumber)
     async def delete(self, key: str) -> None: ...
     async def delete_prefix(self, prefix: str) -> None: ...
@@ -49,6 +56,9 @@ class LocalStorage:
         path = self._resolve(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+    async def read(self, key: str) -> bytes:
+        return self._resolve(key).read_bytes()
 
     def local_path(self, key: str) -> str:
         return str(self._resolve(key))

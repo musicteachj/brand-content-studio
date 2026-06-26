@@ -73,11 +73,30 @@ class FakeGenerationService:
     """Drop-in for GenerationService that yields canned tokens (no Claude call)."""
 
     REPLY = "Hempcrete sequesters carbon for the life of the building.\n\n#EmbodiedCarbon #Hempcrete"
+    CARD_COPY = "Specify hempcrete early. It locks carbon in the walls for the life of the building."
+    CARD_FIELDS = {
+        "eyebrow": "MATERIAL NOTES",
+        "headline": "Carbon, locked in the wall",
+        "body": "Hempcrete sequesters carbon for the building's whole life.",
+        "cta": "Read the field notes",
+        "hashtag": "#EmbodiedCarbon",
+        "suggested_keywords": ["hempcrete wall", "natural building material", "construction site"],
+    }
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
+        self.card_field_calls: list[tuple[str, str]] = []
 
     async def stream_text(self, system: str, user: str) -> AsyncGenerator[str, None]:
         self.calls.append((system, user))
         for token in self.REPLY.split(" "):
             yield token + " "
+
+    async def stream_copy(self, system: str, user: str) -> AsyncGenerator[str, None]:
+        self.calls.append((system, user))
+        for token in self.CARD_COPY.split(" "):
+            yield token + " "
+
+    async def extract_card_fields(self, system: str, user: str) -> dict:
+        self.card_field_calls.append((system, user))
+        return dict(self.CARD_FIELDS)
