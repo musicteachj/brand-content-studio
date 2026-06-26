@@ -11,11 +11,25 @@ mapped to build phases (see [`docs/PLAN.md`](./docs/PLAN.md)); `1.0.0` is reserv
 | `0.2.0` | Phase 1b — image cards |
 | `0.3.0` | Phase 1.5 — customization |
 | `0.4.0` | Phase 2 — document output |
+| `0.5.0` | Phase 3 — "LinkedIn Post" objective (caption + card) |
+| `0.6.0` | Phase 4 — brand setup & learning *(planned)* |
+| `0.7.0` | Phase 5 — on-brand templates *(planned)* |
+| `0.8.0` | Phase 6 — robustness & limits *(planned)* |
 | `1.0.0` | first public deploy |
 
 Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §7).
 
 ## [Unreleased]
+
+### Added — Phase 3: "LinkedIn Post" objective — `0.5.0`
+
+The first **objective** (vs. a raw format): one brief yields a full LinkedIn **post caption** *and* a matching **card**, built together from one retrieval — so the user gets something to post plus the copy to post with it. Implements Phase 3 of [`docs/phase-3-plan.md`](./docs/phase-3-plan.md); see [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#22). Built almost entirely from existing seams.
+
+- **`/generate/post` SSE** — one hybrid retrieval, then: (1) **stream the caption** as a full LinkedIn post for the live typing effect (reuses `prompts/text_post.py` + `stream_text`); (2) **distill the matching card from that finished caption** via a forced, strict Anthropic tool-use call (reuses `image_card.CARD_FIELDS_TOOL`) — the card is the post's *hook*, compressed, not a copy. Same `{text} → {meta} → [DONE]` frame shape, same empty-corpus block, same `<brand_context>` defense; the distill step operates on the model's own caption (no new injection surface).
+- **`type:"post_pack"` on generations** — `output` = the caption (`post_text`/`hashtags`/`char_count`, the `TextOutput` shape) plus the matching card **nested** under `output.card` (the `CardOutput` shape). No new collection; history, retrieval snapshot, and ownership come for free.
+- **Image attach + customization route into the nested card** — the existing `PATCH /generations/{id}` now takes a `nested_key`: a `post_pack` merges `image`/`template_id`/`fields`/`accent_hex` into `output.card` (a `card` still merges at the top). Parallel Unsplash/upload image selection, the per-card accent palette guard, and "no `/generate` on customization" all carry over unchanged.
+- **Client — new "LinkedIn post" Generate mode** (first in the toggle). A combined preview: the **card** (reuses `CardPreview` / `cardElement` / `useCardExport`) beside the **editable caption** (`PostCaptionPanel` — streams live, then a paste-ready textarea with Copy). Parallel image pick via the existing `ImagePickerPanel`. `usePostPackGeneration` mirrors `useCardGeneration` with caption semantics. History gains a **LinkedIn** filter; a post_pack shows the card thumbnail + caption snippet, and the detail dialog offers Customize (re-opens in post mode), Download PNG, and Copy caption.
+- **Tests** — pytest (+4, 43 total): `/generate/post` streams the caption then distills + persists the nested card (image null until PATCH), empty corpus blocks Claude, and PATCH attaches an image into `output.card` (not top-level) with the accent guard holding for post_pack. Vitest (+2, 27 total): `usePostPackGeneration` hydrates a re-opened post_pack and an image selection **PATCHes the generation, never calls `/generate`**.
 
 ### Added — Phase 2: Document output — `0.4.0`
 
