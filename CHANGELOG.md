@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Curated font picker + PDF parity
+
+Brand fonts are now chosen from a curated set of ~11 OFL families (with a live preview) instead of free-text inputs that silently fell back to Georgia on a typo. The set's serif/sans TTFs are bundled server-side, so a chosen font renders on the card **and** embeds in an exported PDF — closing the previous card↔PDF asymmetry. A legacy/custom font value is preserved as a "(current)" option; mono stays metadata-only. Brand auto-extract now snaps proposed font names to the catalog. Client-only picker + bundled fonts; no new endpoints, storage shape unchanged. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#29). Tests: vitest (+8) — the catalog helpers + proposal snapping; pytest (+1) — the PDF parity guard.
+
 ### Added — Reusable brand-image library
 
 Owners can now save their own images to a per-workspace library and reuse them as the card picture — closing the gap next to Unsplash (the picker's "Upload" was one-shot, persisted only onto a single generation). Images are managed in **Settings → Brand images** (upload / delete, cap 24) and appear as a **"Brand images"** source in the card image picker next to Unsplash + ad-hoc Upload. Embedded on `brand_profile.brand_images[]` (mirrors logo/exemplars — same storage pattern, no new collection), kept separate from exemplars (which steer the model, not the picture); a picked brand image becomes a normal `source:"upload"` card image, so render/export are unchanged. Deleting a library image leaves images already on past cards untouched; mutations are demo-blocked. Also **fixed** a latent bug: the brand-identity Save (a whole-profile PATCH) now preserves the sub-collections that have their own endpoints — `logo`, `exemplars`, and `brand_images` — instead of silently wiping them. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#28). Tests: pytest (+9, 116 total) — add/delete/cap/demo/cross-owner on `brand_profile.brand_images`, plus the PATCH-preserve regression; vitest (+3, 57 total) — the picker's brand-image source.
