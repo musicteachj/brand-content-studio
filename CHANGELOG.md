@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Zero-workspace onboarding gate
+
+A signed-in owner with no workspaces is now guided to the `/setup` stepper instead of landing on dead-end, null-keyed action pages (a gap exposed by real non-demo owner accounts, which start with zero workspaces). A `RequireWorkspace` route gate redirects the five workspace-dependent routes (`generate`/`history`/`assets`/`templates`/`settings`) to `/setup` when there are no workspaces; the Dashboard and `/setup` stay reachable. The Dashboard gains a first-run "Create your first workspace" CTA, and the Assets upload submit is disabled until a workspace exists. Client-only — the server already 404-enforces an owned workspace. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#27). Tests: vitest (+5) — the gate's redirect/render/loading branches and the Dashboard CTA.
+
 ### Added — Phase 6: Robustness — `0.8.0` *(PR-B: ingestion safety + concurrency + demo-guard)*
 
 Make ingestion **bounded + retryable**, make generation streams **safe across workspace switches and stalls**, and close the **demo-guard gap** on card-image upload — completing Phase 6. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#26) and the spec/plan under `docs/superpowers/`.

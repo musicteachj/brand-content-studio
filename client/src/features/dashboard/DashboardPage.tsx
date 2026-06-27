@@ -9,7 +9,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const firstName = (user?.full_name ?? "there").split(" ")[0];
-  const { workspace, workspaceId, isError } = useActiveWorkspace();
+  const { workspace, workspaceId, isError, hasNone } = useActiveWorkspace();
   const { data: generationCount } = useGenerationCount(workspaceId);
 
   return (
@@ -33,43 +33,66 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div
-        className="grid animate-fade-in-up gap-4 sm:grid-cols-3"
-        style={{ animationDelay: "60ms" }}
-      >
-        <StatCard
-          label="Brand assets"
-          value={String(workspace?.asset_count ?? 0)}
-          hint="Ingested documents"
-        />
-        <StatCard
-          label="Ready chunks"
-          value={String(workspace?.ready_chunk_count ?? 0)}
-          hint="Retrievable corpus"
-        />
-        <StatCard label="Generations" value={String(generationCount ?? 0)} hint="Posts + cards" />
-      </div>
+      {hasNone ? (
+        <div
+          className="animate-fade-in-up rounded-lg border border-border bg-surface p-8 text-center shadow-light"
+          style={{ animationDelay: "60ms" }}
+        >
+          <h2 className="text-base font-semibold text-foreground">Create your first workspace</h2>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
+            A workspace holds one brand's corpus and generations. Create one to start ingesting
+            assets and generating on-brand content.
+          </p>
+          <Button className="mt-5" onClick={() => navigate("/setup")}>
+            Create workspace
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div
+            className="grid animate-fade-in-up gap-4 sm:grid-cols-3"
+            style={{ animationDelay: "60ms" }}
+          >
+            <StatCard
+              label="Brand assets"
+              value={String(workspace?.asset_count ?? 0)}
+              hint="Ingested documents"
+            />
+            <StatCard
+              label="Ready chunks"
+              value={String(workspace?.ready_chunk_count ?? 0)}
+              hint="Retrievable corpus"
+            />
+            <StatCard
+              label="Generations"
+              value={String(generationCount ?? 0)}
+              hint="Posts + cards"
+            />
+          </div>
 
-      <div
-        className="grid animate-fade-in-up gap-4 sm:grid-cols-2"
-        style={{ animationDelay: "120ms" }}
-      >
-        <ActionCard
-          icon={FileText}
-          title="Ingest brand assets"
-          body="Upload voice guides and past posts to build the retrievable corpus."
-          cta="Open Asset Manager"
-          onClick={() => navigate("/assets")}
-        />
-        <ActionCard
-          icon={PenLine}
-          title="Generate content"
-          body="Write an on-brand LinkedIn post or designed card from a brief."
-          cta="Open Generate"
-          primary
-          onClick={() => navigate("/generate")}
-        />
-      </div>
+          <div
+            className="grid animate-fade-in-up gap-4 sm:grid-cols-2"
+            style={{ animationDelay: "120ms" }}
+          >
+            <ActionCard
+              icon={FileText}
+              title="Ingest brand assets"
+              body="Upload voice guides and past posts to build the retrievable corpus."
+              cta="Open Asset Manager"
+              onClick={() => navigate("/assets")}
+            />
+            <ActionCard
+              icon={PenLine}
+              title="Generate content"
+              body="Write an on-brand LinkedIn post or designed card from a brief."
+              cta="Open Generate"
+              primary
+              onClick={() => navigate("/generate")}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
