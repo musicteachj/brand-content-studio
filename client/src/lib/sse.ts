@@ -131,7 +131,9 @@ export async function readFrames<Meta>(
           if ("text" in payload) handlers.onText((payload as SSETextFrame).text);
           else if ("meta" in payload) handlers.onMeta((payload as { meta: Meta }).meta);
           else if ("error" in payload)
-            handlers.onError(typeof payload.error === "string" ? payload.error : "Generation failed.");
+            handlers.onError(
+              typeof payload.error === "string" ? payload.error : "Generation failed.",
+            );
         } catch {
           /* ignore malformed frame */
         }
