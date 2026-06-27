@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
+import { BrandImagesSection } from "./BrandImagesSection";
 import { ExemplarsSection } from "./ExemplarsSection";
 import { WorkspacesSection } from "./WorkspacesSection";
 
@@ -128,6 +129,15 @@ export function SettingsPage() {
           hint="Teach the studio your card style by example — uploads steer generated copy."
         >
           <ExemplarsSection workspace={workspace} />
+        </Section>
+      )}
+
+      {workspace && (
+        <Section
+          title="Brand images"
+          hint="Your own images, saved once and reusable as card pictures from the image picker."
+        >
+          <BrandImagesSection workspace={workspace} />
         </Section>
       )}
     </div>
