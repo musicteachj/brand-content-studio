@@ -184,7 +184,11 @@ function UploadCard({ workspaceId }: { workspaceId: string | null }) {
       )}
 
       <div className="mt-4 flex items-center gap-3">
-        <Button onClick={submit} disabled={!file || upload.isPending} loading={upload.isPending}>
+        <Button
+          onClick={submit}
+          disabled={!file || !workspaceId || upload.isPending}
+          loading={upload.isPending}
+        >
           <UploadCloud className="h-4 w-4" aria-hidden />
           {upload.isPending ? "Uploading" : "Upload & ingest"}
         </Button>
