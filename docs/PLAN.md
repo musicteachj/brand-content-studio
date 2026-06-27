@@ -108,12 +108,13 @@ template's own styling, Templates page) and **PR-B** (custom card presets — *p
 [`phase-5` spec/plan under `docs/superpowers/`]. **Acceptance:** upload a branded `.docx` template,
 generate a new doc into it preserving the template's layout/styles.
 
-### Phase 6 — Robustness & limits (`v0.8.0`) — *PR-A built (pagination + isolation)*
+### Phase 6 — Robustness & limits (`v0.8.0`) — *complete (PR-A + PR-B built)*
 The final pre-deploy hardening: **pagination** (History/Assets), **ingestion safety** (parse timeout,
 chunk/size caps, retry), **generation concurrency/state** fixes, **demo-guard reconcile**, and an
 **HTTP-level cross-workspace isolation** test. Split into **PR-A** (pagination + isolation test —
-*built*) and **PR-B** (ingestion caps + concurrency/states + demo-guard reconcile — *pending*).
-**Acceptance:** the multi-use QA checklist passes; no known scaling/safety gaps ship.
+*built*) and **PR-B** (bounded/retryable ingestion + stream abort-on-switch/inactivity timeout +
+demo-guard reconcile — *built*). **Acceptance:** the multi-use QA checklist passes; no known
+scaling/safety gaps ship. Phase 6 complete → the `dev → main` release/tag pass is next.
 
 ---
 

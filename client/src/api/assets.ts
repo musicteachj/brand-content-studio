@@ -52,6 +52,15 @@ export function useUploadAsset(workspaceId: string | null) {
   });
 }
 
+export function useReingestAsset(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (assetId: string) =>
+      (await api.post<Asset>(`/workspaces/${workspaceId}/assets/${assetId}/reingest`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["assets", workspaceId] }),
+  });
+}
+
 export function useDeleteAsset(workspaceId: string | null) {
   const qc = useQueryClient();
   return useMutation({

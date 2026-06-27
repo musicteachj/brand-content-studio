@@ -23,7 +23,7 @@ from app.models.image import (
 )
 from app.services import unsplash_service
 from app.services.storage_service import build_image_key, get_storage, safe_filename
-from app.utils.dependencies import get_current_user, get_workspace_or_404
+from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
 # Global (auth-only) router — mounted at /api/images
 router = APIRouter()
@@ -84,6 +84,7 @@ def resolve_image_content_type(filename: str, provided: str | None) -> str:
 async def upload_image(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
+    _: object = Depends(require_not_demo),
 ):
     filename = file.filename or "image"
     content_type = resolve_image_content_type(filename, file.content_type)

@@ -9,7 +9,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const firstName = (user?.full_name ?? "there").split(" ")[0];
-  const { workspace, workspaceId } = useActiveWorkspace();
+  const { workspace, workspaceId, isError } = useActiveWorkspace();
   const { data: generationCount } = useGenerationCount(workspaceId);
 
   return (
@@ -26,6 +26,12 @@ export function DashboardPage() {
           from the retrieved corpus.
         </p>
       </header>
+
+      {isError && (
+        <div className="rounded-lg border border-border bg-surface p-4 text-sm text-destructive">
+          Couldn't load this workspace. Is the server running?
+        </div>
+      )}
 
       <div
         className="grid animate-fade-in-up gap-4 sm:grid-cols-3"

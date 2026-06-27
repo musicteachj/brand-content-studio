@@ -5,6 +5,7 @@ scale). The chunk-building step (`build_chunks`) is a pure function so it can be
 unit-tested deterministically without a vector store or network."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from bson import ObjectId
@@ -19,6 +20,9 @@ from app.services.storage_service import get_storage
 logger = logging.getLogger(__name__)
 
 POSTS_KIND = "posts"
+
+PARSE_TIMEOUT_S = 30
+MAX_CHUNKS = 400
 
 
 def build_chunks(
@@ -74,7 +78,16 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
     try:
         storage = get_storage()
         path = storage.local_path(asset["storage_key"])
-        sections = load_sections(path, asset["content_type"])
+        try:
+            sections = await asyncio.wait_for(
+                asyncio.to_thread(load_sections, path, asset["content_type"]),
+                PARSE_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            await asset_service.mark_error(
+                db, asset_oid, "Parsing timed out — try a smaller or simpler file."
+            )
+            return
         chunks = build_chunks(
             workspace_namespace=workspace_namespace,
             asset_id=asset_id,
@@ -84,6 +97,13 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
         )
         if not chunks:
             await asset_service.mark_error(db, asset_oid, "No extractable text found in file.")
+            return
+        if len(chunks) > MAX_CHUNKS:
+            await asset_service.mark_error(
+                db,
+                asset_oid,
+                f"Document too large ({len(chunks)} sections > {MAX_CHUNKS}) — split it into smaller files.",
+            )
             return
         count = await get_vector_store().upsert_chunks(workspace_namespace, chunks)
         marked = await asset_service.mark_ready(db, asset_oid, count)

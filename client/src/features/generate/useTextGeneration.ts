@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { streamTextGeneration, type TextStreamBody } from "@/lib/sse";
 import type { SSEMetaFrame } from "@/types";
 
@@ -26,6 +26,13 @@ const INITIAL: State = {
 export function useTextGeneration(workspaceId: string | null) {
   const [state, setState] = useState<State>(INITIAL);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Switching workspaces must not leave an in-flight stream writing into the new
+  // workspace's view: abort it and reset to a clean slate.
+  useEffect(() => {
+    setState(INITIAL);
+    return () => abortRef.current?.abort();
+  }, [workspaceId]);
 
   const generate = useCallback(
     async (body: TextStreamBody) => {

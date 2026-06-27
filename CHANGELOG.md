@@ -21,9 +21,20 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 6: Robustness — `0.8.0` *(PR-B: ingestion safety + concurrency + demo-guard)*
+
+Make ingestion **bounded + retryable**, make generation streams **safe across workspace switches and stalls**, and close the **demo-guard gap** on card-image upload — completing Phase 6. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#26) and the spec/plan under `docs/superpowers/`.
+
+- **Bounded ingestion** — the parse runs off the event loop (`asyncio.to_thread`) under a 30 s timeout (`PARSE_TIMEOUT_S`), and the chunk count is capped (`MAX_CHUNKS = 400`): an over-cap document is marked `error` with **nothing upserted** (rejected, not silently truncated). A timeout or empty/oversized doc surfaces a friendly asset error.
+- **Retryable ingestion** — a demo-blocked `POST …/assets/{id}/reingest` (+ an asset-row **Retry** button) drops any prior vectors **first**, then `mark_processing` resets the asset (clears the error and, if it was `ready`, decrements the workspace's ready-chunk count) and re-runs ingestion out of band.
+- **Stream safety** — each generation hook aborts its in-flight `AbortController` and resets state when the **workspace changes** (`useEffect([workspaceId])`, all four hooks), so a stream can't write into another workspace's view. The SSE reader gains a **30 s inactivity timeout** (`STREAM_INACTIVITY_MS`; each `read()` races a timer — a stall cancels the reader and surfaces an error) and a **type-guarded `onError`** (a non-string `error` frame falls back to "Generation failed.").
+- **Demo-guard reconcile** — `require_not_demo` now also guards the card-image upload (`POST …/images/upload`), matching the UI that already disabled it for demo users.
+- **Dashboard error state** — a friendly banner when the active-workspace query fails ("Is the server running?").
+- **Tests** — pytest (+6, 107 total): parse-timeout + chunk-cap mark the asset `error` with nothing upserted; reingest resets/404s/demo-blocks; image upload is demo-blocked. Vitest (+3, 49 total): the SSE inactivity timeout + type-guarded `onError`, and abort-on-workspace-switch.
+
 ### Added — Phase 6: Robustness — `0.8.0` *(PR-A: pagination + isolation test)*
 
-Bound the previously unbounded History/Assets lists, and prove tenancy end-to-end. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#25) and the spec/plan under `docs/superpowers/`. **PR-B (ingestion caps + generation concurrency/state + demo-guard reconcile) is the next Phase 6 slice.**
+Bound the previously unbounded History/Assets lists, and prove tenancy end-to-end. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#25) and the spec/plan under `docs/superpowers/`. **PR-B (ingestion safety + generation concurrency/state + demo-guard reconcile) is built — see above.**
 
 - **Paginated list endpoints** — `GET …/generations` and `GET …/assets` now take `?limit&offset` (`Query`-bounded to `[1,100]`; defaults 24/30) and return an envelope `{ items, next_offset }`, where `next_offset` is computed with a **`limit + 1` sentinel** (no `count()` on the hot path; `null` when exhausted). The generations type filter still applies before paging.
 - **Client "Load more"** — History and Assets move to react-query `useInfiniteQuery` (a `flattenPages` helper joins pages) with a "Load more" button shown while there's a next page; History filters reset paging. The Assets processing-poll now keys on any *loaded* processing asset (newly uploaded assets sort to the first page).

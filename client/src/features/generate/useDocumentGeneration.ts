@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { streamDocumentGeneration, type DocumentStreamBody } from "@/lib/sse";
 import type {
   DocumentArchetype,
@@ -38,6 +38,13 @@ const INITIAL: State = {
 export function useDocumentGeneration(workspaceId: string | null) {
   const [state, setState] = useState<State>(INITIAL);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Switching workspaces must not leave an in-flight stream writing into the new
+  // workspace's view: abort it and reset to a clean slate.
+  useEffect(() => {
+    setState(INITIAL);
+    return () => abortRef.current?.abort();
+  }, [workspaceId]);
 
   const generate = useCallback(
     async (body: DocumentStreamBody) => {

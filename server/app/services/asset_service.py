@@ -120,6 +120,28 @@ async def mark_error(db: AsyncIOMotorDatabase, asset_oid: ObjectId, error: str) 
     )
 
 
+async def mark_processing(db: AsyncIOMotorDatabase, asset_oid: ObjectId) -> Optional[dict]:
+    """Reset an asset to `processing` for a re-ingest: clear the error and, if it
+    was `ready`, decrement the workspace's ready-chunk count (a fresh ingest will
+    re-add the new count). Returns the updated asset doc, or None if it's gone."""
+    now = utcnow()
+    doc = await db.assets.find_one({"_id": asset_oid})
+    if not doc:
+        return None
+    if doc.get("ingestion_status") == IngestionStatus.ready.value:
+        await db.workspaces.update_one(
+            {"_id": doc["workspace_id"]},
+            {"$inc": {"ready_chunk_count": -int(doc.get("chunk_count", 0))},
+             "$set": {"updated_at": now}},
+        )
+    await db.assets.update_one(
+        {"_id": asset_oid},
+        {"$set": {"ingestion_status": IngestionStatus.processing.value,
+                  "chunk_count": 0, "error": None, "ingested_at": None, "updated_at": now}},
+    )
+    return await db.assets.find_one({"_id": asset_oid})
+
+
 async def delete_asset_record(db: AsyncIOMotorDatabase, doc: dict) -> None:
     """Remove the Mongo doc and decrement workspace counters. Vectors + raw
     storage are dropped by the caller (route)."""
