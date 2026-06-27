@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.common import BrandExemplar, BrandLogo
+from app.models.common import BrandExemplar, BrandImage, BrandLogo
 from app.models.user import UserInDB
 from app.models.workspace import (
     BrandExtractResponse,
@@ -19,7 +19,7 @@ from app.routes.images import MAX_IMAGE_BYTES, resolve_image_content_type
 from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_image_key, get_storage, safe_filename
-from app.services.workspace_service import MAX_EXEMPLARS
+from app.services.workspace_service import MAX_BRAND_IMAGES, MAX_EXEMPLARS
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
 router = APIRouter()
@@ -205,6 +205,72 @@ async def delete_exemplar(
     """Remove an exemplar and delete its stored bytes."""
     result = await workspace_service.remove_workspace_exemplar(
         db, str(workspace["_id"]), current_user.id, exemplar_id
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    updated, old_key = result
+    if old_key:
+        await get_storage().delete(old_key)
+    return updated
+
+
+@router.post("/{workspace_id}/brand-images", response_model=WorkspaceResponse)
+async def add_brand_image(
+    file: UploadFile,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Save an image to the workspace's reusable brand-image library
+    (`brand_profile.brand_images`). No model call — just validate + store, so it
+    can later be picked as a card image. Capped; demo-blocked (it mutates)."""
+    existing = (workspace.get("brand_profile") or {}).get("brand_images") or []
+    if len(existing) >= MAX_BRAND_IMAGES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"At most {MAX_BRAND_IMAGES} brand images per workspace.",
+        )
+    filename = file.filename or "image"
+    resolve_image_content_type(filename, file.content_type)  # validates type (415)
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+    if len(data) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
+        )
+
+    workspace_id = str(workspace["_id"])
+    image_id = str(ObjectId())
+    clean_name = safe_filename(filename)
+    storage_key = build_image_key(workspace_id, image_id, clean_name)
+    await get_storage().save(storage_key, data)
+    image = BrandImage(
+        id=image_id,
+        storage_key=storage_key,
+        url=f"/api/workspaces/{workspace_id}/images/file/{image_id}/{clean_name}",
+        name=filename,
+    )
+    updated = await workspace_service.add_workspace_image(
+        db, workspace_id, current_user.id, image
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
+
+
+@router.delete("/{workspace_id}/brand-images/{image_id}", response_model=WorkspaceResponse)
+async def delete_brand_image(
+    image_id: str,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Remove a brand image from the library and delete its stored bytes. Images
+    already baked onto past cards are unaffected (copied onto the generation)."""
+    result = await workspace_service.remove_workspace_image(
+        db, str(workspace["_id"]), current_user.id, image_id
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")

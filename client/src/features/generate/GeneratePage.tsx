@@ -183,6 +183,7 @@ function PostPackMode() {
         workspaceId={workspaceId}
         initialKeywords={gen.suggestedKeywords}
         selectedKey={gen.image?.unsplash_id ?? gen.image?.storage_key ?? null}
+        brandImages={workspace?.brand_profile.brand_images ?? []}
         onSelectUnsplash={(p) => {
           void gen.selectUnsplash(p);
         }}
@@ -382,6 +383,7 @@ function CardMode() {
         workspaceId={workspaceId}
         initialKeywords={gen.suggestedKeywords}
         selectedKey={gen.image?.unsplash_id ?? gen.image?.storage_key ?? null}
+        brandImages={workspace?.brand_profile.brand_images ?? []}
         onSelectUnsplash={(p) => {
           void gen.selectUnsplash(p);
         }}

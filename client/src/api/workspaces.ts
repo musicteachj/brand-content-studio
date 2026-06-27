@@ -126,3 +126,26 @@ export function useRemoveExemplar(workspaceId: string | null) {
     onSuccess: (ws) => invalidateWorkspace(qc, ws),
   });
 }
+
+// Brand-image library — save a reusable image (stored on brand_profile.brand_images,
+// no model call) / remove one. Pickable later as a card image in the picker.
+export function useAddBrandImage(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return (await api.post<Workspace>(`/workspaces/${workspaceId}/brand-images`, form)).data;
+    },
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useRemoveBrandImage(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (imageId: string) =>
+      (await api.delete<Workspace>(`/workspaces/${workspaceId}/brand-images/${imageId}`)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}

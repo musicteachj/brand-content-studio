@@ -40,6 +40,17 @@ class BrandExemplar(BaseModel):
     style_note: str
 
 
+class BrandImage(BaseModel):
+    """A reusable image the owner saved to the workspace's brand-image library,
+    pickable as a card picture from the image picker (no model involvement —
+    distinct from `BrandExemplar`, which steers generation via a style note)."""
+
+    id: str
+    storage_key: str
+    url: Optional[str] = None
+    name: Optional[str] = None  # original filename, for a picker label
+
+
 class BrandProfile(BaseModel):
     """Workspace brand identity. These fonts/colors drive the card preview —
     never the app's own Folio chrome (DESIGN.md §7)."""
@@ -50,6 +61,7 @@ class BrandProfile(BaseModel):
     logo: Optional[BrandLogo] = None
     voice_summary: Optional[str] = None  # cached blurb injected into the prompt header
     exemplars: list[BrandExemplar] = Field(default_factory=list)
+    brand_images: list[BrandImage] = Field(default_factory=list)
 
 
 def serialize_doc(doc: dict[str, Any]) -> dict[str, Any]:

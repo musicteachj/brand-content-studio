@@ -9,12 +9,13 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
-from app.models.common import BrandExemplar, BrandLogo, serialize_doc, utcnow
+from app.models.common import BrandExemplar, BrandImage, BrandLogo, serialize_doc, utcnow
 from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
 MAX_EXEMPLARS = 5
+MAX_BRAND_IMAGES = 24
 
 
 def _slugify(name: str) -> str:
@@ -93,7 +94,15 @@ async def update_workspace(
     if payload.name is not None and payload.name != doc["name"]:
         updates["name"] = payload.name
     if payload.brand_profile is not None:
-        updates["brand_profile"] = payload.brand_profile.model_dump()
+        bp = payload.brand_profile.model_dump()
+        # The brand PATCH edits colors/accent/fonts/voice and replaces the profile
+        # whole; preserve the sub-collections that have their own endpoints (logo,
+        # exemplars, brand images) so an identity Save can't silently wipe them.
+        existing = doc.get("brand_profile") or {}
+        for managed in ("logo", "exemplars", "brand_images"):
+            if managed in existing:
+                bp[managed] = existing[managed]
+        updates["brand_profile"] = bp
     await db.workspaces.update_one({"_id": doc["_id"]}, {"$set": updates})
     doc.update(updates)
     return _to_response(doc)
@@ -172,6 +181,45 @@ async def remove_workspace_exemplar(
     )
     bp = doc.setdefault("brand_profile", {})
     bp["exemplars"] = [e for e in exemplars if e.get("id") != exemplar_id]
+    doc["updated_at"] = now
+    return _to_response(doc), old_key
+
+
+async def add_workspace_image(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image: BrandImage
+) -> Optional[WorkspaceResponse]:
+    """Append a brand image to `brand_profile.brand_images` (targeted $push)."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$push": {"brand_profile.brand_images": image.model_dump()}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp.setdefault("brand_images", []).append(image.model_dump())
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
+async def remove_workspace_image(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image_id: str
+) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+    """Pull a brand image by id; return the updated workspace + its storage key
+    (so the caller can delete the bytes), or None if not owned."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    images = (doc.get("brand_profile") or {}).get("brand_images") or []
+    old_key = next((i.get("storage_key") for i in images if i.get("id") == image_id), None)
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$pull": {"brand_profile.brand_images": {"id": image_id}}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp["brand_images"] = [i for i in images if i.get("id") != image_id]
     doc["updated_at"] = now
     return _to_response(doc), old_key
 

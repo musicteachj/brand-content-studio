@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, ImageOff, Search, Upload, X } from "lucide-react";
-import { uploadImage, useUnsplashSearch } from "@/api/images";
+import { fetchImageDataUrl, uploadImage, useUnsplashSearch } from "@/api/images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { UnsplashPhoto } from "@/types";
+import type { BrandImage, UnsplashPhoto } from "@/types";
 
 interface Props {
   open: boolean;
@@ -13,6 +13,7 @@ interface Props {
   workspaceId: string | null;
   initialKeywords: string[];
   selectedKey: string | null; // unsplash id or upload storage_key
+  brandImages: BrandImage[]; // the workspace's reusable brand-image library
   onSelectUnsplash: (photo: UnsplashPhoto) => void;
   onSelectUpload: (url: string, storageKey: string) => void;
 }
@@ -23,6 +24,7 @@ export function ImagePickerPanel({
   workspaceId,
   initialKeywords,
   selectedKey,
+  brandImages,
   onSelectUnsplash,
   onSelectUpload,
 }: Props) {
@@ -141,6 +143,23 @@ export function ImagePickerPanel({
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4">
+            {brandImages.length > 0 && (
+              <section className="mb-5">
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Brand images
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  {brandImages.map((img) => (
+                    <BrandImageTile
+                      key={img.id}
+                      image={img}
+                      selected={selectedKey === img.storage_key}
+                      onSelect={() => onSelectUpload(img.url ?? "", img.storage_key)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
             {!query && (
               <p className="py-10 text-center text-sm text-muted-foreground">
                 Search for a photo, or upload your own.
@@ -229,6 +248,53 @@ function PhotoTile({
         on Unsplash
       </p>
     </div>
+  );
+}
+
+function BrandImageTile({
+  image,
+  selected,
+  onSelect,
+}: {
+  image: BrandImage;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!image.url) return;
+    fetchImageDataUrl(image.url)
+      .then((d) => alive && setDataUrl(d))
+      .catch(() => alive && setDataUrl(null));
+    return () => {
+      alive = false;
+    };
+  }, [image.url]);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={`Use ${image.name ?? "brand image"}`}
+      className={cn(
+        "relative block aspect-square w-full overflow-hidden rounded-lg border bg-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        selected
+          ? "border-accent ring-2 ring-accent"
+          : "border-border hover:border-muted-foreground",
+      )}
+    >
+      {dataUrl ? (
+        <img src={dataUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="absolute inset-0 animate-pulse bg-muted-foreground/10" aria-hidden />
+      )}
+      {selected && (
+        <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-foreground">
+          <Check className="h-3.5 w-3.5" aria-hidden />
+        </span>
+      )}
+    </button>
   );
 }
 
