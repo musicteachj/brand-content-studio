@@ -120,3 +120,19 @@ export function injectBrandFontFaces(fonts: BrandFonts): void {
     document.head.appendChild(style);
   }
 }
+
+/** Inject a single 400-weight @font-face for `family` so a Settings preview can
+ *  render it — the same fontsource TTF the card uses. Idempotent per family. */
+export function injectFontFace(family: string): void {
+  if (typeof document === "undefined" || !family.trim()) return;
+  const key = `${family}:400`;
+  if (injected.has(key)) return;
+  injected.add(key);
+  const style = document.createElement("style");
+  style.dataset.brandFont = key;
+  style.textContent = `@font-face{font-family:"${family}";font-style:normal;font-weight:400;font-display:swap;src:url("${ttfUrl(
+    family,
+    400,
+  )}") format("truetype");}`;
+  document.head.appendChild(style);
+}

@@ -3,6 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageOff, Pencil, Plus, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { fetchImageDataUrl } from "@/api/images";
+import { injectFontFace } from "@/styles/brandFonts";
+import { optionsForRole } from "@/styles/fontCatalog";
 import {
   useDeleteLogo,
   useExtractBrand,
@@ -433,15 +435,36 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
       <div className="grid gap-3 border-t border-border pt-5 sm:grid-cols-3">
         <div className="flex flex-col">
           <Label htmlFor="font-heading">Heading font</Label>
-          <Input id="font-heading" placeholder="e.g. Fraunces" {...register("fonts.heading")} />
+          <Select id="font-heading" {...register("fonts.heading")}>
+            {optionsForRole("heading", watch("fonts.heading")).map((o) => (
+              <option key={o.value || "default"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <FontPreview family={watch("fonts.heading")} />
         </div>
         <div className="flex flex-col">
           <Label htmlFor="font-body">Body font</Label>
-          <Input id="font-body" placeholder="e.g. Inter" {...register("fonts.body")} />
+          <Select id="font-body" {...register("fonts.body")}>
+            {optionsForRole("body", watch("fonts.body")).map((o) => (
+              <option key={o.value || "default"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <FontPreview family={watch("fonts.body")} />
         </div>
         <div className="flex flex-col">
           <Label htmlFor="font-mono">Mono font</Label>
-          <Input id="font-mono" placeholder="e.g. JetBrains Mono" {...register("fonts.mono")} />
+          <Select id="font-mono" {...register("fonts.mono")}>
+            {optionsForRole("mono", watch("fonts.mono")).map((o) => (
+              <option key={o.value || "default"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+          <FontPreview family={watch("fonts.mono")} />
         </div>
       </div>
 
@@ -511,5 +534,20 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
         {saveError && <span className="text-xs text-destructive">{saveError}</span>}
       </div>
     </form>
+  );
+}
+
+function FontPreview({ family }: { family: string | null | undefined }) {
+  useEffect(() => {
+    if (family) injectFontFace(family);
+  }, [family]);
+  if (!family) return null;
+  return (
+    <p
+      className="mt-1.5 truncate text-sm text-muted-foreground"
+      style={{ fontFamily: `"${family}", serif` }}
+    >
+      The quick brown fox
+    </p>
   );
 }

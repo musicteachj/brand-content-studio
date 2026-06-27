@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { findCatalogFamily } from "@/styles/fontCatalog";
 import type { BrandExtract, BrandProfile, ColorRole } from "@/types";
 
 // Pure brand-profile form schema + mappers (kept out of the component file so
@@ -57,9 +58,9 @@ export function proposalToForm(
   return {
     colors: p.colors.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
     fonts: {
-      heading: p.fonts.heading ?? "",
-      body: p.fonts.body ?? "",
-      mono: p.fonts.mono ?? "",
+      heading: findCatalogFamily(p.fonts.heading) ?? p.fonts.heading ?? "",
+      body: findCatalogFamily(p.fonts.body) ?? p.fonts.body ?? "",
+      mono: findCatalogFamily(p.fonts.mono) ?? p.fonts.mono ?? "",
     },
     voice_summary: p.voice_summary ?? "",
   };
