@@ -1,17 +1,27 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Asset, AssetKind } from "@/types";
+import type { Asset, AssetKind, AssetPage } from "@/types";
+
+const ASSETS_LIMIT = 30;
 
 export function useAssets(workspaceId: string | null) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["assets", workspaceId],
     enabled: !!workspaceId,
-    queryFn: async () => (await api.get<Asset[]>(`/workspaces/${workspaceId}/assets`)).data,
-    // Poll while anything is still processing so the status pill flips live.
-    refetchInterval: (query) => {
-      const data = query.state.data as Asset[] | undefined;
-      return data?.some((a) => a.ingestion_status === "processing") ? 1500 : false;
-    },
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<AssetPage>(`/workspaces/${workspaceId}/assets`, {
+          params: { limit: ASSETS_LIMIT, offset: pageParam },
+        })
+      ).data,
+    getNextPageParam: (lastPage) => lastPage.next_offset ?? undefined,
+    // Poll while any loaded asset is still processing so the status pill flips
+    // live (a just-uploaded asset sorts to the first page, so this catches it).
+    refetchInterval: (query) =>
+      query.state.data?.pages.some((p) => p.items.some((a) => a.ingestion_status === "processing"))
+        ? 1500
+        : false,
   });
 }
 

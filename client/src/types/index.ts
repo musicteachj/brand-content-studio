@@ -260,6 +260,17 @@ export interface Generation {
   updated_at: string | null;
 }
 
+// Phase 6 — paginated list envelopes ({items, next_offset}; null = exhausted).
+export interface GenerationPage {
+  items: Generation[];
+  next_offset: number | null;
+}
+
+export interface AssetPage {
+  items: Asset[];
+  next_offset: number | null;
+}
+
 // SSE frame shapes from /generate/text (lib/sse.ts decodes these).
 export interface SSETextFrame {
   text: string;

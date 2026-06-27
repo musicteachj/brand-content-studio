@@ -3,6 +3,7 @@ import { AxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Trash2, UploadCloud } from "lucide-react";
 import { useAssets, useDeleteAsset, useUploadAsset } from "@/api/assets";
+import { flattenPages } from "@/api/pagination";
 import { DemoNotice } from "@/components/DemoNotice";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -33,13 +34,15 @@ function formatBytes(n: number): string {
 export function AssetsPage() {
   const { workspaceId } = useActiveWorkspace();
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
-  const { data: assets, isLoading, isError } = useAssets(workspaceId);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useAssets(workspaceId);
+  const assets = flattenPages(data);
 
   // When ingestion finishes (nothing left processing), refresh the workspace
   // counters that the dashboard + corpus-ready gate read from.
   const qc = useQueryClient();
   const wasProcessing = useRef(false);
-  const processing = assets?.some((a) => a.ingestion_status === "processing") ?? false;
+  const processing = assets.some((a) => a.ingestion_status === "processing");
   useEffect(() => {
     if (wasProcessing.current && !processing) {
       qc.invalidateQueries({ queryKey: ["workspaces"] });
@@ -71,7 +74,8 @@ export function AssetsPage() {
 
       <section className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
         <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Assets {assets ? <span className="text-muted-foreground">({assets.length})</span> : null}
+          Assets{" "}
+          {!isLoading ? <span className="text-muted-foreground">({assets.length})</span> : null}
         </h2>
         {isLoading && <SkeletonRows />}
         {isError && (
@@ -79,8 +83,8 @@ export function AssetsPage() {
             Couldn't load assets. Is the server running?
           </p>
         )}
-        {assets && assets.length === 0 && <EmptyAssets />}
-        {assets && assets.length > 0 && (
+        {!isLoading && !isError && assets.length === 0 && <EmptyAssets />}
+        {assets.length > 0 && (
           <ul className="overflow-hidden rounded-lg border border-border">
             {assets.map((asset) => (
               <AssetRow
@@ -91,6 +95,18 @@ export function AssetsPage() {
               />
             ))}
           </ul>
+        )}
+        {hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fetchNextPage()}
+              loading={isFetchingNextPage}
+            >
+              Load more
+            </Button>
+          </div>
         )}
       </section>
     </div>
