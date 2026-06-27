@@ -1,6 +1,6 @@
 import { ArrowRight, FileText, PenLine, Sparkle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useGenerations } from "@/api/generations";
+import { useGenerationCount } from "@/api/generations";
 import { Button } from "@/components/ui/button";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { useAuthStore } from "@/stores/auth";
@@ -10,7 +10,7 @@ export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const firstName = (user?.full_name ?? "there").split(" ")[0];
   const { workspace, workspaceId } = useActiveWorkspace();
-  const { data: generations } = useGenerations(workspaceId);
+  const { data: generationCount } = useGenerationCount(workspaceId);
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,11 +41,7 @@ export function DashboardPage() {
           value={String(workspace?.ready_chunk_count ?? 0)}
           hint="Retrievable corpus"
         />
-        <StatCard
-          label="Generations"
-          value={String(generations?.length ?? 0)}
-          hint="Posts + cards"
-        />
+        <StatCard label="Generations" value={String(generationCount ?? 0)} hint="Posts + cards" />
       </div>
 
       <div

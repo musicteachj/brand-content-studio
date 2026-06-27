@@ -50,9 +50,19 @@ async def create_asset(
     return doc
 
 
-async def list_assets(db: AsyncIOMotorDatabase, workspace_oid: ObjectId) -> list[AssetResponse]:
-    cursor = db.assets.find({"workspace_id": workspace_oid}).sort("created_at", -1)
-    return [_to_response(doc) async for doc in cursor]
+async def list_assets(
+    db: AsyncIOMotorDatabase, workspace_oid: ObjectId, *, limit: int = 30, offset: int = 0
+) -> tuple[list[AssetResponse], Optional[int]]:
+    cursor = (
+        db.assets.find({"workspace_id": workspace_oid})
+        .sort("created_at", -1)
+        .skip(offset)
+        .limit(limit + 1)
+    )
+    docs = [doc async for doc in cursor]
+    has_more = len(docs) > limit
+    items = [_to_response(d) for d in docs[:limit]]
+    return items, (offset + limit if has_more else None)
 
 
 async def get_asset(

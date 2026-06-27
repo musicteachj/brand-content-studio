@@ -5,20 +5,38 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.generation import GenerationResponse, GenerationUpdate
+from app.models.generation import (
+    GenerationCount,
+    GenerationPage,
+    GenerationResponse,
+    GenerationUpdate,
+)
 from app.services import generations_service
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[GenerationResponse])
+@router.get("", response_model=GenerationPage)
 async def list_generations(
     type: str = Query("all", pattern="^(all|text|card|document|post_pack)$"),
+    limit: int = Query(24, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     workspace: dict = Depends(get_workspace_or_404),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    return await generations_service.list_generations(db, workspace["_id"], type)
+    items, next_offset = await generations_service.list_generations(
+        db, workspace["_id"], type, limit=limit, offset=offset
+    )
+    return GenerationPage(items=items, next_offset=next_offset)
+
+
+@router.get("/count", response_model=GenerationCount)
+async def count_generations(
+    workspace: dict = Depends(get_workspace_or_404),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    return GenerationCount(count=await generations_service.count_generations(db, workspace["_id"]))
 
 
 @router.get("/{generation_id}", response_model=GenerationResponse)

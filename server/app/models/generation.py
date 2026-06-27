@@ -229,3 +229,12 @@ class GenerationResponse(BaseModel):
     embedding_query_model: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class GenerationPage(BaseModel):
+    items: list[GenerationResponse]
+    next_offset: Optional[int] = None
+
+
+class GenerationCount(BaseModel):
+    count: int

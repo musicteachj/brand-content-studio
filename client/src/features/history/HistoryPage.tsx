@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Copy, Download, LayoutGrid, Sliders, Trash2, X } from "lucide-react";
 import { useDeleteGeneration, useGenerations, type HistoryFilter } from "@/api/generations";
+import { flattenPages } from "@/api/pagination";
 import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
 import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
@@ -113,7 +114,9 @@ export function HistoryPage() {
   const { workspace, workspaceId } = useActiveWorkspace();
   const brand = workspace?.brand_profile ?? null;
   const [filter, setFilter] = useState<HistoryFilter>("all");
-  const { data: generations, isLoading, isError } = useGenerations(workspaceId, filter);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useGenerations(workspaceId, filter);
+  const generations = flattenPages(data);
   const [open, setOpen] = useState<Generation | null>(null);
 
   // Load workspace fonts so card thumbnails render in the brand type.
@@ -157,8 +160,8 @@ export function HistoryPage() {
           Couldn't load history.
         </p>
       )}
-      {generations && generations.length === 0 && <EmptyHistory />}
-      {generations && generations.length > 0 && (
+      {!isLoading && !isError && generations.length === 0 && <EmptyHistory />}
+      {generations.length > 0 && (
         <div className="grid animate-fade-in-up gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {generations.map((gen) => (
             <HistoryCard
@@ -169,6 +172,13 @@ export function HistoryPage() {
               onOpen={() => setOpen(gen)}
             />
           ))}
+        </div>
+      )}
+      {hasNextPage && (
+        <div className="flex justify-center">
+          <Button variant="secondary" onClick={() => fetchNextPage()} loading={isFetchingNextPage}>
+            Load more
+          </Button>
         </div>
       )}
 

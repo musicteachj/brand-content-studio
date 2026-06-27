@@ -14,13 +14,14 @@ from fastapi import (
     Depends,
     Form,
     HTTPException,
+    Query,
     UploadFile,
     status,
 )
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.asset import AssetKind, AssetResponse
+from app.models.asset import AssetKind, AssetPage, AssetResponse
 from app.rag.vector_store import get_vector_store
 from app.services import asset_service
 from app.services.ingestion_service import ingest_asset
@@ -97,12 +98,17 @@ async def upload_asset(
     return await asset_service.asset_response(doc)
 
 
-@router.get("", response_model=list[AssetResponse])
+@router.get("", response_model=AssetPage)
 async def list_assets(
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     workspace: dict = Depends(get_workspace_or_404),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    return await asset_service.list_assets(db, workspace["_id"])
+    items, next_offset = await asset_service.list_assets(
+        db, workspace["_id"], limit=limit, offset=offset
+    )
+    return AssetPage(items=items, next_offset=next_offset)
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)

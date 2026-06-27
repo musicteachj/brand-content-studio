@@ -37,3 +37,8 @@ class AssetResponse(BaseModel):
     ingested_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class AssetPage(BaseModel):
+    items: list[AssetResponse]
+    next_offset: Optional[int] = None
