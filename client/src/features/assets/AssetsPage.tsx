@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Trash2, UploadCloud } from "lucide-react";
-import { useAssets, useDeleteAsset, useUploadAsset } from "@/api/assets";
+import { useAssets, useDeleteAsset, useReingestAsset, useUploadAsset } from "@/api/assets";
 import { flattenPages } from "@/api/pagination";
 import { DemoNotice } from "@/components/DemoNotice";
 import { Button } from "@/components/ui/button";
@@ -206,6 +206,7 @@ function AssetRow({
   canDelete: boolean;
 }) {
   const del = useDeleteAsset(workspaceId);
+  const reingest = useReingestAsset(workspaceId);
   return (
     <li className="flex items-center gap-4 border-b border-border bg-surface-variant/40 px-4 py-3 last:border-b-0">
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface text-muted-foreground">
@@ -222,6 +223,16 @@ function AssetRow({
         )}
       </div>
       <StatusPill status={asset.ingestion_status} />
+      {asset.ingestion_status === "error" && canDelete && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => reingest.mutate(asset.id)}
+          loading={reingest.isPending}
+        >
+          Retry
+        </Button>
+      )}
       {canDelete && (
         <button
           type="button"
