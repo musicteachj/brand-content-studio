@@ -53,6 +53,13 @@ export function useCardGeneration(workspaceId: string | null) {
   const abortRef = useRef<AbortController | null>(null);
   const persistedKeyRef = useRef<string | null>(null);
 
+  // Switching workspaces must not leave an in-flight stream writing into the new
+  // workspace's view: abort it and reset to a clean slate.
+  useEffect(() => {
+    setState(initial("photo-led"));
+    return () => abortRef.current?.abort();
+  }, [workspaceId]);
+
   const generate = useCallback(
     async (body: CardStreamBody) => {
       if (!workspaceId) return;
