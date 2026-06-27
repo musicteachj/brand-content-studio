@@ -6,6 +6,10 @@
 import { useAuthStore } from "@/stores/auth";
 import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
+/** Abort the read if no frame arrives within this window — a stalled stream
+ *  (proxy hang, dropped connection) should surface an error, not spin forever. */
+export const STREAM_INACTIVITY_MS = 30000;
+
 export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
   onMeta: (meta: Meta) => void;
@@ -82,15 +86,34 @@ async function openStream(
   return response;
 }
 
-/** Read decoded SSE frames until `[DONE]`, the stream ends, or it is aborted. */
-async function readFrames<Meta>(response: Response, handlers: StreamHandlers<Meta>): Promise<void> {
+/** Read decoded SSE frames until `[DONE]`, the stream ends, it is aborted, or it
+ *  stalls past STREAM_INACTIVITY_MS (each `read()` races an inactivity timer). */
+export async function readFrames<Meta>(
+  response: Response,
+  handlers: StreamHandlers<Meta>,
+): Promise<void> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      let timer: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), STREAM_INACTIVITY_MS);
+      });
+      let result: Awaited<ReturnType<typeof reader.read>> | "timeout";
+      try {
+        result = await Promise.race([reader.read(), timeout]);
+      } finally {
+        clearTimeout(timer!);
+      }
+      if (result === "timeout") {
+        await reader.cancel();
+        handlers.onError("The stream stalled — try again.");
+        return;
+      }
+      const { done, value } = result;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
@@ -107,7 +130,8 @@ async function readFrames<Meta>(response: Response, handlers: StreamHandlers<Met
           const payload = JSON.parse(line);
           if ("text" in payload) handlers.onText((payload as SSETextFrame).text);
           else if ("meta" in payload) handlers.onMeta((payload as { meta: Meta }).meta);
-          else if ("error" in payload) handlers.onError(payload.error);
+          else if ("error" in payload)
+            handlers.onError(typeof payload.error === "string" ? payload.error : "Generation failed.");
         } catch {
           /* ignore malformed frame */
         }
