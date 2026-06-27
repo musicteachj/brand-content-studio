@@ -138,6 +138,38 @@ async def test_add_brand_image_cross_owner_404(test_db, tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_brand_patch_preserves_library_and_exemplars(test_db, tmp_path, monkeypatch):
+    """A brand-identity Save (whole-profile PATCH) must not wipe the sub-collections
+    that have their own endpoints — the image library and exemplars."""
+    imgs = [{"id": "i1", "storage_key": "k1", "url": "/u", "name": "a.png"}]
+    exs = [{"id": "e1", "storage_key": "ke", "url": "/u", "style_note": "Punchy."}]
+    ac = await _mk(test_db, tmp_path, monkeypatch, brand_images=imgs)
+    await test_db.workspaces.update_one(
+        {"_id": WS_OID}, {"$set": {"brand_profile.exemplars": exs}}
+    )
+    async with ac:
+        resp = await ac.patch(
+            f"/api/workspaces/{WS_OID}",
+            json={
+                "brand_profile": {
+                    "colors": [{"name": "Green", "hex": "#1C3A2E", "role": "primary"}],
+                    "accent_hex": None,
+                    "fonts": {"heading": None, "body": None, "mono": None},
+                    "logo": None,
+                    "voice_summary": "New voice.",
+                }
+            },
+        )
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.status_code == 200
+    bp = resp.json()["brand_profile"]
+    assert bp["voice_summary"] == "New voice."  # the edit applied
+    assert [i["id"] for i in bp["brand_images"]] == ["i1"]  # library preserved
+    assert [e["id"] for e in bp["exemplars"]] == ["e1"]  # exemplars preserved
+
+
+@pytest.mark.asyncio
 async def test_delete_brand_image_pulls_and_removes_bytes(bi_client):
     add = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
     img = add.json()["brand_profile"]["brand_images"][0]

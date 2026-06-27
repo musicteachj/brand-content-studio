@@ -94,7 +94,15 @@ async def update_workspace(
     if payload.name is not None and payload.name != doc["name"]:
         updates["name"] = payload.name
     if payload.brand_profile is not None:
-        updates["brand_profile"] = payload.brand_profile.model_dump()
+        bp = payload.brand_profile.model_dump()
+        # The brand PATCH edits colors/accent/fonts/voice and replaces the profile
+        # whole; preserve the sub-collections that have their own endpoints (logo,
+        # exemplars, brand images) so an identity Save can't silently wipe them.
+        existing = doc.get("brand_profile") or {}
+        for managed in ("logo", "exemplars", "brand_images"):
+            if managed in existing:
+                bp[managed] = existing[managed]
+        updates["brand_profile"] = bp
     await db.workspaces.update_one({"_id": doc["_id"]}, {"$set": updates})
     doc.update(updates)
     return _to_response(doc)
