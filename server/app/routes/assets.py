@@ -111,6 +111,28 @@ async def list_assets(
     return AssetPage(items=items, next_offset=next_offset)
 
 
+@router.post(
+    "/{asset_id}/reingest", response_model=AssetResponse, status_code=status.HTTP_202_ACCEPTED
+)
+async def reingest_asset(
+    asset_id: str,
+    background_tasks: BackgroundTasks,
+    workspace: dict = Depends(get_workspace_or_404),
+    _: object = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Retry ingestion for an asset (typically one in `error`). Drops any prior
+    vectors first so a re-parse can't orphan old chunks, resets to `processing`,
+    and re-runs ingestion out of band."""
+    doc = await asset_service.get_asset(db, workspace["_id"], asset_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    await get_vector_store().delete_asset(workspace["vector_namespace"], asset_id)
+    updated = await asset_service.mark_processing(db, doc["_id"])
+    background_tasks.add_task(ingest_asset, asset_id, workspace["vector_namespace"])
+    return await asset_service.asset_response(updated)
+
+
 @router.get("/{asset_id}", response_model=AssetResponse)
 async def get_asset(
     asset_id: str,
