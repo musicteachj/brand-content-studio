@@ -53,13 +53,26 @@ async def create_generation(
 
 
 async def list_generations(
-    db: AsyncIOMotorDatabase, workspace_oid: ObjectId, type_filter: str = "all"
-) -> list[GenerationResponse]:
+    db: AsyncIOMotorDatabase,
+    workspace_oid: ObjectId,
+    type_filter: str = "all",
+    *,
+    limit: int = 24,
+    offset: int = 0,
+) -> tuple[list[GenerationResponse], Optional[int]]:
     query: dict = {"workspace_id": workspace_oid}
     if type_filter in ("text", "card", "document", "post_pack"):
         query["type"] = type_filter
-    cursor = db.generations.find(query).sort("created_at", -1)
-    return [_to_response(doc) async for doc in cursor]
+    # Fetch one extra to detect a further page without a count() on the hot path.
+    cursor = db.generations.find(query).sort("created_at", -1).skip(offset).limit(limit + 1)
+    docs = [doc async for doc in cursor]
+    has_more = len(docs) > limit
+    items = [_to_response(d) for d in docs[:limit]]
+    return items, (offset + limit if has_more else None)
+
+
+async def count_generations(db: AsyncIOMotorDatabase, workspace_oid: ObjectId) -> int:
+    return await db.generations.count_documents({"workspace_id": workspace_oid})
 
 
 async def update_generation_output(
