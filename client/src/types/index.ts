@@ -27,6 +27,13 @@ export interface BrandExemplar {
   style_note: string;
 }
 
+export interface BrandImage {
+  id: string;
+  storage_key: string;
+  url: string | null;
+  name: string | null;
+}
+
 export interface BrandProfile {
   colors: BrandColor[];
   accent_hex: string | null;
@@ -34,6 +41,7 @@ export interface BrandProfile {
   logo: BrandLogo | null;
   voice_summary: string | null;
   exemplars: BrandExemplar[];
+  brand_images: BrandImage[];
 }
 
 // Phase 4c — a proposed brand profile inferred from an uploaded image. Returned
