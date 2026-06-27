@@ -21,6 +21,16 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Phase 6: Robustness — `0.8.0` *(PR-A: pagination + isolation test)*
+
+Bound the previously unbounded History/Assets lists, and prove tenancy end-to-end. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#25) and the spec/plan under `docs/superpowers/`. **PR-B (ingestion caps + generation concurrency/state + demo-guard reconcile) is the next Phase 6 slice.**
+
+- **Paginated list endpoints** — `GET …/generations` and `GET …/assets` now take `?limit&offset` (`Query`-bounded to `[1,100]`; defaults 24/30) and return an envelope `{ items, next_offset }`, where `next_offset` is computed with a **`limit + 1` sentinel** (no `count()` on the hot path; `null` when exhausted). The generations type filter still applies before paging.
+- **Client "Load more"** — History and Assets move to react-query `useInfiniteQuery` (a `flattenPages` helper joins pages) with a "Load more" button shown while there's a next page; History filters reset paging. The Assets processing-poll now keys on any *loaded* processing asset (newly uploaded assets sort to the first page).
+- **Dashboard count** — the "generations" stat needs a total, not a page, so it's backed by a new `GET …/generations/count` (declared before `/{generation_id}` so the literal path isn't captured by the id param) + a `useGenerationCount` hook.
+- **HTTP cross-owner isolation test** — a pytest asserting owner A's token gets **404** on owner B's workspace / assets / generations / templates — the end-to-end complement to the unit-level `test_query_is_workspace_scoped`.
+- **Tests** — pytest (+10, 101 total): pagination at the service + route level (`next_offset`, over-max 422, count) and the cross-owner isolation matrix. Vitest (+2, 46 total): the `flattenPages` helper.
+
 ### Added — Demo seed enrichment (Verdure)
 
 The demo user can't create content (mutations are demo-blocked), so the new Phase 4–5 surfaces would otherwise show only empty states. `seed/seed_demo.py` now seeds — **deterministically, with no model calls** — a Verdure **brand logo**, **two example cards** (`brand_profile.exemplars` with hardcoded `style_note`s), and **two document templates** (a branded `.docx` one-pager + `.pptx` deck with `{{placeholders}}`, discovered via `template_service`). Images are generated with Pillow, Office files with python-docx/python-pptx. Idempotent (each step is a no-op if already present). This makes the brand editor, example-card steering, and the Templates page all demo with real content — and since render / AI-draft / brand-extract are demo-*allowed*, a visitor can actually fill and download a seeded template. Tests: pytest (+4, 91 total) lock the generated templates' discoverable placeholders + valid PNG output. *(A second demo brand stays deferred — it needs its own ingested corpus.)*
