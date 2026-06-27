@@ -129,6 +129,8 @@ async def reingest_asset(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     await get_vector_store().delete_asset(workspace["vector_namespace"], asset_id)
     updated = await asset_service.mark_processing(db, doc["_id"])
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
     background_tasks.add_task(ingest_asset, asset_id, workspace["vector_namespace"])
     return await asset_service.asset_response(updated)
 
