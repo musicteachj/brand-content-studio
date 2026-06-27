@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { findCatalogFamily } from "@/styles/fontCatalog";
 import type { BrandExtract, BrandProfile } from "@/types";
 import { brandSchema, buildBrandProfile, proposalToForm, toForm } from "./brandIdentity";
 
@@ -86,5 +87,27 @@ describe("proposalToForm (Phase 4c)", () => {
     });
     const merged = { ...base, ...proposalToForm(PROPOSAL), accent_hex: "" };
     expect(brandSchema.safeParse(merged).success).toBe(true);
+  });
+});
+
+describe("proposalToForm font snapping", () => {
+  it("snaps a proposed font name to the catalog casing", () => {
+    const form = proposalToForm({
+      colors: [],
+      voice_summary: null,
+      fonts: { heading: "inter", body: "playfair display", mono: null },
+    });
+    expect(form.fonts.heading).toBe("Inter");
+    expect(form.fonts.body).toBe("Playfair Display");
+  });
+
+  it("keeps an unknown proposed font as-is (preserved as a current option)", () => {
+    const form = proposalToForm({
+      colors: [],
+      voice_summary: null,
+      fonts: { heading: "Some Custom Face", body: null, mono: null },
+    });
+    expect(form.fonts.heading).toBe("Some Custom Face");
+    expect(findCatalogFamily(form.fonts.heading)).toBeNull();
   });
 });
