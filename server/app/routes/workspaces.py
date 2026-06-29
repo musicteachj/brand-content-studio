@@ -10,6 +10,7 @@ from app.models.common import BrandExemplar, BrandImage, BrandLogo
 from app.models.user import UserInDB
 from app.models.workspace import (
     BrandExtractResponse,
+    BrandImageRename,
     WorkspaceCreate,
     WorkspaceResponse,
     WorkspaceUpdate,
@@ -277,6 +278,23 @@ async def delete_brand_image(
     updated, old_key = result
     if old_key:
         await get_storage().delete(old_key)
+    return updated
+
+
+@router.patch("/{workspace_id}/brand-images/{image_id}", response_model=WorkspaceResponse)
+async def rename_brand_image(
+    image_id: str,
+    payload: BrandImageRename,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Rename a brand image's display label. Demo-blocked (it mutates)."""
+    updated = await workspace_service.rename_workspace_image(
+        db, str(workspace["_id"]), current_user.id, image_id, payload.name
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated
 
 
