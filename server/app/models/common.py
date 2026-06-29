@@ -51,6 +51,18 @@ class BrandImage(BaseModel):
     name: Optional[str] = None  # original filename, for a picker label
 
 
+class UploadedFont(BaseModel):
+    """A `.ttf` the owner uploaded; usable as a brand font (`fonts.{heading,body,
+    mono}` by family name) with full parity on cards + embedded in PDFs. The
+    `family` is the user-given label — also the handle for @font-face / Satori /
+    ReportLab (no font parsing)."""
+
+    id: str
+    family: str
+    storage_key: str
+    url: Optional[str] = None
+
+
 class BrandProfile(BaseModel):
     """Workspace brand identity. These fonts/colors drive the card preview —
     never the app's own Folio chrome (DESIGN.md §7)."""
@@ -62,6 +74,7 @@ class BrandProfile(BaseModel):
     voice_summary: Optional[str] = None  # cached blurb injected into the prompt header
     exemplars: list[BrandExemplar] = Field(default_factory=list)
     brand_images: list[BrandImage] = Field(default_factory=list)
+    uploaded_fonts: list[UploadedFont] = Field(default_factory=list)
 
 
 def serialize_doc(doc: dict[str, Any]) -> dict[str, Any]:
