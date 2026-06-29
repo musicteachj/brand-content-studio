@@ -18,7 +18,12 @@ from app.main import app
 from app.models.common import utcnow
 from app.models.template import TemplateAiFillRequest, TemplateRenderRequest, TemplateResponse
 from app.models.user import UserInDB
-from app.prompts.template_fill import build_fill_system, build_fill_tool, build_fill_user
+from app.prompts.template_fill import (
+    build_fill_system,
+    build_fill_tool,
+    build_fill_user,
+    build_fill_user_from_content,
+)
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage
 from app.services.template_service import (
@@ -138,6 +143,12 @@ def test_build_fill_tool_uses_placeholder_names():
 def test_fill_prompt_builders_nonempty():
     assert build_fill_system().strip()
     assert "title" in build_fill_user("a brief", ["title"])
+
+
+def test_build_fill_user_from_content_includes_content_and_fields():
+    out = build_fill_user_from_content("The Q3 plan: grow EU sales.", ["title", "summary"])
+    assert "The Q3 plan: grow EU sales." in out
+    assert "title" in out and "summary" in out
 
 
 # --- Task 7: routes (AI fill faked) -----------------------------------------
