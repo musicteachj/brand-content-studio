@@ -18,7 +18,12 @@ afterEach(() => vi.unstubAllGlobals());
 describe("loadBrandFontBuffers source-awareness", () => {
   it("fetches uploaded fonts from their own (same-origin) url", async () => {
     const uploaded: UploadedFont[] = [
-      { id: "f1", family: "Acme Sans", storage_key: "k", url: "/api/workspaces/w/fonts/file/f1/a.ttf" },
+      {
+        id: "f1",
+        family: "Acme Sans",
+        storage_key: "k",
+        url: "/api/workspaces/w/fonts/file/f1/a.ttf",
+      },
     ];
     const out = await loadBrandFontBuffers(FONTS, uploaded);
     expect(out.length).toBeGreaterThan(0);

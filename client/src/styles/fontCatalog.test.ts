@@ -28,6 +28,12 @@ describe("fontCatalog", () => {
     expect(optionsForRole("heading", "Inter").filter((o) => o.value === "Inter")).toHaveLength(1);
   });
 
+  it("appends uploaded font families to every role", () => {
+    const opts = optionsForRole("heading", null, ["Acme Sans"]);
+    expect(opts.map((o) => o.value)).toContain("Acme Sans");
+    expect(optionsForRole("mono", null, ["Acme Sans"]).map((o) => o.value)).toContain("Acme Sans");
+  });
+
   it("matches a family name case-insensitively", () => {
     expect(findCatalogFamily("inter")).toBe("Inter");
     expect(findCatalogFamily("Unknown Face")).toBeNull();

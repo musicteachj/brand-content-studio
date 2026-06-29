@@ -46,8 +46,8 @@ export function DeckPreview({ document: doc, brand, compact = false, className }
   const body = bodyFamily(brand.fonts);
 
   useEffect(() => {
-    injectBrandFontFaces(brand.fonts);
-  }, [brand.fonts]);
+    injectBrandFontFaces(brand.fonts, brand.uploaded_fonts ?? []);
+  }, [brand.fonts, brand.uploaded_fonts]);
 
   const headingStack = `"${heading}", Georgia, "Times New Roman", serif`;
   const bodyStack = `"${body}", Georgia, "Times New Roman", serif`;
