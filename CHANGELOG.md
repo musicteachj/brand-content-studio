@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Brand-image library polish
+
+Three small improvements to the reusable brand-image library: **Save to brand images** from the card image picker (keep a one-shot upload for reuse — explicit, so the library stays curated), **rename** a library image (an editable caption + demo-blocked `PATCH …/brand-images/{id}`), and **2 seeded demo brand images** so the demo's picker section isn't empty. Search/tags/reorder stayed cut (unnecessary at the 24-image cap). See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#31). Tests: pytest (+5) — rename (update/blank/clamp/demo) + the seed generator; vitest (+1) — the picker Save control.
+
 ### Added — Fill a branded template from an uploaded document
 
 Upload an unbranded `.docx`/`.pptx`/`.pdf`/`.txt`/`.md` onto one of your branded templates and the content is extracted and mapped onto the template's `{{placeholders}}` — a rough draft in, the official branded version out. It's AI-fill sourced from a document instead of a brief: a new content-extraction step (≤40k chars, off-loop + timeout) feeds the existing template fill tool, and the new `POST …/templates/{id}/fill-from-document` returns the same `{values}` shape, so you still review/edit before rendering. Content is mapped and condensed to fit the template's fixed slots. Generative + nothing persisted → demo-allowed; the source is parsed in-memory and discarded. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#30). Placeholder hints + structure-preserving output are noted as fast-follows. Tests: pytest (+11) — extraction (docx/pptx/text/truncate/unsupported/empty) + the route; vitest (+1) — the client request.
