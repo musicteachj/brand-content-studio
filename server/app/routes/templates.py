@@ -4,6 +4,7 @@ are returned for immediate download — not persisted. The template's styling is
 authoritative; we only swap `{{placeholder}}` text."""
 from __future__ import annotations
 
+import asyncio
 import os
 
 from bson import ObjectId
@@ -21,6 +22,7 @@ from app.models.template import (
 from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
+from app.services.content_extraction import extract_document_text
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage, safe_filename
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
@@ -28,6 +30,9 @@ from app.utils.dependencies import get_workspace_or_404, require_not_demo
 router = APIRouter()
 
 MAX_TEMPLATE_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_SOURCE_BYTES = 10 * 1024 * 1024  # 10 MB
+SOURCE_PARSE_TIMEOUT_S = 30
+_SOURCE_EXTS = {".docx", ".pptx", ".pdf", ".txt", ".md", ".markdown"}
 _FORMAT_BY_EXT = {".docx": "docx", ".pptx": "pptx"}
 _MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -135,6 +140,57 @@ async def ai_fill_template(
     result = await service.fill_template_values(
         template_fill.build_fill_system(),
         template_fill.build_fill_user(payload.brief, placeholders),
+        tool,
+    )
+    return TemplateAiFillResponse(values=template_service.clamp_values(result, placeholders))
+
+
+@router.post("/{template_id}/fill-from-document", response_model=TemplateAiFillResponse)
+async def fill_template_from_document(
+    template_id: str,
+    file: UploadFile,
+    workspace: dict = Depends(get_workspace_or_404),
+    service: GenerationService = Depends(GenerationService),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Draft each placeholder by mapping an uploaded document's content onto the
+    template's fields. Generative + nothing persisted → allowed for the demo
+    user; the source file is parsed in-memory and discarded."""
+    doc = await template_service.get_template(db, workspace["_id"], template_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    filename = file.filename or "source"
+    if os.path.splitext(filename)[1].lower() not in _SOURCE_EXTS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported document. Upload a .docx, .pptx, .pdf, .txt, or .md file.",
+        )
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+    if len(data) > MAX_SOURCE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Document exceeds the {MAX_SOURCE_BYTES // (1024 * 1024)} MB limit.",
+        )
+    placeholders = doc.get("placeholders") or []
+    if not placeholders:
+        return TemplateAiFillResponse(values={})
+    try:
+        content = await asyncio.wait_for(
+            asyncio.to_thread(extract_document_text, data, filename), SOURCE_PARSE_TIMEOUT_S
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Parsing the document timed out — try a smaller or simpler file.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    tool = template_fill.build_fill_tool(placeholders)
+    result = await service.fill_template_values(
+        template_fill.build_fill_system(),
+        template_fill.build_fill_user_from_content(content, placeholders),
         tool,
     )
     return TemplateAiFillResponse(values=template_service.clamp_values(result, placeholders))
