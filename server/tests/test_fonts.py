@@ -122,3 +122,14 @@ async def test_delete_and_serve_font(fc):
     resp = await fc.delete(f"{_url()}/{fid}")
     assert resp.status_code == 200
     assert resp.json()["brand_profile"]["uploaded_fonts"] == []
+
+
+def test_register_pdf_font_uses_uploaded_bytes():
+    from pathlib import Path
+
+    from app.services import document_service as ds
+
+    ttf = (Path(ds.__file__).resolve().parents[1] / "assets" / "fonts" / "inter.ttf").read_bytes()
+    ds._REGISTERED.clear()
+    name = ds._register_pdf_font("Acme Sans", "body", {"Acme Sans": ttf})
+    assert name == "bcs-body-acme-sans"  # embedded, not a base-14 fallback

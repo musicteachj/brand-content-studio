@@ -133,16 +133,22 @@ def _pdf_color(value: str, default: str) -> HexColor:
     return HexColor("#" + _hex6(value, default))
 
 
-def _register_pdf_font(family: str | None, role: str) -> str:
-    """Return a ReportLab font name: an embedded brand TTF when available, else a
-    base-14 serif/sans fallback (bold for headings)."""
-    path = resolve_font_file(family)
-    if path:
+def _register_pdf_font(
+    family: str | None, role: str, uploaded: dict[str, bytes] | None = None
+) -> str:
+    """Return a ReportLab font name: an uploaded TTF (by family) or an embedded
+    brand TTF when available, else a base-14 serif/sans fallback (bold for headings)."""
+    src: str | BytesIO | None = None
+    if uploaded and family and family in uploaded:
+        src = BytesIO(uploaded[family])
+    else:
+        src = resolve_font_file(family)
+    if src is not None:
         name = f"bcs-{role}-{font_slug(family or '')}"
         if name in _REGISTERED:
             return name
         try:
-            pdfmetrics.registerFont(TTFont(name, path))
+            pdfmetrics.registerFont(TTFont(name, src))
             _REGISTERED.add(name)
             return name
         except Exception:  # noqa: BLE001 — a bad font file must not break rendering
@@ -198,11 +204,13 @@ def render_docx(document: dict, brand_profile: dict) -> bytes:
     return buf.getvalue()
 
 
-def render_pdf(document: dict, brand_profile: dict) -> bytes:
+def render_pdf(
+    document: dict, brand_profile: dict, uploaded_fonts: dict[str, bytes] | None = None
+) -> bytes:
     colors = _brand_colors(brand_profile)
     fonts = brand_profile.get("fonts") or {}
-    heading_font = _register_pdf_font(fonts.get("heading"), "heading")
-    body_font = _register_pdf_font(fonts.get("body"), "body")
+    heading_font = _register_pdf_font(fonts.get("heading"), "heading", uploaded_fonts)
+    body_font = _register_pdf_font(fonts.get("body"), "body", uploaded_fonts)
 
     primary = _pdf_color(colors["primary"], _FALLBACK_PRIMARY)
     accent = _pdf_color(colors["accent"], _INK)
@@ -320,12 +328,14 @@ def render_pptx(document: dict, brand_profile: dict) -> bytes:
     return buf.getvalue()
 
 
-def build_document_files(document: dict, brand_profile: dict) -> dict[str, bytes]:
+def build_document_files(
+    document: dict, brand_profile: dict, uploaded_fonts: dict[str, bytes] | None = None
+) -> dict[str, bytes]:
     """Render every format an archetype ships from the one shared model:
     one-pager → `.docx` + PDF; short-deck → `.pptx`."""
     if document.get("archetype") == DocumentArchetype.short_deck.value:
         return {"pptx": render_pptx(document, brand_profile)}
     return {
         "docx": render_docx(document, brand_profile),
-        "pdf": render_pdf(document, brand_profile),
+        "pdf": render_pdf(document, brand_profile, uploaded_fonts),
     }
