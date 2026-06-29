@@ -162,3 +162,25 @@ export function useRenameBrandImage(workspaceId: string | null) {
     onSuccess: (ws) => invalidateWorkspace(qc, ws),
   });
 }
+
+export function useAddFont(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { file: File; name: string }) => {
+      const form = new FormData();
+      form.append("file", input.file);
+      form.append("name", input.name);
+      return (await api.post<Workspace>(`/workspaces/${workspaceId}/fonts`, form)).data;
+    },
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useRemoveFont(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (fontId: string) =>
+      (await api.delete<Workspace>(`/workspaces/${workspaceId}/fonts/${fontId}`)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
