@@ -1,9 +1,18 @@
-"""Uploaded brand fonts: model + service + (later) routes / PDF embedding."""
+"""Uploaded brand fonts: model + service + routes / PDF embedding."""
 import pytest
+import pytest_asyncio
+from bson import ObjectId
+from httpx import ASGITransport, AsyncClient
 
-from app.models.common import BrandProfile, UploadedFont
-from app.services.storage_service import build_font_key
+from app.config import settings
+from app.database import get_database
+from app.main import app
+from app.models.common import BrandProfile, UploadedFont, utcnow
+from app.models.user import UserInDB
+from app.services.storage_service import build_font_key, get_storage
 from app.services.workspace_service import resolve_uploaded_font
+from app.utils.dependencies import get_current_user
+from tests.conftest import TEST_DB_NAME
 
 
 def test_uploaded_font_default_empty():
@@ -25,19 +34,6 @@ def test_resolve_uploaded_font_matches_family():
     assert resolve_uploaded_font(bp, "Inter") is None
     assert resolve_uploaded_font({}, "Acme Sans") is None
 
-
-import pytest_asyncio
-from bson import ObjectId
-from httpx import ASGITransport, AsyncClient
-
-from app.config import settings
-from app.database import get_database
-from app.main import app
-from app.models.common import utcnow
-from app.models.user import UserInDB
-from app.services.storage_service import get_storage
-from app.utils.dependencies import get_current_user
-from tests.conftest import TEST_DB_NAME
 
 WS = ObjectId()
 OWNER = ObjectId()
