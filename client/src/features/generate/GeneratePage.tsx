@@ -10,6 +10,7 @@ import {
   Type,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAddBrandImage } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
 import { CardControlsPanel } from "@/features/generate/CardControlsPanel";
 import { CardCustomizePanel } from "@/features/generate/CardCustomizePanel";
@@ -27,6 +28,7 @@ import { useDocumentGeneration } from "@/features/generate/useDocumentGeneration
 import { usePostPackGeneration } from "@/features/generate/usePostPackGeneration";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
+import { useAuthStore } from "@/stores/auth";
 import { cn } from "@/lib/utils";
 import { useGenerateStore } from "@/stores/generate";
 import type { CardTemplate, DocumentArchetype, Length, Tone } from "@/types";
@@ -104,6 +106,8 @@ export function GeneratePage() {
 
 function PostPackMode() {
   const { workspace, workspaceId } = useActiveWorkspace();
+  const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
+  const addBrandImage = useAddBrandImage(workspaceId);
   const [brief, setBrief] = useState("");
   const [tone, setTone] = useState<Tone>("default");
   const [template, setTemplate] = useState<CardTemplate>("photo-led");
@@ -184,6 +188,9 @@ function PostPackMode() {
         initialKeywords={gen.suggestedKeywords}
         selectedKey={gen.image?.unsplash_id ?? gen.image?.storage_key ?? null}
         brandImages={workspace?.brand_profile.brand_images ?? []}
+        onSaveBrandImage={
+          isDemo ? undefined : (file) => addBrandImage.mutateAsync(file).then(() => undefined)
+        }
         onSelectUnsplash={(p) => {
           void gen.selectUnsplash(p);
         }}
@@ -272,6 +279,8 @@ function TextMode() {
 
 function CardMode() {
   const { workspace, workspaceId } = useActiveWorkspace();
+  const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
+  const addBrandImage = useAddBrandImage(workspaceId);
   const [brief, setBrief] = useState("");
   const [tone, setTone] = useState<Tone>("default");
   const [template, setTemplate] = useState<CardTemplate | null>(null);
@@ -384,6 +393,9 @@ function CardMode() {
         initialKeywords={gen.suggestedKeywords}
         selectedKey={gen.image?.unsplash_id ?? gen.image?.storage_key ?? null}
         brandImages={workspace?.brand_profile.brand_images ?? []}
+        onSaveBrandImage={
+          isDemo ? undefined : (file) => addBrandImage.mutateAsync(file).then(() => undefined)
+        }
         onSelectUnsplash={(p) => {
           void gen.selectUnsplash(p);
         }}
