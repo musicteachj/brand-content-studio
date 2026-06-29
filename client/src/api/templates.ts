@@ -46,6 +46,21 @@ export function useAiFillTemplate(workspaceId: string | null) {
   });
 }
 
+/** Map an uploaded source document's content onto a template's placeholders. */
+export async function fillTemplateFromDocument(
+  workspaceId: string,
+  templateId: string,
+  file: File,
+): Promise<Record<string, string>> {
+  const form = new FormData();
+  form.append("file", file);
+  const resp = await api.post<{ values: Record<string, string> }>(
+    `/workspaces/${workspaceId}/templates/${templateId}/fill-from-document`,
+    form,
+  );
+  return resp.data.values;
+}
+
 /** Render a template with values and trigger a file download. */
 export async function renderTemplate(
   workspaceId: string,
