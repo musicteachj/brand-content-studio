@@ -223,6 +223,17 @@ def _generate_card(eyebrow: str, headline: str) -> bytes:
     return _png_bytes(img)
 
 
+def _generate_brand_image(label: str) -> bytes:
+    """A deterministic branded swatch for the demo brand-image library."""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (1080, 1350), _FOREST)
+    d = ImageDraw.Draw(img)
+    d.rectangle([60, 60, 1020, 1290], outline=_OCHRE, width=8)
+    d.text((90, 1190), label.upper(), font=_font(44), fill=_CREAM)
+    return _png_bytes(img)
+
+
 def _generate_docx_template() -> bytes:
     """A Verdure-branded one-pager with {{placeholders}} to fill."""
     from docx import Document
@@ -358,6 +369,33 @@ async def _ensure_exemplars(db, workspace: dict) -> None:
     print(f"+ seeded {len(exemplars)} example cards")
 
 
+async def _ensure_brand_images(db, workspace: dict) -> None:
+    fresh = await db.workspaces.find_one({"_id": workspace["_id"]})
+    if (fresh.get("brand_profile") or {}).get("brand_images"):
+        print("✓ brand images exist")
+        return
+    ws_id = str(workspace["_id"])
+    images = []
+    for label in ("Forest texture", "Ochre accent"):
+        img_id = str(ObjectId())
+        name = f"{label.lower().replace(' ', '-')}.png"
+        key = build_image_key(ws_id, img_id, name)
+        await get_storage().save(key, _generate_brand_image(label))
+        images.append(
+            {
+                "id": img_id,
+                "storage_key": key,
+                "url": f"/api/workspaces/{ws_id}/images/file/{img_id}/{name}",
+                "name": name,
+            }
+        )
+    await db.workspaces.update_one(
+        {"_id": workspace["_id"]},
+        {"$set": {"brand_profile.brand_images": images, "updated_at": datetime.now(timezone.utc)}},
+    )
+    print(f"+ seeded {len(images)} brand images")
+
+
 async def _ensure_templates(db, workspace: dict) -> None:
     if await db.templates.count_documents({"workspace_id": workspace["_id"]}) > 0:
         print("✓ templates exist")
@@ -399,6 +437,7 @@ async def main() -> None:
     await _ingest_corpus(db, workspace)
     await _ensure_logo(db, workspace)
     await _ensure_exemplars(db, workspace)
+    await _ensure_brand_images(db, workspace)
     await _ensure_templates(db, workspace)
 
     client.close()
