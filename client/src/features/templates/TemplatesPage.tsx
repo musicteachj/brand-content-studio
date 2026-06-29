@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { FileText, Sparkles, Trash2, Upload } from "lucide-react";
+import { FileText, FileUp, Sparkles, Trash2, Upload } from "lucide-react";
 import {
+  fillTemplateFromDocument,
   renderTemplate,
   useAiFillTemplate,
   useDeleteTemplate,
@@ -147,6 +148,24 @@ function FillPanel({
   const [brief, setBrief] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const docRef = useRef<HTMLInputElement>(null);
+  const [fillingFromDoc, setFillingFromDoc] = useState(false);
+
+  async function fillFromDocument(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !workspaceId) return;
+    setFillingFromDoc(true);
+    setError(null);
+    try {
+      const filled = await fillTemplateFromDocument(workspaceId, template.id, file);
+      setValues(mergeFilled(template.placeholders, filled));
+    } catch {
+      setError("Couldn’t read that document. Use a .docx, .pptx, .pdf, .txt, or .md under 10 MB.");
+    } finally {
+      setFillingFromDoc(false);
+    }
+  }
 
   async function draftWithAI() {
     if (!brief.trim()) return;
@@ -206,6 +225,27 @@ function FillPanel({
                 <Sparkles className="h-4 w-4" aria-hidden />
                 Draft with AI
               </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2.5">
+              <input
+                ref={docRef}
+                type="file"
+                accept=".docx,.pptx,.pdf,.txt,.md,.markdown"
+                className="hidden"
+                onChange={fillFromDocument}
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => docRef.current?.click()}
+                loading={fillingFromDoc}
+              >
+                <FileUp className="h-4 w-4" aria-hidden />
+                Fill from a document
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                Content is mapped and condensed to fit the template.
+              </span>
             </div>
           </div>
 
