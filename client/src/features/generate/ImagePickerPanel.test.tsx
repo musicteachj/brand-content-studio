@@ -21,7 +21,7 @@ vi.mock("@radix-ui/react-dialog", () => {
 });
 
 const { uploadImage, useUnsplashSearch, fetchImageDataUrl } = vi.hoisted(() => ({
-  uploadImage: vi.fn(),
+  uploadImage: vi.fn(() => Promise.resolve({ url: "/u", storage_key: "k1", source: "upload" })),
   useUnsplashSearch: vi.fn(() => ({ data: undefined, isLoading: false, isError: false })),
   fetchImageDataUrl: vi.fn(() => Promise.resolve("data:image/png;base64,AAAA")),
 }));
@@ -86,5 +86,22 @@ describe("ImagePickerPanel brand images", () => {
   it("omits the brand-images section when there are none", () => {
     mount({ brandImages: [] });
     expect(document.body.textContent).not.toContain("Brand images");
+  });
+
+  it("offers Save to brand images after an upload and passes the file", async () => {
+    const onSaveBrandImage = vi.fn(() => Promise.resolve());
+    mount({ onSaveBrandImage });
+    const file = new File(["x"], "shot.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const save = document.querySelector('[aria-label="Save to brand images"]') as HTMLElement;
+    expect(save).not.toBeNull();
+    await act(async () => {
+      save.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onSaveBrandImage).toHaveBeenCalledWith(file);
   });
 });

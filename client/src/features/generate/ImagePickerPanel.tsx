@@ -16,6 +16,7 @@ interface Props {
   brandImages: BrandImage[]; // the workspace's reusable brand-image library
   onSelectUnsplash: (photo: UnsplashPhoto) => void;
   onSelectUpload: (url: string, storageKey: string) => void;
+  onSaveBrandImage?: (file: File) => Promise<void>;
 }
 
 export function ImagePickerPanel({
@@ -27,11 +28,15 @@ export function ImagePickerPanel({
   brandImages,
   onSelectUnsplash,
   onSelectUpload,
+  onSaveBrandImage,
 }: Props) {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lastUpload, setLastUpload] = useState<File | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const seededRef = useRef(false);
 
@@ -62,10 +67,26 @@ export function ImagePickerPanel({
     try {
       const res = await uploadImage(workspaceId, file);
       onSelectUpload(res.url, res.storage_key);
+      setLastUpload(file);
+      setSaved(false);
     } catch {
       setUploadError("Upload failed. Use a JPG, PNG, or WebP under 8 MB.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function saveToBrandImages() {
+    if (!onSaveBrandImage || !lastUpload) return;
+    setSaving(true);
+    setUploadError(null);
+    try {
+      await onSaveBrandImage(lastUpload);
+      setSaved(true);
+    } catch {
+      setUploadError("Couldn’t save to brand images (the 24-image limit may be reached).");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -134,6 +155,19 @@ export function ImagePickerPanel({
                 className="hidden"
                 onChange={onUpload}
               />
+              {onSaveBrandImage && lastUpload && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={saveToBrandImages}
+                  loading={saving}
+                  disabled={saved}
+                  aria-label="Save to brand images"
+                >
+                  {saved ? "Saved ✓" : "Save to brand images"}
+                </Button>
+              )}
             </div>
             {uploadError && (
               <p role="alert" className="mt-2 text-xs text-destructive">

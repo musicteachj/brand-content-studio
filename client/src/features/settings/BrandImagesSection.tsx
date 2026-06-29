@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageOff, Trash2, Upload } from "lucide-react";
 import { fetchImageDataUrl } from "@/api/images";
-import { useAddBrandImage, useRemoveBrandImage } from "@/api/workspaces";
+import { useAddBrandImage, useRemoveBrandImage, useRenameBrandImage } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth";
 import type { BrandImage, Workspace } from "@/types";
@@ -14,6 +14,7 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const add = useAddBrandImage(workspace.id);
   const remove = useRemoveBrandImage(workspace.id);
+  const rename = useRenameBrandImage(workspace.id);
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const images = workspace.brand_profile.brand_images ?? [];
@@ -75,6 +76,7 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
               isDemo={isDemo}
               removing={remove.isPending}
               onRemove={() => remove.mutate(img.id)}
+              onRename={(name) => rename.mutate({ imageId: img.id, name })}
             />
           ))}
         </ul>
@@ -88,11 +90,13 @@ function ImageTile({
   isDemo,
   removing,
   onRemove,
+  onRename,
 }: {
   image: BrandImage;
   isDemo: boolean;
   removing: boolean;
   onRemove: () => void;
+  onRename: (name: string) => void;
 }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -107,24 +111,40 @@ function ImageTile({
   }, [image.url]);
 
   return (
-    <li className="group relative aspect-square overflow-hidden rounded-md border border-border bg-surface-variant">
-      {dataUrl ? (
-        <img src={dataUrl} alt={image.name ?? ""} className="h-full w-full object-cover" />
+    <li className="flex flex-col gap-1">
+      <div className="group relative aspect-square overflow-hidden rounded-md border border-border bg-surface-variant">
+        {dataUrl ? (
+          <img src={dataUrl} alt={image.name ?? ""} className="h-full w-full object-cover" />
+        ) : (
+          <span className="absolute inset-0 animate-pulse bg-muted-foreground/10" aria-hidden />
+        )}
+        {!isDemo && (
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            onClick={onRemove}
+            loading={removing}
+            aria-label={`Remove ${image.name ?? "image"}`}
+            className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          </Button>
+        )}
+      </div>
+      {isDemo ? (
+        <span className="truncate text-[11px] text-muted-foreground">{image.name}</span>
       ) : (
-        <span className="absolute inset-0 animate-pulse bg-muted-foreground/10" aria-hidden />
-      )}
-      {!isDemo && (
-        <Button
-          type="button"
-          size="icon"
-          variant="secondary"
-          onClick={onRemove}
-          loading={removing}
-          aria-label={`Remove ${image.name ?? "image"}`}
-          className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:text-destructive"
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        </Button>
+        <input
+          defaultValue={image.name ?? ""}
+          aria-label="Rename image"
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v && v !== image.name) onRename(v);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="w-full rounded-sm border border-transparent bg-transparent px-1 text-[11px] text-muted-foreground hover:border-border focus:border-border focus:outline-none"
+        />
       )}
     </li>
   );

@@ -178,3 +178,47 @@ async def test_delete_brand_image_pulls_and_removes_bytes(bi_client):
     assert resp.json()["brand_profile"]["brand_images"] == []
     with pytest.raises(FileNotFoundError):
         await get_storage().read(img["storage_key"])
+
+
+_ONE_IMAGE = {"id": "img1", "storage_key": "k1", "url": "/u", "name": "old.png"}
+
+
+@pytest.mark.asyncio
+async def test_rename_brand_image_updates_name(test_db, tmp_path, monkeypatch):
+    ac = await _mk(test_db, tmp_path, monkeypatch, brand_images=[dict(_ONE_IMAGE)])
+    async with ac:
+        resp = await ac.patch(f"{_url()}/img1", json={"name": "Forest texture"})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.status_code == 200
+    assert [i["name"] for i in resp.json()["brand_profile"]["brand_images"]] == ["Forest texture"]
+
+
+@pytest.mark.asyncio
+async def test_rename_brand_image_blank_keeps_existing(test_db, tmp_path, monkeypatch):
+    ac = await _mk(test_db, tmp_path, monkeypatch, brand_images=[dict(_ONE_IMAGE)])
+    async with ac:
+        resp = await ac.patch(f"{_url()}/img1", json={"name": "   "})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.json()["brand_profile"]["brand_images"][0]["name"] == "old.png"
+
+
+@pytest.mark.asyncio
+async def test_rename_brand_image_clamps_length(test_db, tmp_path, monkeypatch):
+    ac = await _mk(test_db, tmp_path, monkeypatch, brand_images=[dict(_ONE_IMAGE)])
+    async with ac:
+        resp = await ac.patch(f"{_url()}/img1", json={"name": "x" * 200})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert len(resp.json()["brand_profile"]["brand_images"][0]["name"]) == 80
+
+
+@pytest.mark.asyncio
+async def test_rename_brand_image_demo_blocked(test_db, tmp_path, monkeypatch):
+    ac = await _mk(test_db, tmp_path, monkeypatch, is_demo=True, brand_images=[dict(_ONE_IMAGE)])
+    async with ac:
+        resp = await ac.patch(f"{_url()}/img1", json={"name": "X"})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.status_code == 403

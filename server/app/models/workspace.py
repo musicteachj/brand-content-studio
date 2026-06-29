@@ -29,6 +29,10 @@ class WorkspaceUpdate(BaseModel):
     brand_profile: Optional[BrandProfile] = None
 
 
+class BrandImageRename(BaseModel):
+    name: str = Field(default="", max_length=500)  # clamped to 80 in the service
+
+
 class WorkspaceResponse(BaseModel):
     id: str
     owner_id: str

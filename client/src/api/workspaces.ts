@@ -149,3 +149,16 @@ export function useRemoveBrandImage(workspaceId: string | null) {
     onSuccess: (ws) => invalidateWorkspace(qc, ws),
   });
 }
+
+export function useRenameBrandImage(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { imageId: string; name: string }) =>
+      (
+        await api.patch<Workspace>(`/workspaces/${workspaceId}/brand-images/${input.imageId}`, {
+          name: input.name,
+        })
+      ).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}

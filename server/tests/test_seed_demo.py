@@ -7,6 +7,7 @@ from PIL import Image
 
 from app.services.template_service import discover_placeholders
 from seed.seed_demo import (
+    _generate_brand_image,
     _generate_card,
     _generate_docx_template,
     _generate_logo,
@@ -39,5 +40,11 @@ def test_seed_logo_is_valid_png():
 
 def test_seed_card_is_portrait_png():
     img = Image.open(BytesIO(_generate_card("Material notes", "The carbon math is changing")))
+    assert img.format == "PNG"
+    assert img.size == (1080, 1350)
+
+
+def test_seed_brand_image_is_valid_png():
+    img = Image.open(BytesIO(_generate_brand_image("Forest texture")))
     assert img.format == "PNG"
     assert img.size == (1080, 1350)

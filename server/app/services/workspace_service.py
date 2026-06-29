@@ -224,6 +224,29 @@ async def remove_workspace_image(
     return _to_response(doc), old_key
 
 
+async def rename_workspace_image(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image_id: str, name: str
+) -> Optional[WorkspaceResponse]:
+    """Set a brand image's display name (targeted arrayFilters update). A blank
+    name is ignored (keeps the existing label); long names clamp to 80."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    clean = name.strip()[:80]
+    now = utcnow()
+    if clean:
+        await db.workspaces.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {"brand_profile.brand_images.$[img].name": clean, "updated_at": now}},
+            array_filters=[{"img.id": image_id}],
+        )
+        for img in (doc.get("brand_profile") or {}).get("brand_images") or []:
+            if img.get("id") == image_id:
+                img["name"] = clean
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
 async def delete_workspace(db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str) -> bool:
     """Delete a workspace and its assets + generations. Vectors are dropped by
     the caller (route) via the vector store so this service stays Mongo-only."""
