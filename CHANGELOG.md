@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Fill a branded template from an uploaded document
+
+Upload an unbranded `.docx`/`.pptx`/`.pdf`/`.txt`/`.md` onto one of your branded templates and the content is extracted and mapped onto the template's `{{placeholders}}` — a rough draft in, the official branded version out. It's AI-fill sourced from a document instead of a brief: a new content-extraction step (≤40k chars, off-loop + timeout) feeds the existing template fill tool, and the new `POST …/templates/{id}/fill-from-document` returns the same `{values}` shape, so you still review/edit before rendering. Content is mapped and condensed to fit the template's fixed slots. Generative + nothing persisted → demo-allowed; the source is parsed in-memory and discarded. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#30). Placeholder hints + structure-preserving output are noted as fast-follows. Tests: pytest (+11) — extraction (docx/pptx/text/truncate/unsupported/empty) + the route; vitest (+1) — the client request.
+
 ### Added — Curated font picker + PDF parity
 
 Brand fonts are now chosen from a curated set of ~11 OFL families (with a live preview) instead of free-text inputs that silently fell back to Georgia on a typo. The set's serif/sans TTFs are bundled server-side, so a chosen font renders on the card **and** embeds in an exported PDF — closing the previous card↔PDF asymmetry. A legacy/custom font value is preserved as a "(current)" option; mono stays metadata-only. Brand auto-extract now snaps proposed font names to the catalog. Client-only picker + bundled fonts; no new endpoints, storage shape unchanged. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#29). Tests: vitest (+8) — the catalog helpers + proposal snapping; pytest (+1) — the PDF parity guard.

@@ -24,6 +24,22 @@ def build_fill_user(brief: str, placeholders: list[str]) -> str:
     )
 
 
+def build_fill_user_from_content(content: str, placeholders: list[str]) -> str:
+    return "\n".join(
+        [
+            "Source document content to map into the template's fields:",
+            '"""',
+            content.strip(),
+            '"""',
+            "",
+            "Map the source content onto these fields (call the fill_template tool with a "
+            "value for each). Condense to fit each field; leave a field empty if the source "
+            "has nothing for it:",
+            ", ".join(placeholders),
+        ]
+    )
+
+
 def build_fill_tool(placeholders: list[str]) -> dict[str, Any]:
     """A strict tool whose properties are exactly this template's placeholders."""
     props = {

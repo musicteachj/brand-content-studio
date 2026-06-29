@@ -18,7 +18,12 @@ from app.main import app
 from app.models.common import utcnow
 from app.models.template import TemplateAiFillRequest, TemplateRenderRequest, TemplateResponse
 from app.models.user import UserInDB
-from app.prompts.template_fill import build_fill_system, build_fill_tool, build_fill_user
+from app.prompts.template_fill import (
+    build_fill_system,
+    build_fill_tool,
+    build_fill_user,
+    build_fill_user_from_content,
+)
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage
 from app.services.template_service import (
@@ -140,6 +145,12 @@ def test_fill_prompt_builders_nonempty():
     assert "title" in build_fill_user("a brief", ["title"])
 
 
+def test_build_fill_user_from_content_includes_content_and_fields():
+    out = build_fill_user_from_content("The Q3 plan: grow EU sales.", ["title", "summary"])
+    assert "The Q3 plan: grow EU sales." in out
+    assert "title" in out and "summary" in out
+
+
 # --- Task 7: routes (AI fill faked) -----------------------------------------
 
 WS_OID = ObjectId()
@@ -226,6 +237,49 @@ async def test_ai_fill_returns_values(tpl_client):
     resp = await tpl_client.post(f"{_base()}/{t['id']}/ai-fill", json={"brief": "a welcome letter"})
     assert resp.status_code == 200
     assert resp.json()["values"] == {"client_name": "draft client_name"}
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_maps_content(tpl_client):
+    t = await _upload(tpl_client)
+    src = _docx_bytes("Welcome to Acme", "We supply hempcrete.")
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id']}/fill-from-document",
+        files={"file": ("draft.docx", src, DOCX_CT)},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["values"] == {"client_name": "draft client_name"}
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_rejects_bad_type(tpl_client):
+    t = await _upload(tpl_client)
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id']}/fill-from-document",
+        files={"file": ("logo.png", b"\x89PNG", "image/png")},
+    )
+    assert resp.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_missing_template_404(tpl_client):
+    resp = await tpl_client.post(
+        f"{_base()}/{ObjectId()}/fill-from-document",
+        files={"file": ("draft.docx", _docx_bytes("hi"), DOCX_CT)},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_allowed_for_demo(tpl_client):
+    t = await _upload(tpl_client)
+    # Re-point auth at a demo user (same owner id) — the route is demo-allowed.
+    app.dependency_overrides[get_current_user] = lambda: _user(is_demo=True)
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id']}/fill-from-document",
+        files={"file": ("draft.docx", _docx_bytes("hi"), DOCX_CT)},
+    )
+    assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
