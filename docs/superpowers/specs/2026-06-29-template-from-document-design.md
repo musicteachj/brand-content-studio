@@ -1,6 +1,6 @@
 # Fill a Branded Template from an Uploaded Document — Design
 
-**Goal:** Let a user take an **unbranded / minimally-styled** `.docx`/`.pptx`/`.pdf`, upload it onto one of their **branded templates**, and get the document's *content* mapped into the template's `{{placeholders}}` — producing a branded, on-layout document. "Bring a rough draft, get back the official branded version."
+**Goal:** Let a user take an **unbranded / minimally-styled** document (`.docx`/`.pptx`/`.pdf`/`.txt`/`.md`), upload it onto one of their **branded templates**, and get the document's *content* mapped into the template's `{{placeholders}}` — producing a branded, on-layout document. "Bring a rough draft, get back the official branded version."
 
 **Non-goals (v1):** Structure-preserving output (repeatable template regions); persisting the source document; a separate page or new collection; changing how templates are authored or how rendering works. Author-written placeholder **hints** are a documented fast-follow, not v1.
 
@@ -20,7 +20,8 @@ This feature = **AI-fill, but sourced from an uploaded document instead of a typ
 - `.docx` → **python-docx** (already a dependency): paragraphs in order; prefix heading-styled paragraphs and list items so structure survives as text (e.g. `# Heading`, `- bullet`).
 - `.pptx` → **python-pptx** (already a dependency): per-slide, the text of each shape/table cell (`Slide N:` prefixes).
 - `.pdf` → **pdfplumber** (already a dependency; reuse the loader's extraction).
-- **Safety (reuse Phase 6 ingestion pattern):** parse runs off the event loop (`asyncio.to_thread`) under a timeout; output is truncated to a model-safe budget (`MAX_SOURCE_CHARS`, e.g. 12000); empty/garbage → a clear error.
+- `.txt` / `.md` → decode as text (the `rag/loaders` text path already does this).
+- **Safety (reuse Phase 6 ingestion pattern):** parse runs off the event loop (`asyncio.to_thread`) under a timeout; output is truncated to a model-safe budget (`MAX_SOURCE_CHARS = 40000`, ≈ 10–12 pages / ~10k input tokens — generous for a realistic multi-page doc while bounding latency/cost; the Anthropic console hard cap bounds total spend per DECISIONS #17); empty/garbage → a clear error.
 
 This is distinct from `rag/loaders.load_sections` (which yields `Section`s for chunking) — extraction here yields one readable blob for the prompt. Kept in its own module (one responsibility).
 
@@ -36,11 +37,11 @@ Multipart `file: UploadFile`. Flow: load template (`get_template`, 404 if missin
 
 ### 4. Client
 
-On the template fill UI (in `features/templates/`), add a third content source next to "fill manually" / "draft from a brief": **"Fill from a document"** — a file upload (`.docx`/`.pptx`/`.pdf`). On select it calls the new route and drops the returned `values` into the **same editable review fields**, then the existing Render/Download. A short note clarifies that content is *mapped and condensed to fit the template*.
+On the template fill UI (in `features/templates/`), add a third content source next to "fill manually" / "draft from a brief": **"Fill from a document"** — a file upload (`.docx`/`.pptx`/`.pdf`/`.txt`/`.md`). On select it calls the new route and drops the returned `values` into the **same editable review fields**, then the existing Render/Download. A short note clarifies that content is *mapped and condensed to fit the template*.
 
 ### 5. Scope guards
 
-Source ≤ 10 MB; extension allowlist `.docx`/`.pptx`/`.pdf` (→ 415 otherwise); empty file → 400; extracted text truncated to `MAX_SOURCE_CHARS`; existing `MAX_PLACEHOLDERS` (40) / `MAX_VALUE_LEN` (2000) clamps still apply. No new Mongo collection, no new storage — the source is processed in-memory and discarded; the rendered output stays an ephemeral download.
+Source ≤ 10 MB; extension allowlist `.docx`/`.pptx`/`.pdf`/`.txt`/`.md` (→ 415 otherwise); empty file → 400; extracted text truncated to `MAX_SOURCE_CHARS`; existing `MAX_PLACEHOLDERS` (40) / `MAX_VALUE_LEN` (2000) clamps still apply. No new Mongo collection, no new storage — the source is processed in-memory and discarded; the rendered output stays an ephemeral download.
 
 ## Error / edge handling
 
