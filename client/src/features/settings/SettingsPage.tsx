@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
+import { BrandFontsSection } from "./BrandFontsSection";
 import { BrandImagesSection } from "./BrandImagesSection";
 import { ExemplarsSection } from "./ExemplarsSection";
 import { WorkspacesSection } from "./WorkspacesSection";
@@ -138,6 +139,15 @@ export function SettingsPage() {
           hint="Your own images, saved once and reusable as card pictures from the image picker."
         >
           <BrandImagesSection workspace={workspace} />
+        </Section>
+      )}
+
+      {workspace && (
+        <Section
+          title="Brand fonts"
+          hint="Upload your own .ttf fonts to use across cards and documents."
+        >
+          <BrandFontsSection workspace={workspace} />
         </Section>
       )}
     </div>
