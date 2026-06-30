@@ -101,19 +101,30 @@ function uploadedUrl(family: string, uploaded: UploadedFont[]): string | null {
 async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
   const cached = bufferCache.get(url);
   if (cached) return cached;
-  const sameOrigin = url.startsWith("/") && !url.startsWith("//");
-  const token = useAuthStore.getState().token;
-  try {
-    const resp = await fetch(url, {
-      headers: sameOrigin && token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!resp.ok) return null;
-    const buf = await resp.arrayBuffer();
-    bufferCache.set(url, buf);
-    return buf;
-  } catch {
-    return null;
+  // Dedup concurrent requests for the same url (Satori needs an uploaded family
+  // at several weights → the same bytes), mirroring the CDN path's `inflight`.
+  let p = inflight.get(url);
+  if (!p) {
+    p = (async () => {
+      const sameOrigin = url.startsWith("/") && !url.startsWith("//");
+      const token = useAuthStore.getState().token;
+      try {
+        const resp = await fetch(url, {
+          headers: sameOrigin && token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!resp.ok) return null;
+        const buf = await resp.arrayBuffer();
+        bufferCache.set(url, buf);
+        return buf;
+      } catch {
+        return null;
+      } finally {
+        inflight.delete(url);
+      }
+    })();
+    inflight.set(url, p);
   }
+  return p;
 }
 
 function bufferToDataUrl(buf: ArrayBuffer): string {
