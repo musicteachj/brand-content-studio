@@ -2,11 +2,12 @@
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.common import BrandExemplar, BrandImage, BrandLogo
+from app.models.common import BrandExemplar, BrandImage, BrandLogo, UploadedFont
 from app.models.user import UserInDB
 from app.models.workspace import (
     BrandExtractResponse,
@@ -19,11 +20,14 @@ from app.rag.vector_store import get_vector_store
 from app.routes.images import MAX_IMAGE_BYTES, resolve_image_content_type
 from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
-from app.services.storage_service import build_image_key, get_storage, safe_filename
+from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
 from app.services.workspace_service import MAX_BRAND_IMAGES, MAX_EXEMPLARS
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
 router = APIRouter()
+
+MAX_UPLOADED_FONTS = 8
+MAX_FONT_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @router.get("", response_model=list[WorkspaceResponse])
@@ -296,6 +300,85 @@ async def rename_brand_image(
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated
+
+
+@router.post("/{workspace_id}/fonts", response_model=WorkspaceResponse)
+async def add_font(
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Upload a `.ttf` brand font (name = the family handle). Demo-blocked, capped."""
+    existing = (workspace.get("brand_profile") or {}).get("uploaded_fonts") or []
+    if len(existing) >= MAX_UPLOADED_FONTS:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"At most {MAX_UPLOADED_FONTS} fonts per workspace.")
+    family = name.strip()[:80]
+    if not family:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A font name is required.")
+    if any(f.get("family") == family for f in existing):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A font with that name exists.")
+    filename = file.filename or "font.ttf"
+    if not filename.lower().endswith(".ttf"):
+        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                            detail="Unsupported font. Upload a .ttf file.")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+    if len(data) > MAX_FONT_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            detail=f"Font exceeds the {MAX_FONT_BYTES // (1024 * 1024)} MB limit.")
+    workspace_id = str(workspace["_id"])
+    font_id = str(ObjectId())
+    clean_name = safe_filename(filename)
+    key = build_font_key(workspace_id, font_id, clean_name)
+    await get_storage().save(key, data)
+    font = UploadedFont(
+        id=font_id, family=family, storage_key=key,
+        url=f"/api/workspaces/{workspace_id}/fonts/file/{font_id}/{clean_name}",
+    )
+    updated = await workspace_service.add_workspace_font(db, workspace_id, current_user.id, font)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
+
+
+@router.delete("/{workspace_id}/fonts/{font_id}", response_model=WorkspaceResponse)
+async def delete_font(
+    font_id: str,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Remove an uploaded font and delete its stored bytes. A card/PDF already
+    rendered is unaffected; a role still naming it falls back to serif/Georgia."""
+    result = await workspace_service.remove_workspace_font(
+        db, str(workspace["_id"]), current_user.id, font_id
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    updated, old_key = result
+    if old_key:
+        await get_storage().delete(old_key)
+    return updated
+
+
+@router.get("/{workspace_id}/fonts/file/{font_id}/{filename}")
+async def serve_font(
+    font_id: str,
+    filename: str,
+    workspace: dict = Depends(get_workspace_or_404),
+):
+    """Serve an uploaded font's bytes. Ownership via the dependency; the key is
+    rebuilt server-side (storage's traversal guard rejects anything escaping root)."""
+    key = build_font_key(str(workspace["_id"]), font_id, filename)
+    try:
+        data = await get_storage().read(key)
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found")
+    return Response(content=data, media_type="font/ttf")
 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)

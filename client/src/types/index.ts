@@ -34,6 +34,13 @@ export interface BrandImage {
   name: string | null;
 }
 
+export interface UploadedFont {
+  id: string;
+  family: string;
+  storage_key: string;
+  url: string | null;
+}
+
 export interface BrandProfile {
   colors: BrandColor[];
   accent_hex: string | null;
@@ -42,6 +49,7 @@ export interface BrandProfile {
   voice_summary: string | null;
   exemplars: BrandExemplar[];
   brand_images: BrandImage[];
+  uploaded_fonts: UploadedFont[];
 }
 
 // Phase 4c — a proposed brand profile inferred from an uploaded image. Returned

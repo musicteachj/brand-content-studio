@@ -5,7 +5,8 @@
 //
 // App chrome (Plus Jakarta Sans / DM Mono) is never used here: the card is the
 // workspace's artifact, not Folio's UI (DESIGN §7).
-import type { BrandFonts } from "@/types";
+import { useAuthStore } from "@/stores/auth";
+import type { BrandFonts, UploadedFont } from "@/types";
 
 export interface SatoriFont {
   name: string;
@@ -88,11 +89,61 @@ async function loadBuffer(family: string, weight: number): Promise<ArrayBuffer |
   return p;
 }
 
-/** Font buffers for Satori. Weights that 404 on the CDN are skipped. */
-export async function loadBrandFontBuffers(fonts: BrandFonts): Promise<SatoriFont[]> {
+// ---------------------------------------------------------------------------
+// Uploaded brand fonts (.ttf) — a source-aware path layered over the CDN one.
+// The user-given family name is the handle everywhere; an uploaded family's
+// bytes come from its own (same-origin, auth-gated) url instead of the CDN.
+// ---------------------------------------------------------------------------
+function uploadedUrl(family: string, uploaded: UploadedFont[]): string | null {
+  return uploaded.find((f) => f.family === family)?.url ?? null;
+}
+
+async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
+  const cached = bufferCache.get(url);
+  if (cached) return cached;
+  // Dedup concurrent requests for the same url (Satori needs an uploaded family
+  // at several weights → the same bytes), mirroring the CDN path's `inflight`.
+  let p = inflight.get(url);
+  if (!p) {
+    p = (async () => {
+      const sameOrigin = url.startsWith("/") && !url.startsWith("//");
+      const token = useAuthStore.getState().token;
+      try {
+        const resp = await fetch(url, {
+          headers: sameOrigin && token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!resp.ok) return null;
+        const buf = await resp.arrayBuffer();
+        bufferCache.set(url, buf);
+        return buf;
+      } catch {
+        return null;
+      } finally {
+        inflight.delete(url);
+      }
+    })();
+    inflight.set(url, p);
+  }
+  return p;
+}
+
+function bufferToDataUrl(buf: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return `data:font/ttf;base64,${btoa(binary)}`;
+}
+
+/** Font buffers for Satori. Uploaded families load their own bytes (auth-gated);
+ *  the rest come from the CDN, where weights that 404 are skipped. */
+export async function loadBrandFontBuffers(
+  fonts: BrandFonts,
+  uploaded: UploadedFont[] = [],
+): Promise<SatoriFont[]> {
   const out = await Promise.all(
     requiredFonts(fonts).map(async (req) => {
-      const data = await loadBuffer(req.family, req.weight);
+      const up = uploadedUrl(req.family, uploaded);
+      const data = up ? await fetchFontBytes(up) : await loadBuffer(req.family, req.weight);
       return data
         ? ({ name: req.family, data, weight: req.weight, style: "normal" } as SatoriFont)
         : null;
@@ -103,36 +154,40 @@ export async function loadBrandFontBuffers(fonts: BrandFonts): Promise<SatoriFon
 
 const injected = new Set<string>();
 
-/** Inject @font-face for the DOM live preview so it renders in the workspace
- *  fonts (not the app's), matching the Satori export. Idempotent per family. */
-export function injectBrandFontFaces(fonts: BrandFonts): void {
-  if (typeof document === "undefined") return;
-  for (const req of requiredFonts(fonts)) {
-    const key = `${req.family}:${req.weight}`;
-    if (injected.has(key)) continue;
-    injected.add(key);
-    const style = document.createElement("style");
-    style.dataset.brandFont = key;
-    style.textContent = `@font-face{font-family:"${req.family}";font-style:normal;font-weight:${req.weight};font-display:swap;src:url("${ttfUrl(
-      req.family,
-      req.weight,
-    )}") format("truetype");}`;
-    document.head.appendChild(style);
+function appendFontFace(family: string, weight: number, src: string): void {
+  const style = document.createElement("style");
+  style.dataset.brandFont = `${family}:${weight}`;
+  style.textContent = `@font-face{font-family:"${family}";font-style:normal;font-weight:${weight};font-display:swap;src:url("${src}") format("truetype");}`;
+  document.head.appendChild(style);
+}
+
+function injectFamily(family: string, weight: number, uploaded: UploadedFont[]): void {
+  const key = `${family}:${weight}`;
+  if (injected.has(key)) return;
+  injected.add(key);
+  const up = uploadedUrl(family, uploaded);
+  if (up) {
+    // Uploaded bytes are auth-gated, so a bare `url()` in CSS can't fetch them;
+    // pull the bytes (with the bearer) and inline them as a data-URL @font-face.
+    void fetchFontBytes(up).then((buf) => {
+      if (buf) appendFontFace(family, weight, bufferToDataUrl(buf));
+      else injected.delete(key);
+    });
+  } else {
+    appendFontFace(family, weight, ttfUrl(family, weight));
   }
 }
 
+/** Inject @font-face for the DOM live preview so it renders in the workspace
+ *  fonts (not the app's), matching the Satori export. Idempotent per family. */
+export function injectBrandFontFaces(fonts: BrandFonts, uploaded: UploadedFont[] = []): void {
+  if (typeof document === "undefined") return;
+  for (const req of requiredFonts(fonts)) injectFamily(req.family, req.weight, uploaded);
+}
+
 /** Inject a single 400-weight @font-face for `family` so a Settings preview can
- *  render it — the same fontsource TTF the card uses. Idempotent per family. */
-export function injectFontFace(family: string): void {
+ *  render it — the same TTF the card uses (uploaded bytes or the CDN). */
+export function injectFontFace(family: string, uploaded: UploadedFont[] = []): void {
   if (typeof document === "undefined" || !family.trim()) return;
-  const key = `${family}:400`;
-  if (injected.has(key)) return;
-  injected.add(key);
-  const style = document.createElement("style");
-  style.dataset.brandFont = key;
-  style.textContent = `@font-face{font-family:"${family}";font-style:normal;font-weight:400;font-display:swap;src:url("${ttfUrl(
-    family,
-    400,
-  )}") format("truetype");}`;
-  document.head.appendChild(style);
+  injectFamily(family, 400, uploaded);
 }

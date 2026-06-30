@@ -126,8 +126,8 @@ export function CardPreview({
   // Load the workspace fonts into the DOM so the live/fallback render matches the
   // Satori export (which loads the same TTFs as buffers).
   useEffect(() => {
-    injectBrandFontFaces(brand.fonts);
-  }, [brand.fonts]);
+    injectBrandFontFaces(brand.fonts, brand.uploaded_fonts ?? []);
+  }, [brand.fonts, brand.uploaded_fonts]);
 
   const elementProps: CardElementProps = {
     template,

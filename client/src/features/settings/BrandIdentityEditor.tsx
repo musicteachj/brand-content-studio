@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/stores/auth";
-import type { BrandExtract, Workspace } from "@/types";
+import type { BrandExtract, UploadedFont, Workspace } from "@/types";
 import {
   brandSchema,
   buildBrandProfile,
@@ -193,6 +193,8 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
   const { fields, append, remove, replace } = useFieldArray({ control, name: "colors" });
   const colors = watch("colors");
   const logo = workspace.brand_profile.logo;
+  const uploadedFonts = workspace.brand_profile.uploaded_fonts ?? [];
+  const uploadedFamilies = uploadedFonts.map((f) => f.family);
 
   async function onSubmit(values: BrandForm) {
     setSaveError(null);
@@ -436,35 +438,35 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
         <div className="flex flex-col">
           <Label htmlFor="font-heading">Heading font</Label>
           <Select id="font-heading" {...register("fonts.heading")}>
-            {optionsForRole("heading", watch("fonts.heading")).map((o) => (
+            {optionsForRole("heading", watch("fonts.heading"), uploadedFamilies).map((o) => (
               <option key={o.value || "default"} value={o.value}>
                 {o.label}
               </option>
             ))}
           </Select>
-          <FontPreview family={watch("fonts.heading")} />
+          <FontPreview family={watch("fonts.heading")} uploaded={uploadedFonts} />
         </div>
         <div className="flex flex-col">
           <Label htmlFor="font-body">Body font</Label>
           <Select id="font-body" {...register("fonts.body")}>
-            {optionsForRole("body", watch("fonts.body")).map((o) => (
+            {optionsForRole("body", watch("fonts.body"), uploadedFamilies).map((o) => (
               <option key={o.value || "default"} value={o.value}>
                 {o.label}
               </option>
             ))}
           </Select>
-          <FontPreview family={watch("fonts.body")} />
+          <FontPreview family={watch("fonts.body")} uploaded={uploadedFonts} />
         </div>
         <div className="flex flex-col">
           <Label htmlFor="font-mono">Mono font</Label>
           <Select id="font-mono" {...register("fonts.mono")}>
-            {optionsForRole("mono", watch("fonts.mono")).map((o) => (
+            {optionsForRole("mono", watch("fonts.mono"), uploadedFamilies).map((o) => (
               <option key={o.value || "default"} value={o.value}>
                 {o.label}
               </option>
             ))}
           </Select>
-          <FontPreview family={watch("fonts.mono")} />
+          <FontPreview family={watch("fonts.mono")} uploaded={uploadedFonts} />
         </div>
       </div>
 
@@ -537,10 +539,16 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
   );
 }
 
-function FontPreview({ family }: { family: string | null | undefined }) {
+function FontPreview({
+  family,
+  uploaded = [],
+}: {
+  family: string | null | undefined;
+  uploaded?: UploadedFont[];
+}) {
   useEffect(() => {
-    if (family) injectFontFace(family);
-  }, [family]);
+    if (family) injectFontFace(family, uploaded);
+  }, [family, uploaded]);
   if (!family) return null;
   return (
     <p

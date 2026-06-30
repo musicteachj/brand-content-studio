@@ -9,7 +9,14 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
-from app.models.common import BrandExemplar, BrandImage, BrandLogo, serialize_doc, utcnow
+from app.models.common import (
+    BrandExemplar,
+    BrandImage,
+    BrandLogo,
+    UploadedFont,
+    serialize_doc,
+    utcnow,
+)
 from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
@@ -99,7 +106,7 @@ async def update_workspace(
         # whole; preserve the sub-collections that have their own endpoints (logo,
         # exemplars, brand images) so an identity Save can't silently wipe them.
         existing = doc.get("brand_profile") or {}
-        for managed in ("logo", "exemplars", "brand_images"):
+        for managed in ("logo", "exemplars", "brand_images", "uploaded_fonts"):
             if managed in existing:
                 bp[managed] = existing[managed]
         updates["brand_profile"] = bp
@@ -245,6 +252,55 @@ async def rename_workspace_image(
                 img["name"] = clean
     doc["updated_at"] = now
     return _to_response(doc)
+
+
+def resolve_uploaded_font(brand_profile: dict, family: Optional[str]) -> Optional[str]:
+    """Storage key of an uploaded font matching `family`, or None."""
+    if not family:
+        return None
+    for f in (brand_profile or {}).get("uploaded_fonts") or []:
+        if f.get("family") == family:
+            return f.get("storage_key")
+    return None
+
+
+async def add_workspace_font(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, font: UploadedFont
+) -> Optional[WorkspaceResponse]:
+    """Append an uploaded font to `brand_profile.uploaded_fonts` (targeted $push)."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$push": {"brand_profile.uploaded_fonts": font.model_dump()},
+         "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp.setdefault("uploaded_fonts", []).append(font.model_dump())
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
+async def remove_workspace_font(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, font_id: str
+) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+    """Pull an uploaded font by id; return the updated workspace + its storage key."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    fonts = (doc.get("brand_profile") or {}).get("uploaded_fonts") or []
+    old_key = next((f.get("storage_key") for f in fonts if f.get("id") == font_id), None)
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$pull": {"brand_profile.uploaded_fonts": {"id": font_id}}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp["uploaded_fonts"] = [f for f in fonts if f.get("id") != font_id]
+    doc["updated_at"] = now
+    return _to_response(doc), old_key
 
 
 async def delete_workspace(db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str) -> bool:

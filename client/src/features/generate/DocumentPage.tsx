@@ -23,8 +23,8 @@ export function DocumentPage({ document: doc, brand, compact = false, className 
 
   // Load the workspace @font-face so the paper renders in brand type, not the app's.
   useEffect(() => {
-    injectBrandFontFaces(brand.fonts);
-  }, [brand.fonts]);
+    injectBrandFontFaces(brand.fonts, brand.uploaded_fonts ?? []);
+  }, [brand.fonts, brand.uploaded_fonts]);
 
   const headingStack = `"${heading}", Georgia, "Times New Roman", serif`;
   const bodyStack = `"${body}", Georgia, "Times New Roman", serif`;

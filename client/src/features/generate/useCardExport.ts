@@ -39,7 +39,7 @@ async function ensureResvg(): Promise<void> {
  *  needs at least one. */
 export async function renderCardSvg(props: CardElementProps): Promise<string> {
   const { default: satori } = await import("satori");
-  const fonts = await loadBrandFontBuffers(props.brand.fonts);
+  const fonts = await loadBrandFontBuffers(props.brand.fonts, props.brand.uploaded_fonts ?? []);
   if (fonts.length === 0) {
     throw new Error("Could not load the workspace brand fonts. Check your connection and retry.");
   }

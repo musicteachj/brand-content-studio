@@ -32,6 +32,12 @@ def build_image_key(workspace_id: str, image_id: str, filename: str) -> str:
     return f"{workspace_id}/images/{image_id}/{safe_filename(filename)}"
 
 
+def build_font_key(workspace_id: str, font_id: str, filename: str) -> str:
+    """Uploaded brand fonts live under a `fonts/` prefix, separate from card
+    images and the ingested corpus."""
+    return f"{workspace_id}/fonts/{font_id}/{safe_filename(filename)}"
+
+
 # Generated documents (Phase 2). Allow-listed formats only; the key is fully
 # server-derived from (workspace, generation, format), so the download route
 # never trusts a stored or client-supplied key — it rebuilds this and reads it.

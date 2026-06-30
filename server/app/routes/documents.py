@@ -102,7 +102,20 @@ async def generate_document(
             # The id is pre-generated because the storage keys derive from it.
             generation_oid = ObjectId()
             generation_id = str(generation_oid)
-            files = document_service.build_document_files(output["document"], brand_profile)
+            # Pre-fetch any uploaded-font bytes the selected heading/body families
+            # need, so the PDF renderer can embed them (full card↔PDF parity).
+            selected = brand_profile.get("fonts") or {}
+            wanted = {selected.get("heading"), selected.get("body")}
+            uploaded_font_bytes: dict[str, bytes] = {}
+            for f in (brand_profile.get("uploaded_fonts") or []):
+                if f.get("family") in wanted and f.get("storage_key"):
+                    try:
+                        uploaded_font_bytes[f["family"]] = await get_storage().read(f["storage_key"])
+                    except (FileNotFoundError, ValueError):
+                        pass
+            files = document_service.build_document_files(
+                output["document"], brand_profile, uploaded_font_bytes
+            )
             storage = get_storage()
             formats: dict[str, dict] = {}
             for fmt, data in files.items():

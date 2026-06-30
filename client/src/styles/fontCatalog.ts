@@ -30,16 +30,22 @@ export interface FontSelectOption {
 }
 
 /** The Select options for a role: a "Default" empty option, the role-appropriate
- *  families, and — if the stored value isn't in the catalog — a preserved
- *  "<name> (current)" option so a Select never silently drops saved data. */
-export function optionsForRole(role: FontRole, current: string | null): FontSelectOption[] {
+ *  families, the workspace's uploaded families (usable in any role), and — if the
+ *  stored value isn't in either set — a preserved "<name> (current)" option so a
+ *  Select never silently drops saved data. */
+export function optionsForRole(
+  role: FontRole,
+  current: string | null,
+  uploaded: string[] = [],
+): FontSelectOption[] {
   const cats: FontCategory[] = role === "mono" ? ["mono"] : ["serif", "sans"];
   const families = FONT_OPTIONS.filter((o) => cats.includes(o.category)).map((o) => o.family);
   const opts: FontSelectOption[] = [
     { value: "", label: "Default" },
     ...families.map((f) => ({ value: f, label: f })),
+    ...uploaded.map((f) => ({ value: f, label: `${f} (uploaded)` })),
   ];
-  if (current && !families.includes(current)) {
+  if (current && !families.includes(current) && !uploaded.includes(current)) {
     opts.push({ value: current, label: `${current} (current)` });
   }
   return opts;

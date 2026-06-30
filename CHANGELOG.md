@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Upload your own brand fonts
+
+Upload a `.ttf` (with a name) in **Settings → Brand fonts** and use it as a brand font with full parity: it renders on the card preview, the PNG export, **and** embeds in exported PDFs. Stored on `brand_profile.uploaded_fonts[]` (cap 8, demo-blocked, auth-gated serving). The client font loader is now source-aware (uploaded bytes fetched auth-gated for Satori + a data-URL `@font-face`, else the fontsource CDN), and the PDF renderer registers an uploaded TTF via ReportLab. No font parsing — the name you give the font is its handle everywhere, and it appears in the Heading/Body/Mono pickers. A brand-identity Save preserves uploaded fonts. `.otf`/`.woff2` and multi-weight uploads are noted as fast-follows. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#32). Tests: pytest (+9) — model/service/routes/PDF embed; vitest (+3) — source-aware loader + picker options.
+
 ### Added — Brand-image library polish
 
 Three small improvements to the reusable brand-image library: **Save to brand images** from the card image picker (keep a one-shot upload for reuse — explicit, so the library stays curated), **rename** a library image (an editable caption + demo-blocked `PATCH …/brand-images/{id}`), and **2 seeded demo brand images** so the demo's picker section isn't empty. Search/tags/reorder stayed cut (unnecessary at the 24-image cap). See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#31). Tests: pytest (+5) — rename (update/blank/clamp/demo) + the seed generator; vitest (+1) — the picker Save control.
