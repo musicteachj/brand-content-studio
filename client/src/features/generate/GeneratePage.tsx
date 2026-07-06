@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -31,7 +31,7 @@ import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { useAuthStore } from "@/stores/auth";
 import { cn } from "@/lib/utils";
 import { useGenerateStore } from "@/stores/generate";
-import type { CardTemplate, DocumentArchetype, Length, Tone } from "@/types";
+import type { CardPreset, CardTemplate, DocumentArchetype, Length, Tone } from "@/types";
 
 type Mode = "post" | "text" | "card" | "document";
 
@@ -285,8 +285,17 @@ function CardMode() {
   const [tone, setTone] = useState<Tone>("default");
   const [template, setTemplate] = useState<CardTemplate | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // A selected preset sets the template now and stashes its accent to apply once
+  // the card exists (accent is a post-gen PATCH, not part of /generate).
+  const [pendingAccent, setPendingAccent] = useState<string | null>(null);
+  const presetAppliedRef = useRef<string | null>(null);
   const gen = useCardGeneration(workspaceId);
   const isStreaming = gen.status === "streaming";
+
+  function applyPreset(p: CardPreset) {
+    setTemplate(p.template_id);
+    setPendingAccent(p.accent_hex);
+  }
 
   // Consume a History → Customize hand-off once: load the persisted card into the
   // editor (no /generate). The store is cleared so a remount doesn't reload it.
@@ -323,6 +332,22 @@ function CardMode() {
     if (!editing) setEditingText(false);
   }, [editing]);
 
+  // Once a card generated from a preset lands, seed its accent (a dirty edit the
+  // user can Save). Keyed by generationId (not consumed), so a later Regenerate
+  // re-applies the preset's accent to the fresh card — but only once per card, so
+  // the user's own accent edits within a card aren't clobbered.
+  useEffect(() => {
+    if (
+      pendingAccent &&
+      editing &&
+      gen.generationId &&
+      presetAppliedRef.current !== gen.generationId
+    ) {
+      presetAppliedRef.current = gen.generationId;
+      editor.setAccent(pendingAccent);
+    }
+  }, [pendingAccent, editing, gen.generationId, editor]);
+
   const brand = workspace?.brand_profile;
   if (!brand) return null;
 
@@ -343,6 +368,8 @@ function CardMode() {
           setTone={setTone}
           template={template}
           setTemplate={setTemplate}
+          presets={brand.card_presets ?? []}
+          onApplyPreset={applyPreset}
           isStreaming={isStreaming}
           hasGenerated={gen.status !== "idle"}
           onGenerate={() => template && gen.generate({ brief, template_id: template, tone })}

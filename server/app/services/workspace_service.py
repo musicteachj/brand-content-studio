@@ -13,6 +13,7 @@ from app.models.common import (
     BrandExemplar,
     BrandImage,
     BrandLogo,
+    CardPreset,
     UploadedFont,
     serialize_doc,
     utcnow,
@@ -106,7 +107,7 @@ async def update_workspace(
         # whole; preserve the sub-collections that have their own endpoints (logo,
         # exemplars, brand images) so an identity Save can't silently wipe them.
         existing = doc.get("brand_profile") or {}
-        for managed in ("logo", "exemplars", "brand_images", "uploaded_fonts"):
+        for managed in ("logo", "exemplars", "brand_images", "uploaded_fonts", "card_presets"):
             if managed in existing:
                 bp[managed] = existing[managed]
         updates["brand_profile"] = bp
@@ -301,6 +302,44 @@ async def remove_workspace_font(
     bp["uploaded_fonts"] = [f for f in fonts if f.get("id") != font_id]
     doc["updated_at"] = now
     return _to_response(doc), old_key
+
+
+async def add_workspace_card_preset(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, preset: CardPreset
+) -> Optional[WorkspaceResponse]:
+    """Append a card preset to `brand_profile.card_presets` (targeted $push)."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$push": {"brand_profile.card_presets": preset.model_dump(mode="json")},
+         "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp.setdefault("card_presets", []).append(preset.model_dump(mode="json"))
+    doc["updated_at"] = now
+    return _to_response(doc)
+
+
+async def remove_workspace_card_preset(
+    db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, preset_id: str
+) -> Optional[WorkspaceResponse]:
+    """Pull a card preset by id (pure JSON — no stored bytes to delete)."""
+    doc = await _get_owned_doc(db, workspace_id, owner_id)
+    if not doc:
+        return None
+    presets = (doc.get("brand_profile") or {}).get("card_presets") or []
+    now = utcnow()
+    await db.workspaces.update_one(
+        {"_id": doc["_id"]},
+        {"$pull": {"brand_profile.card_presets": {"id": preset_id}}, "$set": {"updated_at": now}},
+    )
+    bp = doc.setdefault("brand_profile", {})
+    bp["card_presets"] = [p for p in presets if p.get("id") != preset_id]
+    doc["updated_at"] = now
+    return _to_response(doc)
 
 
 async def delete_workspace(db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str) -> bool:

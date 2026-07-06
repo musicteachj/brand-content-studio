@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { BrandExtract, BrandProfile, Workspace } from "@/types";
+import type { BrandExtract, BrandProfile, CardTemplate, Workspace } from "@/types";
 
 export function useWorkspaces() {
   return useQuery({
@@ -181,6 +181,27 @@ export function useRemoveFont(workspaceId: string | null) {
   return useMutation({
     mutationFn: async (fontId: string) =>
       (await api.delete<Workspace>(`/workspaces/${workspaceId}/fonts/${fontId}`)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useAddCardPreset(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      template_id: CardTemplate;
+      accent_hex: string | null;
+    }) => (await api.post<Workspace>(`/workspaces/${workspaceId}/card-presets`, input)).data,
+    onSuccess: (ws) => invalidateWorkspace(qc, ws),
+  });
+}
+
+export function useRemoveCardPreset(workspaceId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (presetId: string) =>
+      (await api.delete<Workspace>(`/workspaces/${workspaceId}/card-presets/${presetId}`)).data,
     onSuccess: (ws) => invalidateWorkspace(qc, ws),
   });
 }

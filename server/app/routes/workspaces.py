@@ -7,11 +7,12 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
-from app.models.common import BrandExemplar, BrandImage, BrandLogo, UploadedFont
+from app.models.common import BrandExemplar, BrandImage, BrandLogo, CardPreset, UploadedFont
 from app.models.user import UserInDB
 from app.models.workspace import (
     BrandExtractResponse,
     BrandImageRename,
+    CardPresetCreate,
     WorkspaceCreate,
     WorkspaceResponse,
     WorkspaceUpdate,
@@ -28,6 +29,7 @@ router = APIRouter()
 
 MAX_UPLOADED_FONTS = 8
 MAX_FONT_BYTES = 5 * 1024 * 1024  # 5 MB
+MAX_CARD_PRESETS = 8
 
 
 @router.get("", response_model=list[WorkspaceResponse])
@@ -379,6 +381,52 @@ async def serve_font(
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found")
     return Response(content=data, media_type="font/ttf")
+
+
+@router.post("/{workspace_id}/card-presets", response_model=WorkspaceResponse)
+async def add_card_preset(
+    payload: CardPresetCreate,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Save a named card preset (template + accent). Demo-blocked, capped, deduped
+    by name. `accent_hex` shape is validated on the `CardPreset` model."""
+    existing = (workspace.get("brand_profile") or {}).get("card_presets") or []
+    if len(existing) >= MAX_CARD_PRESETS:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail=f"At most {MAX_CARD_PRESETS} card presets per workspace.")
+    name = payload.name.strip()[:80]
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A preset name is required.")
+    if any(p.get("name") == name for p in existing):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A preset with that name exists.")
+    preset = CardPreset(
+        id=str(ObjectId()), name=name, template_id=payload.template_id, accent_hex=payload.accent_hex
+    )
+    updated = await workspace_service.add_workspace_card_preset(
+        db, str(workspace["_id"]), current_user.id, preset
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
+
+
+@router.delete("/{workspace_id}/card-presets/{preset_id}", response_model=WorkspaceResponse)
+async def delete_card_preset(
+    preset_id: str,
+    workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
+):
+    """Remove a card preset. Cards already generated with it are unaffected (the
+    template + accent are copied onto the generation)."""
+    updated = await workspace_service.remove_workspace_card_preset(
+        db, str(workspace["_id"]), current_user.id, preset_id
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    return updated
 
 
 @router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)

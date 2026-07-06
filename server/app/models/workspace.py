@@ -4,9 +4,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from app.models.common import BrandColor, BrandFonts, BrandProfile
+from app.models.common import _HEX_RE, BrandColor, BrandFonts, BrandProfile
+from app.models.generation import CardTemplate
 
 
 class BrandExtractResponse(BaseModel):
@@ -31,6 +32,23 @@ class WorkspaceUpdate(BaseModel):
 
 class BrandImageRename(BaseModel):
     name: str = Field(default="", max_length=500)  # clamped to 80 in the service
+
+
+class CardPresetCreate(BaseModel):
+    """Request body for adding a card preset. `id` is server-derived; `accent_hex`
+    is shape-validated here so a bad hex is a 422 at the boundary (not a 500 from
+    building the `CardPreset` in the route)."""
+
+    name: str = Field(default="", max_length=500)  # clamped to 80 in the route
+    template_id: CardTemplate
+    accent_hex: Optional[str] = None
+
+    @field_validator("accent_hex")
+    @classmethod
+    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _HEX_RE.match(v):
+            raise ValueError("accent_hex must be a hex color like #1C3A2E")
+        return v
 
 
 class WorkspaceResponse(BaseModel):
