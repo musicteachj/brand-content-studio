@@ -333,7 +333,9 @@ function CardMode() {
   }, [editing]);
 
   // Once a card generated from a preset lands, seed its accent (a dirty edit the
-  // user can Save) — one-shot per generation so later edits aren't clobbered.
+  // user can Save). Keyed by generationId (not consumed), so a later Regenerate
+  // re-applies the preset's accent to the fresh card — but only once per card, so
+  // the user's own accent edits within a card aren't clobbered.
   useEffect(() => {
     if (
       pendingAccent &&
@@ -343,7 +345,6 @@ function CardMode() {
     ) {
       presetAppliedRef.current = gen.generationId;
       editor.setAccent(pendingAccent);
-      setPendingAccent(null);
     }
   }, [pendingAccent, editing, gen.generationId, editor]);
 

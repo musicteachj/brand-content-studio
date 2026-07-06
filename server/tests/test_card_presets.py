@@ -89,6 +89,12 @@ async def test_add_preset_rejects_blank_name(pc):
 
 
 @pytest.mark.asyncio
+async def test_add_preset_rejects_bad_hex(pc):
+    resp = await pc.post(_url(), json={"name": "X", "template_id": "quote", "accent_hex": "garbage"})
+    assert resp.status_code == 422  # validated at the request boundary, not a 500
+
+
+@pytest.mark.asyncio
 async def test_add_preset_dedupes_name(pc):
     body = {"name": "Bold quote", "template_id": "quote", "accent_hex": None}
     assert (await pc.post(_url(), json=body)).status_code == 200
