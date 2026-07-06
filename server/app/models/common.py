@@ -5,12 +5,16 @@ serialize Mongo's ObjectId to a `str` `id` on the way out.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.models.generation import CardTemplate
 
 ColorRole = Literal["primary", "secondary", "neutral", "accent"]
+_HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
 class BrandColor(BaseModel):
@@ -63,6 +67,25 @@ class UploadedFont(BaseModel):
     url: Optional[str] = None
 
 
+class CardPreset(BaseModel):
+    """A named, reusable card *look* — the two per-card knobs (template + accent).
+    Fonts/non-accent colors are workspace-global, so they're not part of a preset;
+    the copy/brief/image are per-card. Applied from the card generate flow, managed
+    in Settings (Phase 5 PR-B)."""
+
+    id: str
+    name: str
+    template_id: CardTemplate
+    accent_hex: Optional[str] = None
+
+    @field_validator("accent_hex")
+    @classmethod
+    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _HEX_RE.match(v):
+            raise ValueError("accent_hex must be a hex color like #1C3A2E")
+        return v
+
+
 class BrandProfile(BaseModel):
     """Workspace brand identity. These fonts/colors drive the card preview —
     never the app's own Folio chrome (DESIGN.md §7)."""
@@ -75,6 +98,7 @@ class BrandProfile(BaseModel):
     exemplars: list[BrandExemplar] = Field(default_factory=list)
     brand_images: list[BrandImage] = Field(default_factory=list)
     uploaded_fonts: list[UploadedFont] = Field(default_factory=list)
+    card_presets: list[CardPreset] = Field(default_factory=list)
 
 
 def serialize_doc(doc: dict[str, Any]) -> dict[str, Any]:

@@ -7,6 +7,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.models.common import BrandColor, BrandFonts, BrandProfile
+from app.models.generation import CardTemplate
 
 
 class BrandExtractResponse(BaseModel):
@@ -31,6 +32,15 @@ class WorkspaceUpdate(BaseModel):
 
 class BrandImageRename(BaseModel):
     name: str = Field(default="", max_length=500)  # clamped to 80 in the service
+
+
+class CardPresetCreate(BaseModel):
+    """Request body for adding a card preset. `id` is server-derived; `accent_hex`
+    is shape-validated on the `CardPreset` model it's built into."""
+
+    name: str = Field(default="", max_length=500)  # clamped to 80 in the route
+    template_id: CardTemplate
+    accent_hex: Optional[str] = None
 
 
 class WorkspaceResponse(BaseModel):
