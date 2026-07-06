@@ -41,6 +41,13 @@ export interface UploadedFont {
   url: string | null;
 }
 
+export interface CardPreset {
+  id: string;
+  name: string;
+  template_id: CardTemplate;
+  accent_hex: string | null;
+}
+
 export interface BrandProfile {
   colors: BrandColor[];
   accent_hex: string | null;
@@ -50,6 +57,7 @@ export interface BrandProfile {
   exemplars: BrandExemplar[];
   brand_images: BrandImage[];
   uploaded_fonts: UploadedFont[];
+  card_presets: CardPreset[];
 }
 
 // Phase 4c — a proposed brand profile inferred from an uploaded image. Returned

@@ -5,7 +5,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TemplatePicker } from "@/features/generate/TemplatePicker";
 import { cn } from "@/lib/utils";
-import type { BrandProfile, CardTemplate, Tone } from "@/types";
+import type { BrandProfile, CardPreset, CardTemplate, Tone } from "@/types";
 
 const TONES: { value: Tone; label: string }[] = [
   { value: "default", label: "Brand default" },
@@ -23,6 +23,8 @@ interface Props {
   setTone: (v: Tone) => void;
   template: CardTemplate | null;
   setTemplate: (v: CardTemplate) => void;
+  presets: CardPreset[];
+  onApplyPreset: (p: CardPreset) => void;
   isStreaming: boolean;
   hasGenerated: boolean;
   onGenerate: () => void;
@@ -72,6 +74,8 @@ export function CardControlsPanel({
   setTone,
   template,
   setTemplate,
+  presets,
+  onApplyPreset,
   isStreaming,
   hasGenerated,
   onGenerate,
@@ -83,6 +87,31 @@ export function CardControlsPanel({
 
   return (
     <div className="flex flex-col gap-6 rounded-lg border border-border bg-surface p-5 shadow-light">
+      {presets.length > 0 && (
+        <div>
+          <Label htmlFor="card-preset">Preset</Label>
+          <Select
+            id="card-preset"
+            value=""
+            disabled={isStreaming}
+            onChange={(e) => {
+              const p = presets.find((x) => x.id === e.target.value);
+              if (p) onApplyPreset(p);
+            }}
+          >
+            <option value="">Apply a saved preset…</option>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Sets the layout now; the accent applies once the card generates.
+          </p>
+        </div>
+      )}
+
       <div>
         <StepHeader n={1} label="Template" done={templateOk} active={!templateOk} />
         <p className="mb-2.5 mt-2 text-xs text-muted-foreground">

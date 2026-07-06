@@ -9,6 +9,7 @@ import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
 import { BrandFontsSection } from "./BrandFontsSection";
 import { BrandImagesSection } from "./BrandImagesSection";
+import { CardPresetsSection } from "./CardPresetsSection";
 import { ExemplarsSection } from "./ExemplarsSection";
 import { WorkspacesSection } from "./WorkspacesSection";
 
@@ -148,6 +149,15 @@ export function SettingsPage() {
           hint="Upload your own .ttf fonts to use across cards and documents."
         >
           <BrandFontsSection workspace={workspace} />
+        </Section>
+      )}
+
+      {workspace && (
+        <Section
+          title="Card presets"
+          hint="Save a layout + accent as a named preset to reuse when generating cards."
+        >
+          <CardPresetsSection workspace={workspace} />
         </Section>
       )}
     </div>
