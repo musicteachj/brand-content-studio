@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Added — Custom card presets
+
+Save a named card **look** — a layout plus an accent — in **Settings → Card presets**, then apply it in one click from the card generate flow. Stored on `brand_profile.card_presets[]` (cap 8, demo-blocked, deduped by name). A card's only per-card knobs are the template and the accent, so a preset is exactly those two; fonts and non-accent colors are workspace-global (and tone is a copy input), so they're intentionally excluded. Selecting a preset sets the template immediately and seeds the accent as an unsaved edit once the card generates (the accent is a post-generation PATCH, so you Save to persist it). Completes Phase 5 PR-B. "Save this live card as a preset" and per-preset copy are noted as fast-follows. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#33). Tests: pytest (+10) — model/service/routes; vitest (+2) — the generate preset picker.
+
 ### Added — Upload your own brand fonts
 
 Upload a `.ttf` (with a name) in **Settings → Brand fonts** and use it as a brand font with full parity: it renders on the card preview, the PNG export, **and** embeds in exported PDFs. Stored on `brand_profile.uploaded_fonts[]` (cap 8, demo-blocked, auth-gated serving). The client font loader is now source-aware (uploaded bytes fetched auth-gated for Satori + a data-URL `@font-face`, else the fontsource CDN), and the PDF renderer registers an uploaded TTF via ReportLab. No font parsing — the name you give the font is its handle everywhere, and it appears in the Heading/Body/Mono pickers. A brand-identity Save preserves uploaded fonts. `.otf`/`.woff2` and multi-weight uploads are noted as fast-follows. See [`docs/DECISIONS.md`](./docs/DECISIONS.md) (#32). Tests: pytest (+9) — model/service/routes/PDF embed; vitest (+3) — source-aware loader + picker options.
