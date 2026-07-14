@@ -27,6 +27,7 @@ from app.services import document_service, generations_service, retrieval_servic
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
 from app.utils.dependencies import get_workspace_or_404
+from app.utils.errors import client_error
 
 # Mounted at /api/workspaces/{workspace_id}/generate
 router = APIRouter()
@@ -149,7 +150,7 @@ async def generate_document(
                 }
             )
         except Exception as exc:  # surface to the client without crashing the stream
-            yield _frame({"error": str(exc)})
+            yield _frame({"error": client_error(exc, context="document generation")})
         finally:
             yield "data: [DONE]\n\n"
 

@@ -6,6 +6,7 @@ import { FileText } from "lucide-react";
 import { DeckPreview } from "@/features/generate/DeckPreview";
 import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
 import { DocumentPage } from "@/features/generate/DocumentPage";
+import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import type {
   BrandProfile,
   DocumentArchetype,
@@ -40,6 +41,7 @@ export function DocumentPreview({
 
   return (
     <div className="rounded-xl bg-preview-bg p-5 sm:p-8">
+      <StreamAnnouncer status={status} label="Document" />
       {status === "idle" && (
         <div className="mx-auto flex min-h-[280px] w-full max-w-2xl flex-col items-center justify-center rounded-xl border border-border bg-surface p-8 text-center shadow-preview">
           <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-variant text-muted-foreground">
@@ -66,7 +68,7 @@ export function DocumentPreview({
             Drafting
           </p>
           <div
-            aria-live="polite"
+            aria-busy="true"
             className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground"
           >
             {text}

@@ -10,6 +10,7 @@ import {
   type CardElementProps,
 } from "@/features/generate/cards/cardElement";
 import { ScaledCardBox } from "@/features/generate/cards/ScaledCardBox";
+import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import {
   cardPngName,
   downloadBlob,
@@ -162,10 +163,11 @@ export function CardPreview({
 
   return (
     <div className="flex flex-col gap-4">
+      <StreamAnnouncer status={status} label="Card" />
       <div className="rounded-xl bg-preview-bg p-5 sm:p-7">
         <div
           className="mx-auto w-full max-w-[400px] overflow-hidden rounded-xl shadow-preview"
-          aria-live="polite"
+          aria-busy={status === "streaming"}
         >
           {status === "idle" && <IdlePlaceholder />}
           {status === "error" && (
@@ -220,7 +222,10 @@ export function CardPreview({
                   className={cn(
                     "min-w-[120px] flex-1",
                     // Nudge the image as the next step once the card is ready but bare.
-                    status === "done" && !hasImage && "border-accent text-accent hover:bg-accent/5",
+                    // Accent-outlined nudge. Border + hover carry the accent; the
+                    // label stays --foreground so it passes AA in both themes
+                    // (text-accent on the dark surface was only 3.73:1).
+                    status === "done" && !hasImage && "border-accent hover:bg-accent/5",
                   )}
                 >
                   <ImagePlus className="h-4 w-4" aria-hidden />

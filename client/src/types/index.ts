@@ -60,6 +60,15 @@ export interface BrandProfile {
   card_presets: CardPreset[];
 }
 
+// What the brand PATCH actually sends. The sub-collections below each have their
+// own endpoints and the server re-hydrates them from the stored doc on PATCH
+// (workspace_service.update_workspace), so sending them would be a no-op at best
+// and a silent wipe if that guard ever moved. They are omitted deliberately.
+export type BrandProfilePatch = Omit<
+  BrandProfile,
+  "exemplars" | "brand_images" | "uploaded_fonts" | "card_presets"
+>;
+
 // Phase 4c — a proposed brand profile inferred from an uploaded image. Returned
 // by POST /workspaces/{id}/brand/extract for review; applied via the brand PATCH.
 export interface BrandExtract {

@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFrames, STREAM_INACTIVITY_MS } from "./sse";
 
-function fakeResponse(reader: Partial<ReadableStreamDefaultReader<Uint8Array>>) {
+type Reader = ReadableStreamDefaultReader<Uint8Array>;
+type ReadResult = ReadableStreamReadResult<Uint8Array>;
+
+function fakeResponse(reader: Partial<Reader>) {
   return { body: { getReader: () => reader } } as unknown as Response;
 }
 
@@ -11,7 +14,11 @@ afterEach(() => vi.useRealTimers());
 describe("readFrames", () => {
   it("fires onError + cancels when the stream stalls", async () => {
     const cancel = vi.fn();
-    const reader = { read: () => new Promise(() => {}), cancel, releaseLock: vi.fn() };
+    const reader = {
+      read: () => new Promise<ReadResult>(() => {}),
+      cancel,
+      releaseLock: vi.fn(),
+    };
     const onError = vi.fn();
     const p = readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
     await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_MS + 10);
@@ -24,7 +31,7 @@ describe("readFrames", () => {
     const frame = new TextEncoder().encode('data: {"error": 123}\n\n');
     let sent = false;
     const reader = {
-      read: () =>
+      read: (): Promise<ReadResult> =>
         sent
           ? Promise.resolve({ done: true, value: undefined })
           : ((sent = true), Promise.resolve({ done: false, value: frame })),

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { findCatalogFamily } from "@/styles/fontCatalog";
-import type { BrandExtract, BrandProfile, ColorRole } from "@/types";
+import type { BrandExtract, BrandProfile, BrandProfilePatch, ColorRole } from "@/types";
 
 // Pure brand-profile form schema + mappers (kept out of the component file so
 // fast-refresh stays component-only, and so they're unit-testable).
@@ -66,10 +66,14 @@ export function proposalToForm(
   };
 }
 
-/** Map the edit form back to a full BrandProfile. The brand_profile PATCH
- *  replaces the profile whole, so this carries the logo through (it's persisted
- *  separately) and normalizes empty strings to null. */
-export function buildBrandProfile(values: BrandForm, logo: BrandProfile["logo"]): BrandProfile {
+/** Map the edit form back to the brand PATCH payload. The PATCH replaces the
+ *  profile whole, so this carries the logo through (it's persisted separately)
+ *  and normalizes empty strings to null. The sub-collections are re-hydrated
+ *  server-side — see BrandProfilePatch. */
+export function buildBrandProfile(
+  values: BrandForm,
+  logo: BrandProfile["logo"],
+): BrandProfilePatch {
   return {
     colors: values.colors.map((c) => ({ name: c.name.trim(), hex: c.hex, role: c.role })),
     accent_hex: values.accent_hex || null,

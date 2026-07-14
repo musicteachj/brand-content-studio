@@ -2,9 +2,10 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCardElement, cardColors } from "./cardElement";
-import type { BrandProfile, CardFields } from "@/types";
+import type { CardFields } from "@/types";
+import { makeBrandProfile } from "@/test/factories";
 
-const BRAND: BrandProfile = {
+const BRAND = makeBrandProfile({
   colors: [
     { name: "Forest", hex: "#1C3A2E", role: "primary" },
     { name: "Cream", hex: "#F4F1E9", role: "neutral" },
@@ -12,9 +13,7 @@ const BRAND: BrandProfile = {
   ],
   accent_hex: "#1C3A2E",
   fonts: { heading: "DM Serif Display", body: "Spectral", mono: null },
-  logo: null,
-  voice_summary: null,
-};
+});
 
 const FIELDS: CardFields = {
   eyebrow: "MATERIAL NOTES",

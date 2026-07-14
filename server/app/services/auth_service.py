@@ -1,11 +1,18 @@
 """User lookup + authentication (mirrors EMS pattern)."""
+import secrets
 from typing import Optional
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.models.user import UserInDB
-from app.utils.security import verify_password
+from app.utils.security import get_password_hash, verify_password
+
+# Verified against when the email doesn't exist, so the unknown-user path pays the
+# same bcrypt cost as a real check. Without it, Python short-circuits and an
+# unknown email returns in ~0ms while a known one takes ~230ms — an enumeration
+# oracle. Random, so it can never match a submitted password.
+_DECOY_HASH = get_password_hash(secrets.token_urlsafe(32))
 
 
 def _to_user(doc: dict) -> UserInDB:
@@ -34,6 +41,9 @@ async def authenticate_user(
     db: AsyncIOMotorDatabase, email: str, password: str
 ) -> Optional[dict]:
     doc = await db.users.find_one({"email": email})
-    if not doc or not verify_password(password, doc["hashed_password"]) or not doc.get("is_active", True):
+    if not doc:
+        verify_password(password, _DECOY_HASH)  # constant-cost; see _DECOY_HASH
+        return None
+    if not verify_password(password, doc["hashed_password"]) or not doc.get("is_active", True):
         return None
     return doc

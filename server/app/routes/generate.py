@@ -31,6 +31,7 @@ from app.services.generation_service import (
     parse_post,
 )
 from app.utils.dependencies import get_workspace_or_404
+from app.utils.errors import client_error
 
 router = APIRouter()
 
@@ -99,7 +100,7 @@ async def generate_text(
                 {"meta": {"generation_id": str(doc["_id"]), "retrieval": result.envelope()}}
             )
         except Exception as exc:  # surface to the client without crashing the stream
-            yield _frame({"error": str(exc)})
+            yield _frame({"error": client_error(exc, context="streamed generation")})
         finally:
             yield "data: [DONE]\n\n"
 
@@ -184,7 +185,7 @@ async def generate_card(
                 }
             )
         except Exception as exc:  # surface to the client without crashing the stream
-            yield _frame({"error": str(exc)})
+            yield _frame({"error": client_error(exc, context="streamed generation")})
         finally:
             yield "data: [DONE]\n\n"
 
@@ -272,7 +273,7 @@ async def generate_post(
                 }
             )
         except Exception as exc:  # surface to the client without crashing the stream
-            yield _frame({"error": str(exc)})
+            yield _frame({"error": client_error(exc, context="streamed generation")})
         finally:
             yield "data: [DONE]\n\n"
 

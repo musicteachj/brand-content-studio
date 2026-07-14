@@ -9,20 +9,18 @@ vi.mock("@/lib/api", () => ({ api: { get } }));
 import { DeckPreview } from "./DeckPreview";
 import { DocumentPage } from "./DocumentPage";
 import { downloadDocumentFile } from "./documentDownload";
-import type { BrandProfile, DocumentModel } from "@/types";
+import type { DocumentModel } from "@/types";
+import { makeBrandProfile } from "@/test/factories";
 
 // Verdure-like brand — serif/forest, NOT Folio's Jakarta/magenta.
-const BRAND: BrandProfile = {
+const BRAND = makeBrandProfile({
   colors: [
     { name: "Forest", hex: "#1C3A2E", role: "primary" },
     { name: "Cream", hex: "#F4F1E9", role: "neutral" },
     { name: "Ochre", hex: "#C98A3D", role: "accent" },
   ],
-  accent_hex: null,
   fonts: { heading: "DM Serif Display", body: "Spectral", mono: null },
-  logo: null,
-  voice_summary: null,
-};
+});
 
 const DOC: DocumentModel = {
   archetype: "one-pager",

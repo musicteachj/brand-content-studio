@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Workspace } from "@/types";
+import { makeBrandProfile } from "@/test/factories";
 
 // React act() so effects (the persist-on-resolve) flush synchronously.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,13 +20,7 @@ function ws(id: string, name: string): Workspace {
     owner_id: "owner",
     name,
     slug: name.toLowerCase(),
-    brand_profile: {
-      colors: [],
-      accent_hex: null,
-      fonts: { heading: null, body: null, mono: null },
-      logo: null,
-      voice_summary: null,
-    },
+    brand_profile: makeBrandProfile(),
     vector_namespace: id,
     embedding_model: "m",
     embedding_dim: 1536,

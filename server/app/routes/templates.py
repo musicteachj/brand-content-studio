@@ -23,6 +23,7 @@ from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
 from app.services.content_extraction import extract_document_text
+from app.utils.archives import UnsafeArchive
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage, safe_filename
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
@@ -68,7 +69,22 @@ async def upload_template(
             detail=f"Template exceeds the {MAX_TEMPLATE_BYTES // (1024 * 1024)} MB limit.",
         )
     try:
-        placeholders = template_service.discover_placeholders(data, fmt)
+        # Off the event loop under a timeout: the template is untrusted, and
+        # docxtpl parses it as Jinja source (a nested `{% for %}` over range() is a
+        # CPU bomb that would otherwise freeze the worker for every other user).
+        placeholders = await asyncio.wait_for(
+            asyncio.to_thread(template_service.discover_placeholders, data, fmt),
+            SOURCE_PARSE_TIMEOUT_S,
+        )
+    except UnsafeArchive as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Reading this template timed out — try a smaller or simpler file.",
+        )
     except Exception:  # noqa: BLE001 — a corrupt file must not 500
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -215,7 +231,22 @@ async def render_template(
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template file missing")
     values = template_service.clamp_values(payload.values, doc.get("placeholders") or [])
-    filled = template_service.render(data, values, fmt)
+    try:
+        # Same reasoning as upload: the stored template is user-uploaded, and
+        # render() hands it to Jinja. Keep the blocking render off the event loop.
+        filled = await asyncio.wait_for(
+            asyncio.to_thread(template_service.render, data, values, fmt),
+            SOURCE_PARSE_TIMEOUT_S,
+        )
+    except UnsafeArchive as exc:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Rendering this template timed out — try a smaller or simpler file.",
+        )
     out_name = safe_filename(f"{os.path.splitext(doc['name'])[0]}-filled.{fmt}")
     return Response(
         content=filled,

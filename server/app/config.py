@@ -2,7 +2,13 @@
 from pathlib import Path
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The shipped placeholder. Signing with it in production would let anyone forge a
+# token for any user_id, so a production boot that still has it must fail closed.
+DEFAULT_JWT_SECRET = "CHANGE-THIS-IN-PRODUCTION"
+MIN_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
@@ -15,7 +21,7 @@ class Settings(BaseSettings):
     database_name: str = "brand_content"
 
     # JWT
-    jwt_secret_key: str = "CHANGE-THIS-IN-PRODUCTION"
+    jwt_secret_key: str = DEFAULT_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
@@ -55,6 +61,26 @@ class Settings(BaseSettings):
     unsplash_access_key: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @model_validator(mode="after")
+    def _reject_default_secrets_in_production(self) -> "Settings":
+        """Fail closed rather than boot a production app with a public signing key.
+        The Dockerfile hard-sets ENVIRONMENT=production, so a container launched
+        without JWT_SECRET_KEY would otherwise start happily and sign forgeable
+        tokens."""
+        if self.environment != "production":
+            return self
+        if self.jwt_secret_key == DEFAULT_JWT_SECRET:
+            raise ValueError(
+                "JWT_SECRET_KEY is still the shipped default. Set it to a random "
+                f"string of at least {MIN_JWT_SECRET_LEN} characters."
+            )
+        if len(self.jwt_secret_key) < MIN_JWT_SECRET_LEN:
+            raise ValueError(
+                f"JWT_SECRET_KEY must be at least {MIN_JWT_SECRET_LEN} characters "
+                "in production."
+            )
+        return self
 
 
 settings = Settings()
