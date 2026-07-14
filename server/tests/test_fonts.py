@@ -96,6 +96,16 @@ async def test_add_font_rejects_non_ttf(fc):
 
 
 @pytest.mark.asyncio
+async def test_add_font_rejects_css_injection_name(fc):
+    """The family is a user label interpolated near CSS on the client; a name with
+    CSS-breaking characters is rejected at the boundary (SEC-11)."""
+    evil = 'X";}body{background:url(//evil)}@font-face{font-family:"Y'
+    resp = await fc.post(_url(), data={"name": evil},
+                         files={"file": ("ok.ttf", bytes.fromhex(TTF_HEX), "font/ttf")})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_add_font_demo_blocked(test_db, tmp_path, monkeypatch):
     ac = await _mk(test_db, tmp_path, monkeypatch, is_demo=True)
     async with ac:

@@ -24,6 +24,34 @@ MAX_VALUE_LEN = 2000
 _TAG = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 
 
+class TemplateHasLogic(ValueError):
+    """An uploaded template uses Jinja statements/comments ({% %} / {# #}); only
+    {{placeholders}} are a product feature. Rejecting these removes the SSTI +
+    loop-bomb surface entirely, rather than relying on the Jinja sandbox alone."""
+
+
+def _reject_logic(data: bytes, fmt: str) -> None:
+    """Raise TemplateHasLogic if the template contains any Jinja statement/comment.
+    For docx the tags can be split across Word runs, so merge them first via
+    docxtpl's patch_xml (the same normalization it renders through)."""
+    if fmt == "docx":
+        tpl = DocxTemplate(BytesIO(data))
+        tpl.get_docx()
+        text = tpl.patch_xml(tpl.get_xml())
+    else:
+        prs = Presentation(BytesIO(data))
+        text = "\n".join(
+            "".join(run.text for run in para.runs)
+            for slide in prs.slides
+            for frame in _text_frames(slide.shapes)
+            for para in frame.paragraphs
+        )
+    if "{%" in text or "{#" in text:
+        raise TemplateHasLogic(
+            "Templates may use {{placeholders}} only — not {% %} logic or {# #} comments."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
@@ -32,6 +60,7 @@ def discover_placeholders(data: bytes, fmt: str) -> list[str]:
     (robust to run-splitting), sorted for determinism. pptx: scan joined
     paragraph text, de-duped in first-seen order."""
     assert_safe_ooxml(data)
+    _reject_logic(data, fmt)
     if fmt == "docx":
         names = DocxTemplate(BytesIO(data)).get_undeclared_template_variables()
         return sorted(names)
@@ -74,6 +103,7 @@ def clamp_values(values: dict[str, str], placeholders: list[str]) -> dict[str, s
 
 def render(data: bytes, values: dict[str, str], fmt: str) -> bytes:
     assert_safe_ooxml(data)
+    _reject_logic(data, fmt)  # defense in depth: upload already rejects logic tags
     return _fill_docx(data, values) if fmt == "docx" else _fill_pptx(data, values)
 
 
