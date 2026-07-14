@@ -16,6 +16,7 @@ from app.rag.loaders import Section, load_sections
 from app.rag.vector_store import Chunk, get_vector_store
 from app.services import asset_service
 from app.services.storage_service import get_storage
+from app.utils.errors import client_error
 
 logger = logging.getLogger(__name__)
 
@@ -115,5 +116,8 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
             return
         logger.info("ingested asset %s → %d chunks", asset_id, count)
     except Exception as exc:  # noqa: BLE001 — surface any failure as asset error state
-        logger.exception("ingestion failed for asset %s", asset_id)
-        await asset_service.mark_error(db, asset_oid, str(exc))
+        # The error string is served back to the client via the asset API, so it
+        # must be redacted (client_error logs the real traceback server-side).
+        await asset_service.mark_error(
+            db, asset_oid, client_error(exc, context=f"ingestion of asset {asset_id}")
+        )

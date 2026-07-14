@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { findCatalogFamily } from "@/styles/fontCatalog";
-import type { BrandExtract, BrandProfile } from "@/types";
+import type { BrandExtract } from "@/types";
+import { makeBrandProfile } from "@/test/factories";
 import { brandSchema, buildBrandProfile, proposalToForm, toForm } from "./brandIdentity";
 
-const BRAND: BrandProfile = {
+const BRAND = makeBrandProfile({
   colors: [
     { name: "Forest", hex: "#1C3A2E", role: "primary" },
     { name: "Clay", hex: "#C98A3D", role: "accent" },
@@ -12,7 +13,7 @@ const BRAND: BrandProfile = {
   fonts: { heading: "Fraunces", body: "Inter", mono: null },
   logo: { storage_key: "ws/images/1/logo.png", url: "/api/workspaces/ws/images/file/1/logo.png" },
   voice_summary: "Calm, precise.",
-};
+});
 
 describe("brand identity mapping (Phase 4b)", () => {
   it("round-trips a profile, mapping null<->'' for optional fields", () => {
@@ -78,13 +79,7 @@ describe("proposalToForm (Phase 4c)", () => {
   });
 
   it("produces a form patch the schema accepts", () => {
-    const base = toForm({
-      colors: [],
-      accent_hex: null,
-      fonts: { heading: null, body: null, mono: null },
-      logo: null,
-      voice_summary: null,
-    });
+    const base = toForm(makeBrandProfile());
     const merged = { ...base, ...proposalToForm(PROPOSAL), accent_hex: "" };
     expect(brandSchema.safeParse(merged).success).toBe(true);
   });

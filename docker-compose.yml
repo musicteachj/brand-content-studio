@@ -4,16 +4,20 @@ services:
   mongo:
     image: mongo:7
     container_name: brand_content_mongo
+    # Loopback-only. Neither service authenticates, so the short "27017:27017"
+    # form (which binds 0.0.0.0) would expose the whole database to the LAN.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
 
   chroma:
     image: chromadb/chroma:latest
     container_name: brand_content_chroma
+    # Loopback-only, and non-negotiable: chromadb <=1.5.9 has an unpatched
+    # pre-auth code-injection RCE (GHSA-f4j7-r4q5-qw2c) with no fixed release.
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - chroma_data:/data
 

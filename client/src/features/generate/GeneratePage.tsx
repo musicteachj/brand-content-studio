@@ -22,6 +22,7 @@ import { ImagePickerPanel } from "@/features/generate/ImagePickerPanel";
 import { PostCaptionPanel } from "@/features/generate/PostCaptionPanel";
 import { PostControlsPanel } from "@/features/generate/PostControlsPanel";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
+import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import { useCardEditor, type CardEditorBase } from "@/features/generate/useCardEditor";
 import { useCardGeneration } from "@/features/generate/useCardGeneration";
 import { useDocumentGeneration } from "@/features/generate/useDocumentGeneration";
@@ -453,6 +454,7 @@ function PostOutput({
 
   return (
     <div className="rounded-xl bg-preview-bg p-5 sm:p-8">
+      <StreamAnnouncer status={status} label="Post" chars={text.length} />
       <div className="relative mx-auto w-full max-w-xl rounded-xl border border-border bg-surface p-6 shadow-preview sm:p-8">
         {status === "idle" && (
           <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
@@ -475,7 +477,7 @@ function PostOutput({
         {(status === "streaming" || status === "done") && (
           <>
             <div
-              aria-live="polite"
+              aria-busy={status === "streaming"}
               className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground"
             >
               {text}

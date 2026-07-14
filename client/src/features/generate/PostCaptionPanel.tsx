@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Check, Copy, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 
 interface Props {
   status: "idle" | "streaming" | "done" | "error";
@@ -26,6 +27,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
 
   return (
     <div className="rounded-xl border border-border bg-surface p-5 shadow-light">
+      <StreamAnnouncer status={status} label="Caption" />
       <div className="mb-3 flex items-center gap-1.5">
         <Type className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -47,7 +49,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
 
       {status === "streaming" && (
         <div
-          aria-live="polite"
+          aria-busy="true"
           className="min-h-[160px] whitespace-pre-wrap text-[15px] leading-relaxed text-foreground"
         >
           {streamingText}

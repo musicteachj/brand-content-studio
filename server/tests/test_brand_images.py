@@ -139,13 +139,24 @@ async def test_add_brand_image_cross_owner_404(test_db, tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_brand_patch_preserves_library_and_exemplars(test_db, tmp_path, monkeypatch):
-    """A brand-identity Save (whole-profile PATCH) must not wipe the sub-collections
-    that have their own endpoints — the image library and exemplars."""
+    """A brand-identity Save (whole-profile PATCH) must not wipe ANY of the five
+    sub-collections that have their own endpoints — the image library, exemplars,
+    uploaded fonts, and card presets. (The whole point of the preservation guard;
+    the client omits all of these on every identity Save — see BUILD-01.)"""
     imgs = [{"id": "i1", "storage_key": "k1", "url": "/u", "name": "a.png"}]
     exs = [{"id": "e1", "storage_key": "ke", "url": "/u", "style_note": "Punchy."}]
+    fonts = [{"id": "f1", "family": "Acme Sans", "storage_key": "kf", "url": "/u"}]
+    presets = [{"id": "p1", "name": "Bold quote", "template_id": "quote", "accent_hex": "#1C3A2E"}]
     ac = await _mk(test_db, tmp_path, monkeypatch, brand_images=imgs)
     await test_db.workspaces.update_one(
-        {"_id": WS_OID}, {"$set": {"brand_profile.exemplars": exs}}
+        {"_id": WS_OID},
+        {
+            "$set": {
+                "brand_profile.exemplars": exs,
+                "brand_profile.uploaded_fonts": fonts,
+                "brand_profile.card_presets": presets,
+            }
+        },
     )
     async with ac:
         resp = await ac.patch(
@@ -167,6 +178,8 @@ async def test_brand_patch_preserves_library_and_exemplars(test_db, tmp_path, mo
     assert bp["voice_summary"] == "New voice."  # the edit applied
     assert [i["id"] for i in bp["brand_images"]] == ["i1"]  # library preserved
     assert [e["id"] for e in bp["exemplars"]] == ["e1"]  # exemplars preserved
+    assert [f["id"] for f in bp["uploaded_fonts"]] == ["f1"]  # fonts preserved
+    assert [p["id"] for p in bp["card_presets"]] == ["p1"]  # presets preserved
 
 
 @pytest.mark.asyncio

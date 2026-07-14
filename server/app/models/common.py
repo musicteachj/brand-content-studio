@@ -22,6 +22,15 @@ class BrandColor(BaseModel):
     hex: str
     role: ColorRole = "primary"
 
+    @field_validator("hex")
+    @classmethod
+    def _valid_hex(cls, v: str) -> str:
+        # Validate at the boundary so a direct API call can't store a junk hex the
+        # client's regex would have caught (parity with CardPreset.accent_hex).
+        if not _HEX_RE.match(v):
+            raise ValueError("hex must be a color like #1C3A2E")
+        return v
+
 
 class BrandFonts(BaseModel):
     heading: Optional[str] = None

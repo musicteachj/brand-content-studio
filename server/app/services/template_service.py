@@ -17,6 +17,7 @@ from pptx import Presentation
 
 from app.models.common import serialize_doc, utcnow
 from app.models.template import TemplateResponse
+from app.utils.archives import assert_safe_ooxml
 
 MAX_PLACEHOLDERS = 40
 MAX_VALUE_LEN = 2000
@@ -30,6 +31,7 @@ def discover_placeholders(data: bytes, fmt: str) -> list[str]:
     """The `{{tags}}` declared in the template. docx: docxtpl's Jinja analysis
     (robust to run-splitting), sorted for determinism. pptx: scan joined
     paragraph text, de-duped in first-seen order."""
+    assert_safe_ooxml(data)
     if fmt == "docx":
         names = DocxTemplate(BytesIO(data)).get_undeclared_template_variables()
         return sorted(names)
@@ -71,6 +73,7 @@ def clamp_values(values: dict[str, str], placeholders: list[str]) -> dict[str, s
 
 
 def render(data: bytes, values: dict[str, str], fmt: str) -> bytes:
+    assert_safe_ooxml(data)
     return _fill_docx(data, values) if fmt == "docx" else _fill_pptx(data, values)
 
 

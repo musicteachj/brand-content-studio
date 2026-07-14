@@ -8,6 +8,8 @@ from __future__ import annotations
 import io
 import os
 
+from app.utils.archives import assert_safe_ooxml
+
 MAX_SOURCE_CHARS = 40000  # ~10-12 pages / ~10k input tokens — generous, bounded
 _MAX_PDF_PAGES = 80
 
@@ -24,8 +26,10 @@ def extract_document_text(data: bytes, filename: str) -> str:
     could be extracted."""
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".docx":
+        assert_safe_ooxml(data)  # zip bomb: the size cap only saw the compressed bytes
         text = _extract_docx(data)
     elif ext == ".pptx":
+        assert_safe_ooxml(data)
         text = _extract_pptx(data)
     elif ext == ".pdf":
         text = _extract_pdf(data)

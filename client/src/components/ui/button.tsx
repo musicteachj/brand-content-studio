@@ -17,7 +17,7 @@ const buttonVariants = cva(
           "bg-accent text-accent-foreground shadow-light hover:-translate-y-px hover:shadow-accent",
         secondary: "border border-border bg-surface text-foreground hover:bg-surface-variant",
         ghost: "text-muted-foreground hover:bg-surface-variant hover:text-foreground",
-        destructive: "bg-destructive text-white shadow-light hover:opacity-90",
+        destructive: "bg-destructive text-destructive-foreground shadow-light hover:opacity-90",
       },
       size: {
         sm: "h-9 px-3.5 text-sm",

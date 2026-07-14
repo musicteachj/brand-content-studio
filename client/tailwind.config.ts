@@ -39,7 +39,10 @@ export default {
         ring: "hsl(var(--ring) / <alpha-value>)",
         success: "hsl(var(--success) / <alpha-value>)",
         warning: "hsl(var(--warning) / <alpha-value>)",
-        destructive: "hsl(var(--destructive) / <alpha-value>)",
+        destructive: {
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
         // Card-preview surround on the Generate page (the only surface darker
         // than background in light mode). DESIGN.md §1.
         "preview-bg": "hsl(var(--preview-bg) / <alpha-value>)",

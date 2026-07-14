@@ -1,0 +1,40 @@
+# Build context excludes. .gitignore does NOT apply to Docker — without this
+# file, `COPY server/ ./` bakes server/.env (live API keys) into an image layer,
+# where it stays recoverable via `docker history` even if deleted later.
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+
+# Local dev data — user uploads and vector/db state, never part of an image
+server/storage/
+server/uploads/
+chroma/
+
+# Environments and dependencies (reinstalled inside the image)
+**/.venv/
+**/venv/
+**/node_modules/
+
+# Caches and build output
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.vite/
+**/*.tsbuildinfo
+client/dist/
+**/coverage/
+
+# VCS, docs, editor
+.git/
+.gitignore
+.github/
+.claude/
+docs/
+*.md
+!README.md

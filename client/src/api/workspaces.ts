@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { BrandExtract, BrandProfile, CardTemplate, Workspace } from "@/types";
+import type { BrandExtract, BrandProfilePatch, CardTemplate, Workspace } from "@/types";
 
 export function useWorkspaces() {
   return useQuery({
@@ -34,10 +34,12 @@ export function useCreateWorkspace() {
 }
 
 // PATCH merges partial updates server-side. `brand_profile` is REPLACED whole
-// (not deep-merged) — send the full profile when editing it (workspace_service.py).
+// (not deep-merged) — send the full identity profile when editing it. The
+// sub-collections are re-hydrated server-side (workspace_service.py), hence the
+// Patch shape rather than the full BrandProfile.
 export interface UpdateWorkspaceInput {
   name?: string;
-  brand_profile?: BrandProfile;
+  brand_profile?: BrandProfilePatch;
 }
 
 export function useUpdateWorkspace(workspaceId: string | null) {
