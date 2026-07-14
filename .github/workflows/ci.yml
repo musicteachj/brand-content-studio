@@ -34,6 +34,9 @@ jobs:
     defaults:
       run:
         working-directory: server
+    # Mirror docker-compose: both Mongo AND Chroma. With Mongo up the integration
+    # fixtures un-skip, and some (e.g. asset reingest, which drops prior vectors)
+    # then need the real vector store — so Chroma must be present too.
     services:
       mongo:
         image: mongo:7
@@ -42,8 +45,14 @@ jobs:
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s --health-timeout 5s --health-retries 5
+      chroma:
+        image: chromadb/chroma:latest
+        ports:
+          - 8001:8000
     env:
       MONGODB_URL: mongodb://localhost:27017
+      CHROMA_HOST: localhost
+      CHROMA_PORT: "8001"
       # A real (test-only) secret so config's production validator is exercised
       # without ever putting a live key in CI.
       JWT_SECRET_KEY: ci-test-secret-not-a-real-key-000000
@@ -56,6 +65,18 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Wait for Chroma
+        # The image ships no shell tooling we can use in a service --health-cmd,
+        # so poll its heartbeat from the runner instead.
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8001/api/v2/heartbeat \
+               || curl -sf http://localhost:8001/api/v1/heartbeat; then
+              echo "chroma is up"; exit 0
+            fi
+            echo "waiting for chroma ($i/30)"; sleep 2
+          done
+          echo "chroma did not become ready" >&2; exit 1
       - run: ruff check app tests
       - run: mypy app
-      - run: pytest -q # Mongo service un-skips the integration fixtures
+      - run: pytest -q # Mongo + Chroma services un-skip the integration fixtures
