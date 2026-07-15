@@ -85,6 +85,8 @@ async def upload_template(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Reading this template timed out — try a smaller or simpler file.",
         )
+    except template_service.TemplateHasLogic as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     except Exception:  # noqa: BLE001 — a corrupt file must not 500
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -247,6 +249,8 @@ async def render_template(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Rendering this template timed out — try a smaller or simpler file.",
         )
+    except template_service.TemplateHasLogic as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     out_name = safe_filename(f"{os.path.splitext(doc['name'])[0]}-filled.{fmt}")
     return Response(
         content=filled,

@@ -27,6 +27,7 @@ from app.prompts.template_fill import (
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage
 from app.services.template_service import (
+    TemplateHasLogic,
     clamp_values,
     discover_placeholders,
     render,
@@ -69,6 +70,26 @@ def _pptx_bytes(*lines: str) -> bytes:
 def test_discover_placeholders_docx():
     data = _docx_bytes("Hello {{client_name}}", "Re: {{topic}} and {{topic}}")
     assert set(discover_placeholders(data, "docx")) == {"client_name", "topic"}
+
+
+def test_docx_with_jinja_statement_is_rejected():
+    """Only {{placeholders}} are a feature; a template with {% %} logic (the SSTI /
+    loop-bomb surface) is rejected outright on both discover and render (SEC-03/10)."""
+    bomb = _docx_bytes("{% for i in range(9999) %}x{% endfor %}")
+    with pytest.raises(TemplateHasLogic):
+        discover_placeholders(bomb, "docx")
+    with pytest.raises(TemplateHasLogic):
+        render(bomb, {}, "docx")
+
+
+def test_docx_jinja_comment_is_rejected():
+    with pytest.raises(TemplateHasLogic):
+        discover_placeholders(_docx_bytes("Hi {# secret #}{{name}}"), "docx")
+
+
+def test_pptx_with_jinja_statement_is_rejected():
+    with pytest.raises(TemplateHasLogic):
+        discover_placeholders(_pptx_bytes("{% if x %}{{a}}{% endif %}"), "pptx")
 
 
 def test_discover_placeholders_pptx_in_order():

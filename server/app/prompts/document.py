@@ -16,6 +16,7 @@ trusted header.
 from __future__ import annotations
 
 from app.models.generation import DocumentArchetype, Tone
+from app.prompts.context import format_brand_context
 from app.rag.vector_store import RetrievedChunk
 
 # Per-archetype structure guidance. Keeps the drafted prose shaped like the
@@ -67,18 +68,7 @@ def build_copy_system(voice_summary: str | None) -> str:
 
 
 def _format_context(chunks: list[RetrievedChunk]) -> str:
-    if not chunks:
-        return "<brand_context>(no brand material retrieved)</brand_context>"
-    lines = ["<brand_context>"]
-    for i, chunk in enumerate(chunks, start=1):
-        meta = chunk.get("metadata") or {}
-        source = meta.get("filename", "unknown")
-        kind = meta.get("asset_kind", "other")
-        lines.append(f'  <source id="{i}" file="{source}" kind="{kind}">')
-        lines.append(chunk["text"].strip())
-        lines.append("  </source>")
-    lines.append("</brand_context>")
-    return "\n".join(lines)
+    return format_brand_context(chunks)
 
 
 def build_copy_user(

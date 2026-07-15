@@ -24,20 +24,57 @@ MAX_VALUE_LEN = 2000
 _TAG = re.compile(r"\{\{\s*([\w.]+)\s*\}\}")
 
 
+class TemplateHasLogic(ValueError):
+    """An uploaded template uses Jinja statements/comments ({% %} / {# #}); only
+    {{placeholders}} are a product feature. Rejecting these removes the SSTI +
+    loop-bomb surface entirely, rather than relying on the Jinja sandbox alone."""
+
+
+_LOGIC_MSG = "Templates may use {{placeholders}} only — not {% %} logic or {# #} comments."
+
+
+def _assert_no_logic(text: str) -> None:
+    if "{%" in text or "{#" in text:
+        raise TemplateHasLogic(_LOGIC_MSG)
+
+
+def _load_docx(data: bytes) -> DocxTemplate:
+    """Parse the docx and reject Jinja statements/comments in one pass. Tags can be
+    split across Word runs, so merge via docxtpl's patch_xml (the normalization it
+    renders through) before scanning."""
+    tpl = DocxTemplate(BytesIO(data))
+    tpl.get_docx()
+    _assert_no_logic(tpl.patch_xml(tpl.get_xml()))
+    return tpl
+
+
+def _load_pptx(data: bytes):  # type: ignore[no-untyped-def]  # pptx Presentation is Any
+    """Parse the pptx and reject Jinja statements/comments in one pass."""
+    prs = Presentation(BytesIO(data))
+    _assert_no_logic(
+        "\n".join(
+            "".join(run.text for run in para.runs)
+            for slide in prs.slides
+            for frame in _text_frames(slide.shapes)
+            for para in frame.paragraphs
+        )
+    )
+    return prs
+
+
 # ---------------------------------------------------------------------------
 # Discovery
 # ---------------------------------------------------------------------------
 def discover_placeholders(data: bytes, fmt: str) -> list[str]:
     """The `{{tags}}` declared in the template. docx: docxtpl's Jinja analysis
     (robust to run-splitting), sorted for determinism. pptx: scan joined
-    paragraph text, de-duped in first-seen order."""
+    paragraph text, de-duped in first-seen order. Both reject `{% %}`/`{# #}`
+    logic (SEC-03/10) as part of the single parse."""
     assert_safe_ooxml(data)
     if fmt == "docx":
-        names = DocxTemplate(BytesIO(data)).get_undeclared_template_variables()
-        return sorted(names)
+        return sorted(_load_docx(data).get_undeclared_template_variables())
     seen: list[str] = []
-    prs = Presentation(BytesIO(data))
-    for slide in prs.slides:
+    for slide in _load_pptx(data).slides:
         for frame in _text_frames(slide.shapes):
             for para in frame.paragraphs:
                 joined = "".join(r.text for r in para.runs)
@@ -78,9 +115,9 @@ def render(data: bytes, values: dict[str, str], fmt: str) -> bytes:
 
 
 def _fill_docx(data: bytes, values: dict[str, str]) -> bytes:
-    tpl = DocxTemplate(BytesIO(data))
-    # Sandbox the Jinja env: the template source is uploaded (untrusted), so a
-    # `{% %}`/SSTI payload in the file must not be able to execute on render.
+    tpl = _load_docx(data)  # single parse; also rejects `{% %}`/`{# #}` logic tags
+    # Sandbox the Jinja env belt-and-suspenders: _load_docx already rejects
+    # statements, but keep the sandbox in case an unforeseen construct slips past.
     tpl.render(values, jinja_env=SandboxedEnvironment())  # missing var → empty string
     out = BytesIO()
     tpl.save(out)
@@ -88,7 +125,7 @@ def _fill_docx(data: bytes, values: dict[str, str]) -> bytes:
 
 
 def _fill_pptx(data: bytes, values: dict[str, str]) -> bytes:
-    prs = Presentation(BytesIO(data))
+    prs = _load_pptx(data)  # single parse; also rejects logic tags
     for slide in prs.slides:
         for frame in _text_frames(slide.shapes):
             for para in frame.paragraphs:

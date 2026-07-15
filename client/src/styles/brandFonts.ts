@@ -18,7 +18,14 @@ export interface SatoriFont {
 // fontsource serves Google fonts as TTF (Satori cannot parse Google's default
 // woff2). Stable, CORS-enabled CDN.
 function ttfUrl(family: string, weight: number): string {
-  const slug = family.trim().toLowerCase().replace(/\s+/g, "-");
+  // Collapse every non-alphanumeric run to a hyphen (not just whitespace), so a
+  // crafted family can't smuggle `"`/`)` into the url() descriptor addFontFace
+  // builds. Legit fontsource families (letters + spaces) slug identically.
+  const slug = family
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return `https://cdn.jsdelivr.net/fontsource/fonts/${slug}@latest/latin-${weight}-normal.ttf`;
 }
 
@@ -127,13 +134,6 @@ async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
   return p;
 }
 
-function bufferToDataUrl(buf: ArrayBuffer): string {
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return `data:font/ttf;base64,${btoa(binary)}`;
-}
-
 /** Font buffers for Satori. Uploaded families load their own bytes (auth-gated);
  *  the rest come from the CDN, where weights that 404 are skipped. */
 export async function loadBrandFontBuffers(
@@ -154,11 +154,31 @@ export async function loadBrandFontBuffers(
 
 const injected = new Set<string>();
 
-function appendFontFace(family: string, weight: number, src: string): void {
-  const style = document.createElement("style");
-  style.dataset.brandFont = `${family}:${weight}`;
-  style.textContent = `@font-face{font-family:"${family}";font-style:normal;font-weight:${weight};font-display:swap;src:url("${src}") format("truetype");}`;
-  document.head.appendChild(style);
+function addFontFace(family: string, weight: number, source: string | ArrayBuffer): void {
+  // Register via the CSSOM FontFace API rather than interpolating `family`/`src`
+  // into a <style> string. The constructor treats `family` as data (quoting it
+  // internally), so a crafted family name — `"`, `}`, `</style>` — cannot break
+  // out of the declaration. `source` is either the raw uploaded font bytes
+  // (auth-gated) or an app-controlled CDN URL.
+  if (typeof FontFace === "undefined") return; // non-browser env (SSR / jsdom)
+  const key = `${family}:${weight}`;
+  try {
+    const src = typeof source === "string" ? `url("${source}")` : source;
+    const face = new FontFace(family, src, {
+      weight: String(weight),
+      style: "normal",
+      display: "swap",
+    });
+    document.fonts.add(face);
+    void face.load().catch(() => {
+      // A transient CDN failure must be retryable, so clear the dedup key too
+      // (injectFamily marked it before calling us) — matching the uploaded path.
+      document.fonts.delete(face);
+      injected.delete(key);
+    });
+  } catch {
+    injected.delete(key); // invalid descriptor — drop the key so a later call retries
+  }
 }
 
 function injectFamily(family: string, weight: number, uploaded: UploadedFont[]): void {
@@ -167,14 +187,14 @@ function injectFamily(family: string, weight: number, uploaded: UploadedFont[]):
   injected.add(key);
   const up = uploadedUrl(family, uploaded);
   if (up) {
-    // Uploaded bytes are auth-gated, so a bare `url()` in CSS can't fetch them;
-    // pull the bytes (with the bearer) and inline them as a data-URL @font-face.
+    // Uploaded bytes are auth-gated, so a bare `url()` can't fetch them; pull the
+    // bytes (with the bearer) and hand the ArrayBuffer straight to FontFace.
     void fetchFontBytes(up).then((buf) => {
-      if (buf) appendFontFace(family, weight, bufferToDataUrl(buf));
+      if (buf) addFontFace(family, weight, buf);
       else injected.delete(key);
     });
   } else {
-    appendFontFace(family, weight, ttfUrl(family, weight));
+    addFontFace(family, weight, ttfUrl(family, weight));
   }
 }
 

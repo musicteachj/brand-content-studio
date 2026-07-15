@@ -1,6 +1,8 @@
 """Workspace CRUD routes. All workspace-scoped sub-routers (assets, generate,
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
+import re
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
@@ -30,6 +32,11 @@ router = APIRouter()
 MAX_UPLOADED_FONTS = 8
 MAX_FONT_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_CARD_PRESETS = 8
+
+# A font family is a user-typed label that gets interpolated into CSS/@font-face
+# on the client; restrict it to an allow-list so it can't carry CSS-injection
+# characters (the client also uses the CSSOM FontFace API as the primary defense).
+_FONT_FAMILY_RE = re.compile(r"^[A-Za-z0-9 ._-]{1,80}$")
 
 
 @router.get("", response_model=list[WorkspaceResponse])
@@ -320,6 +327,11 @@ async def add_font(
     family = name.strip()[:80]
     if not family:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A font name is required.")
+    if not _FONT_FAMILY_RE.match(family):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Font name may use letters, numbers, spaces, and . _ - only.",
+        )
     if any(f.get("family") == family for f in existing):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A font with that name exists.")
     filename = file.filename or "font.ttf"
