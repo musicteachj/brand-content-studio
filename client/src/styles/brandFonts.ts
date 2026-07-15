@@ -18,7 +18,14 @@ export interface SatoriFont {
 // fontsource serves Google fonts as TTF (Satori cannot parse Google's default
 // woff2). Stable, CORS-enabled CDN.
 function ttfUrl(family: string, weight: number): string {
-  const slug = family.trim().toLowerCase().replace(/\s+/g, "-");
+  // Collapse every non-alphanumeric run to a hyphen (not just whitespace), so a
+  // crafted family can't smuggle `"`/`)` into the url() descriptor addFontFace
+  // builds. Legit fontsource families (letters + spaces) slug identically.
+  const slug = family
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return `https://cdn.jsdelivr.net/fontsource/fonts/${slug}@latest/latin-${weight}-normal.ttf`;
 }
 
@@ -154,6 +161,7 @@ function addFontFace(family: string, weight: number, source: string | ArrayBuffe
   // out of the declaration. `source` is either the raw uploaded font bytes
   // (auth-gated) or an app-controlled CDN URL.
   if (typeof FontFace === "undefined") return; // non-browser env (SSR / jsdom)
+  const key = `${family}:${weight}`;
   try {
     const src = typeof source === "string" ? `url("${source}")` : source;
     const face = new FontFace(family, src, {
@@ -162,9 +170,14 @@ function addFontFace(family: string, weight: number, source: string | ArrayBuffe
       display: "swap",
     });
     document.fonts.add(face);
-    void face.load().catch(() => document.fonts.delete(face));
+    void face.load().catch(() => {
+      // A transient CDN failure must be retryable, so clear the dedup key too
+      // (injectFamily marked it before calling us) — matching the uploaded path.
+      document.fonts.delete(face);
+      injected.delete(key);
+    });
   } catch {
-    /* invalid family/descriptor — skip; the app-font fallback renders */
+    injected.delete(key); // invalid descriptor — drop the key so a later call retries
   }
 }
 
