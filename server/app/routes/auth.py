@@ -1,7 +1,7 @@
 """Auth routes: login, demo-login (bypass), me. No public signup."""
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
@@ -9,6 +9,7 @@ from app.database import get_database
 from app.models.user import Token, UserInDB, UserLogin, UserResponse
 from app.services.auth_service import authenticate_user, get_demo_user
 from app.utils.dependencies import get_current_user
+from app.utils.ratelimit import AUTH_RATE_LIMIT, limiter
 from app.utils.security import create_access_token
 
 router = APIRouter()
@@ -28,7 +29,10 @@ def _issue_token(user_doc: dict) -> Token:
 
 
 @router.post("/login", response_model=Token)
-async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_database)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def login(
+    request: Request, credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_database)
+):
     user_doc = await authenticate_user(db, credentials.email, credentials.password)
     if not user_doc:
         raise HTTPException(
@@ -40,7 +44,8 @@ async def login(credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_d
 
 
 @router.post("/demo-login", response_model=Token)
-async def demo_login(db: AsyncIOMotorDatabase = Depends(get_database)):
+@limiter.limit(AUTH_RATE_LIMIT)
+async def demo_login(request: Request, db: AsyncIOMotorDatabase = Depends(get_database)):
     """'Explore as demo' — issues a token for the seeded demo user, no credentials."""
     user_doc = await get_demo_user(db)
     if not user_doc:

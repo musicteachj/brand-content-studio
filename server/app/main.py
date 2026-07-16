@@ -6,10 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
+from app.utils.ratelimit import limiter
 from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
 from app.rag.vector_store import get_vector_store
 from app.routes import (
@@ -75,6 +78,12 @@ app = FastAPI(
     version="0.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiting (SEC-02): per-route @limiter.limit decorators read the limiter off
+# app.state; the handler turns an exceeded limit into a 429.
+app.state.limiter = limiter
+# slowapi's handler is typed for RateLimitExceeded; Starlette wants Exception.
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.add_middleware(
     CORSMiddleware,

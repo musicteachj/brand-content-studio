@@ -3,13 +3,15 @@
 → `[DONE]`. The generation is persisted server-side at stream end.
 
 Empty/thin corpus is blocked *before* Claude is called — never generate with no
-brand context (ARCHITECTURE gotcha #10)."""
-from __future__ import annotations
+brand context (ARCHITECTURE gotcha #10).
 
+NOTE: no `from __future__ import annotations` here — it turns route annotations
+into ForwardRefs that FastAPI can't resolve through slowapi's @limiter.limit
+wrapper (bodies would 422). Keep annotations concrete in rate-limited routes."""
 import json
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -30,8 +32,9 @@ from app.services.generation_service import (
     build_post_pack_output,
     parse_post,
 )
-from app.utils.dependencies import get_workspace_or_404
+from app.utils.dependencies import enforce_demo_generation_quota, get_workspace_or_404
 from app.utils.errors import client_error
+from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -43,10 +46,13 @@ _SSE_HEADERS = {
 
 
 @router.post("/text")
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def generate_text(
+    request: Request,
     payload: TextGenerateRequest,
-    service: GenerationService = Depends(),
+    service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     if int(workspace.get("ready_chunk_count", 0)) <= 0:
@@ -110,10 +116,13 @@ async def generate_text(
 
 
 @router.post("/card")
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def generate_card(
+    request: Request,
     payload: CardGenerateRequest,
-    service: GenerationService = Depends(),
+    service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream card copy for the live typing effect, then resolve the structured
@@ -195,10 +204,13 @@ async def generate_card(
 
 
 @router.post("/post")
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def generate_post(
+    request: Request,
     payload: PostPackGenerateRequest,
-    service: GenerationService = Depends(),
+    service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """The "LinkedIn Post" objective (Phase 3): stream the post caption for the
