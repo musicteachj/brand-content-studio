@@ -15,7 +15,7 @@ pyjwt==2.13.0  # replaces the unmaintained python-jose (HS256 only; no crypto ex
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 email-validator>=2.1
-slowapi>=0.1.9  # rate limiting (SEC-02); in-memory storage, single-instance
+slowapi==0.1.10  # rate limiting (SEC-02); in-memory storage, single-instance
 
 # AI — generation + embeddings
 anthropic>=0.40

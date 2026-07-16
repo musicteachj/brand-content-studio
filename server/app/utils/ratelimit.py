@@ -7,10 +7,14 @@ multi-instance. Tests disable it via `limiter.enabled = False` (conftest).
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.config import settings
+
 limiter = Limiter(key_func=get_remote_address)
 
-# Per-IP limits. Login/demo-login: credential stuffing + demo-token farming.
-# Generation: paid Anthropic/OpenAI calls. Aggregate demo spend is bounded
-# separately by the per-account daily quota (enforce_demo_generation_quota).
-AUTH_RATE_LIMIT = "10/minute"
-GENERATE_RATE_LIMIT = "30/minute"
+# Per-IP limits (values in config so they're env-tunable). Login/demo-login:
+# credential stuffing + demo-token farming. Generate + the other paid AI routes
+# (brand-extract, template ai-fill/fill-from-document): Anthropic/OpenAI calls.
+# Aggregate demo spend is additionally coupled to the per-account daily quota
+# (enforce_demo_generation_quota).
+AUTH_RATE_LIMIT = settings.rate_limit_auth
+GENERATE_RATE_LIMIT = settings.rate_limit_generate
