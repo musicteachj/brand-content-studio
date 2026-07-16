@@ -64,7 +64,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-dev.txt # runtime + ruff/mypy/pytest
       - name: Wait for Chroma
         # The image ships no shell tooling we can use in a service --health-cmd,
         # so poll its heartbeat from the runner instead.

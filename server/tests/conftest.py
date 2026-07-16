@@ -10,7 +10,13 @@ import pytest_asyncio
 
 from app.rag.loaders import Section
 from app.services.ingestion_service import build_chunks
+from app.utils.ratelimit import limiter
 from tests.fakes import FakeVectorStore
+
+# The suite reuses one process (and one in-memory limiter), so cumulative requests
+# to an endpoint would otherwise trip the SEC-02 limits. Disable rate limiting for
+# tests; the limit behavior is covered explicitly in test_rate_limit.py.
+limiter.enabled = False
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORPUS_DIR = REPO_ROOT / "docs" / "demo-corpus"

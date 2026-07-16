@@ -13,7 +13,8 @@ from app.config import settings
 from app.database import get_database
 from app.main import app
 from app.services.generation_service import GenerationService
-from app.utils.dependencies import get_workspace_or_404
+from app.models.user import UserInDB
+from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import NS_A, TEST_DB_NAME, build_corpus_chunks
 from tests.fakes import FakeGenerationService, FakeVectorStore
 
@@ -41,6 +42,11 @@ async def client(test_db, monkeypatch):
     fake_gen = FakeGenerationService()
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[GenerationService] = lambda: fake_gen
+    # The demo-quota dependency resolves get_current_user directly; provide a
+    # non-demo owner so it short-circuits (these tests mock get_workspace_or_404).
+    app.dependency_overrides[get_current_user] = lambda: UserInDB(
+        id=str(OWNER_OID), email="o@e.com", hashed_password="x", full_name="O", is_demo=False
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         ac.fake_gen = fake_gen  # type: ignore[attr-defined]

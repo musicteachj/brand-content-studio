@@ -8,14 +8,15 @@ Two surfaces, mirroring the existing generate/serve split:
   - download (`/api/workspaces/{id}/generations/{gid}/download/{fmt}`) — auth-gated,
     ownership-checked file download. The storage key is rebuilt server-side from
     (workspace, generation, format), never trusted from the stored value.
-"""
-from __future__ import annotations
 
+NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
+@limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
+"""
 import json
 from typing import AsyncGenerator
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response, StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -26,8 +27,9 @@ from app.rag.vector_store import get_vector_store
 from app.services import document_service, generations_service, retrieval_service
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
-from app.utils.dependencies import get_workspace_or_404
+from app.utils.dependencies import enforce_demo_generation_quota, get_workspace_or_404
 from app.utils.errors import client_error
+from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 # Mounted at /api/workspaces/{workspace_id}/generate
 router = APIRouter()
@@ -48,10 +50,13 @@ _DOC_MEDIA = {
 
 
 @router.post("/document")
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def generate_document(
+    request: Request,
     payload: DocumentGenerateRequest,
-    service: GenerationService = Depends(),
+    service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream the document draft for the live preview, then resolve the structured

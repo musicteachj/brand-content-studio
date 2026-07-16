@@ -1,8 +1,9 @@
-"""JWT + password hashing (mirrors Employee Management System)."""
+"""JWT + password hashing. Uses PyJWT (python-jose was unmaintained — SEC-05)."""
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -36,6 +37,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def decode_access_token(token: str) -> Optional[dict]:
     try:
+        # algorithms pinned → blocks alg=none / HS↔RS confusion; exp verified by default.
         return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-    except JWTError:
+    except InvalidTokenError:
         return None

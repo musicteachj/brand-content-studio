@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     demo_email: str = "demo@folio.studio"
     demo_password: str = "demo-folio-2026"
     demo_full_name: str = "Demo User"
+    # Aggregate cap on the shared demo account's paid generations per UTC day
+    # (per-IP rate limits don't bound total demo spend across many visitors).
+    demo_daily_generation_limit: int = 50
 
     # AI — generation (Anthropic)
     anthropic_api_key: str = ""
