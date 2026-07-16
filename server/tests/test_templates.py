@@ -261,6 +261,17 @@ async def test_ai_fill_returns_values(tpl_client):
 
 
 @pytest.mark.asyncio
+async def test_ai_fill_demo_over_quota_is_429(tpl_client, monkeypatch):
+    """The demo daily quota now guards the paid AI template routes too (SEC-02, B2b);
+    limit 0 means any demo request is over the cap."""
+    t = await _upload(tpl_client)
+    monkeypatch.setattr(settings, "demo_daily_generation_limit", 0)
+    app.dependency_overrides[get_current_user] = lambda: _user(is_demo=True)
+    resp = await tpl_client.post(f"{_base()}/{t['id']}/ai-fill", json={"brief": "x"})
+    assert resp.status_code == 429
+
+
+@pytest.mark.asyncio
 async def test_fill_from_document_maps_content(tpl_client):
     t = await _upload(tpl_client)
     src = _docx_bytes("Welcome to Acme", "We supply hempcrete.")

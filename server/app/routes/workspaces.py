@@ -4,7 +4,7 @@ generations) hang off `/workspaces/{workspace_id}` and go through
 import re
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -25,7 +25,13 @@ from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
 from app.services.workspace_service import MAX_BRAND_IMAGES, MAX_EXEMPLARS
-from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
+from app.utils.dependencies import (
+    enforce_demo_generation_quota,
+    get_current_user,
+    get_workspace_or_404,
+    require_not_demo,
+)
+from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -137,10 +143,13 @@ async def delete_logo(
 
 
 @router.post("/{workspace_id}/brand/extract", response_model=BrandExtractResponse)
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def extract_brand(
+    request: Request,
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: BrandExtractService = Depends(BrandExtractService),
+    _quota: None = Depends(enforce_demo_generation_quota),
 ):
     """Propose a brand profile (palette + voice + fonts) from an uploaded image.
 

@@ -1,14 +1,16 @@
 """Template routes (Phase 5). Upload/list/delete branded .docx/.pptx templates,
 optionally AI-draft their placeholder values, and render the filled file. Renders
 are returned for immediate download — not persisted. The template's styling is
-authoritative; we only swap `{{placeholder}}` text."""
-from __future__ import annotations
+authoritative; we only swap `{{placeholder}}` text.
 
+NOTE: no `from __future__ import annotations` — the AI routes use slowapi's
+@limiter.limit, whose wrapper + ForwardRef annotations would 422 request bodies
+(see generate.py)."""
 import asyncio
 import os
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -26,7 +28,12 @@ from app.services.content_extraction import extract_document_text
 from app.utils.archives import UnsafeArchive
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage, safe_filename
-from app.utils.dependencies import get_workspace_or_404, require_not_demo
+from app.utils.dependencies import (
+    enforce_demo_generation_quota,
+    get_workspace_or_404,
+    require_not_demo,
+)
+from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -139,11 +146,14 @@ async def delete_template(
 
 
 @router.post("/{template_id}/ai-fill", response_model=TemplateAiFillResponse)
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def ai_fill_template(
+    request: Request,
     template_id: str,
     payload: TemplateAiFillRequest,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft a value for each placeholder from a brief (optional path). Generative,
@@ -164,11 +174,14 @@ async def ai_fill_template(
 
 
 @router.post("/{template_id}/fill-from-document", response_model=TemplateAiFillResponse)
+@limiter.limit(GENERATE_RATE_LIMIT)
 async def fill_template_from_document(
+    request: Request,
     template_id: str,
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
+    _quota: None = Depends(enforce_demo_generation_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft each placeholder by mapping an uploaded document's content onto the

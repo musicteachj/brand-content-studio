@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # (per-IP rate limits don't bound total demo spend across many visitors).
     demo_daily_generation_limit: int = 50
 
+    # Per-IP rate limits (slowapi syntax) — env-tunable (SEC-02).
+    rate_limit_auth: str = "10/minute"
+    rate_limit_generate: str = "30/minute"
+
     # AI — generation (Anthropic)
     anthropic_api_key: str = ""
     ai_model: str = "claude-sonnet-4-6"
