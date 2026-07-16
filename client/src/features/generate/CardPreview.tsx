@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Download, ImageIcon, ImagePlus, Pencil } from "lucide-react";
+import { Check, Download, ImageIcon, ImageMinus, ImagePlus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   buildCardElement,
@@ -35,6 +35,7 @@ interface Props {
   hasImage: boolean;
   imageError: string | null;
   onAddImage: () => void;
+  onClearImage?: () => void; // un-pick the current image (ARCH-04)
   // Inline text editing (Phase 1.5). When `onEditField` is provided the card can
   // enter an in-place edit mode; `editKey` re-seeds the editable fields when the
   // generation/template changes.
@@ -111,6 +112,7 @@ export function CardPreview({
   hasImage,
   imageError,
   onAddImage,
+  onClearImage,
   editingText = false,
   onToggleEditText,
   onEditField,
@@ -230,6 +232,12 @@ export function CardPreview({
                 >
                   <ImagePlus className="h-4 w-4" aria-hidden />
                   {hasImage ? "Change image" : "Add an image"}
+                </Button>
+              )}
+              {showAddImage && hasImage && onClearImage && (
+                <Button variant="ghost" onClick={onClearImage} aria-label="Remove image">
+                  <ImageMinus className="h-4 w-4" aria-hidden />
+                  Remove
                 </Button>
               )}
               {canEditText && (

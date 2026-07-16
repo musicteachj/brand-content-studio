@@ -170,6 +170,7 @@ function PostPackMode() {
             hasImage={gen.image !== null}
             imageError={gen.imageError}
             onAddImage={() => setPickerOpen(true)}
+            onClearImage={gen.clearImage}
           />
           <PostCaptionPanel
             status={gen.status}
@@ -392,6 +393,7 @@ function CardMode() {
           hasImage={gen.image !== null}
           imageError={gen.imageError}
           onAddImage={() => setPickerOpen(true)}
+          onClearImage={gen.clearImage}
           editingText={editing && editingText}
           onToggleEditText={editing ? () => setEditingText((v) => !v) : undefined}
           onEditField={editing ? editor.setField : undefined}

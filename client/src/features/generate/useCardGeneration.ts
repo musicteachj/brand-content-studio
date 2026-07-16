@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchImageDataUrl, trackUnsplashDownload } from "@/api/images";
-import { api } from "@/lib/api";
+import { useCallback } from "react";
 import { streamCardGeneration, type CardStreamBody } from "@/lib/sse";
 import type {
   CardFields,
-  CardImage,
   CardOutput,
   CardTemplate,
   Generation,
   RetrievalEnvelope,
   SSECardMetaFrame,
-  UnsplashPhoto,
 } from "@/types";
+import { useCardImageSelection } from "./useCardImageSelection";
+import { useStreamedGeneration, type Status } from "./useStreamedGeneration";
 
-type Status = "idle" | "streaming" | "done" | "error";
+type Meta = SSECardMetaFrame["meta"];
 
-interface State {
+interface StreamState {
   status: Status;
   copy: string; // streamed prose for the live "drafting" typing effect
   fields: CardFields | null; // structured fields (from tool-use, on done)
@@ -24,13 +22,10 @@ interface State {
   accentHex: string | null; // per-card accent (null for a fresh card; set on history hydrate)
   generationId: string | null;
   retrieval: RetrievalEnvelope | null;
-  image: CardImage | null; // persisted shape
-  imageDataUrl: string | null; // client-only, for rendering + export
-  imageError: string | null; // surfaced when an image fetch fails
   error: string | null;
 }
 
-const initial = (templateId: CardTemplate): State => ({
+const initialStream = (templateId: CardTemplate): StreamState => ({
   status: "idle",
   copy: "",
   fields: null,
@@ -39,183 +34,80 @@ const initial = (templateId: CardTemplate): State => ({
   accentHex: null,
   generationId: null,
   retrieval: null,
-  image: null,
-  imageDataUrl: null,
-  imageError: null,
   error: null,
 });
 
 /** Drives a single streamed card generation: streams the draft copy, captures the
- *  terminal fields/keywords, and manages image selection (which runs in parallel
- *  and is persisted to the generation via PATCH once both are available). */
+ *  terminal fields/keywords (shared streaming machine), and manages image selection
+ *  (shared with the post-pack hook — ARCH-04). Because image selection lives in its
+ *  own hook, a picked image survives a regenerate and re-attaches to the new id. */
 export function useCardGeneration(workspaceId: string | null) {
-  const [state, setState] = useState<State>(initial("photo-led"));
-  const abortRef = useRef<AbortController | null>(null);
-  const persistedKeyRef = useRef<string | null>(null);
+  const { state, setState, generate, stop, abort } = useStreamedGeneration<
+    StreamState,
+    CardStreamBody,
+    Meta
+  >(workspaceId, {
+    initial: initialStream("photo-led"),
+    stream: streamCardGeneration,
+    streamingSeed: (_s, body) => ({
+      ...initialStream(body.template_id as CardTemplate),
+      status: "streaming",
+    }),
+    applyText: (s, delta) => ({ ...s, copy: s.copy + delta }),
+    applyMeta: (s, meta) => ({
+      ...s,
+      fields: meta.fields,
+      suggestedKeywords: meta.suggested_keywords,
+      templateId: meta.template_id,
+      generationId: meta.generation_id,
+      retrieval: meta.retrieval,
+    }),
+  });
 
-  // Switching workspaces must not leave an in-flight stream writing into the new
-  // workspace's view: abort it and reset to a clean slate.
-  useEffect(() => {
-    setState(initial("photo-led"));
-    return () => abortRef.current?.abort();
-  }, [workspaceId]);
+  const {
+    image,
+    imageDataUrl,
+    imageError,
+    selectUnsplash,
+    selectUpload,
+    clearImage,
+    hydrate,
+    reset: resetImage,
+  } = useCardImageSelection(workspaceId, state.generationId);
 
-  const generate = useCallback(
-    async (body: CardStreamBody) => {
-      if (!workspaceId) return;
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      persistedKeyRef.current = null; // re-PATCH any kept image onto the new generation
-      // Image selection is parallel to copy: a photo picked before (or kept from a
-      // prior) generation survives a (re)generate and is re-attached to the new id.
-      setState((s) => ({
-        ...initial(body.template_id as CardTemplate),
-        status: "streaming",
-        image: s.image,
-        imageDataUrl: s.imageDataUrl,
-      }));
-
-      let errored = false;
-      await streamCardGeneration(
-        workspaceId,
-        body,
-        {
-          onText: (delta) => setState((s) => ({ ...s, copy: s.copy + delta })),
-          onMeta: (meta: SSECardMetaFrame["meta"]) =>
-            setState((s) => ({
-              ...s,
-              fields: meta.fields,
-              suggestedKeywords: meta.suggested_keywords,
-              templateId: meta.template_id,
-              generationId: meta.generation_id,
-              retrieval: meta.retrieval,
-            })),
-          onError: (message) => {
-            errored = true;
-            setState((s) => ({ ...s, status: "error", error: message }));
-          },
-        },
-        controller.signal,
-      );
-
-      if (!controller.signal.aborted) {
-        setState((s) => (errored ? s : { ...s, status: "done" }));
-      }
+  /** Load a persisted card generation (re-opened from History) into a "done" state
+   *  so it can be customized — layout/accent/copy edits and image swaps — with NO
+   *  model call. Image bytes are fetched fresh for render/export. */
+  const loadGeneration = useCallback(
+    async (gen: Generation) => {
+      if (gen.type !== "card") return;
+      abort();
+      const out = gen.output as unknown as CardOutput;
+      setState({
+        ...initialStream(out.template_id),
+        status: "done",
+        fields: out.fields,
+        suggestedKeywords: out.suggested_keywords ?? [],
+        templateId: out.template_id,
+        accentHex: out.accent_hex ?? null,
+        generationId: gen.id,
+      });
+      await hydrate(gen.id, out.image ?? null);
     },
-    [workspaceId],
+    [abort, setState, hydrate],
   );
 
-  /** Load a persisted card generation (re-opened from History) into a "done"
-   *  state so it can be customized — layout/accent/copy edits and image swaps —
-   *  with NO model call. Image bytes are fetched fresh for render/export. */
-  const loadGeneration = useCallback(async (gen: Generation) => {
-    if (gen.type !== "card") return;
-    abortRef.current?.abort();
-    const out = gen.output as unknown as CardOutput;
-    // The image is already persisted on this generation, so suppress the
-    // auto-PATCH effect for it (only a *new* selection should re-PATCH).
-    const imageKey = out.image?.unsplash_id ?? out.image?.storage_key ?? "none";
-    persistedKeyRef.current = `${gen.id}:${imageKey}`;
-    setState({
-      ...initial(out.template_id),
-      status: "done",
-      fields: out.fields,
-      suggestedKeywords: out.suggested_keywords ?? [],
-      templateId: out.template_id,
-      accentHex: out.accent_hex ?? null,
-      generationId: gen.id,
-      image: out.image ?? null,
-    });
-    if (out.image?.url) {
-      try {
-        const dataUrl = await fetchImageDataUrl(out.image.url);
-        setState((s) => (s.generationId === gen.id ? { ...s, imageDataUrl: dataUrl } : s));
-      } catch {
-        setState((s) =>
-          s.generationId === gen.id ? { ...s, imageError: "Couldn’t load the image." } : s,
-        );
-      }
-    }
-  }, []);
-
-  const stop = useCallback(() => {
-    abortRef.current?.abort();
-    setState((s) => (s.status === "streaming" ? { ...s, status: "done" } : s));
-  }, []);
-
   const reset = useCallback(() => {
-    abortRef.current?.abort();
-    setState(initial("photo-led"));
-  }, []);
-
-  /** Select an Unsplash photo: fire download tracking (license), fetch the bytes
-   *  as a data URL for rendering/export, and store the persisted image shape. A
-   *  fetch failure is surfaced rather than swallowed. */
-  const selectUnsplash = useCallback(async (photo: UnsplashPhoto) => {
-    void trackUnsplashDownload(photo.download_location);
-    try {
-      const dataUrl = await fetchImageDataUrl(photo.preview_url);
-      setState((s) => ({
-        ...s,
-        imageError: null,
-        imageDataUrl: dataUrl,
-        image: {
-          source: "unsplash",
-          url: photo.preview_url,
-          storage_key: null,
-          unsplash_id: photo.id,
-          attribution: photo.attribution,
-        },
-      }));
-    } catch {
-      setState((s) => ({ ...s, imageError: "Couldn’t load that photo. Try another." }));
-    }
-  }, []);
-
-  /** Use an uploaded image (already stored server-side; `url` is auth-gated). */
-  const selectUpload = useCallback(async (url: string, storageKey: string) => {
-    try {
-      const dataUrl = await fetchImageDataUrl(url);
-      setState((s) => ({
-        ...s,
-        imageError: null,
-        imageDataUrl: dataUrl,
-        image: {
-          source: "upload",
-          url,
-          storage_key: storageKey,
-          unsplash_id: null,
-          attribution: null,
-        },
-      }));
-    } catch {
-      setState((s) => ({ ...s, imageError: "Couldn’t load the uploaded image." }));
-    }
-  }, []);
-
-  const clearImage = useCallback(() => {
-    setState((s) => ({ ...s, image: null, imageDataUrl: null, imageError: null }));
-  }, []);
-
-  // Persist the selected image onto the generation once both exist (idempotent
-  // per image via a key, so we don't re-PATCH on every render).
-  useEffect(() => {
-    if (!workspaceId || !state.generationId || !state.image) return;
-    const key = `${state.generationId}:${state.image.unsplash_id ?? state.image.storage_key ?? "none"}`;
-    if (persistedKeyRef.current === key) return;
-    persistedKeyRef.current = key;
-    api
-      .patch(`/workspaces/${workspaceId}/generations/${state.generationId}`, {
-        image: state.image,
-      })
-      .catch(() => {
-        persistedKeyRef.current = null; // allow a retry on the next change
-      });
-  }, [workspaceId, state.generationId, state.image]);
+    abort();
+    setState(initialStream("photo-led"));
+    resetImage();
+  }, [abort, setState, resetImage]);
 
   return {
     ...state,
+    image,
+    imageDataUrl,
+    imageError,
     generate,
     loadGeneration,
     stop,

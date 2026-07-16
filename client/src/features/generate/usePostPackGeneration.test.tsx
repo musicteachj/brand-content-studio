@@ -109,4 +109,23 @@ describe("usePostPackGeneration", () => {
     expect(url).not.toContain("generate");
     expect((body as { image: { unsplash_id: string } }).image.unsplash_id).toBe("abc");
   });
+
+  it("exposes clearImage so a picked image can be un-picked (ARCH-04 fix)", async () => {
+    mount();
+    await act(async () => {
+      await latest.loadGeneration(GEN);
+    });
+    await act(async () => {
+      await latest.selectUnsplash(PHOTO);
+    });
+    await act(async () => {}); // flush the persist effect
+    expect(latest.image?.unsplash_id).toBe("abc");
+
+    act(() => {
+      latest.clearImage();
+    });
+    await act(async () => {});
+    expect(latest.image).toBeNull();
+    expect(latest.imageDataUrl).toBeNull();
+  });
 });
