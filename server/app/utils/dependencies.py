@@ -60,6 +60,19 @@ async def get_workspace_or_404(
     return doc
 
 
+def ensure_ready_corpus(workspace: dict) -> None:
+    """Block generation on an empty/thin corpus BEFORE the model is called
+    (ARCHITECTURE gotcha #10). Called at the top of every /generate route body — a
+    plain guard (not a dependency) so it runs after the rate-limit/quota deps
+    (preserving their precedence) and stays a real HTTP 409, which is the client's
+    non-stream error path (never an in-stream frame)."""
+    if int(workspace.get("ready_chunk_count", 0)) <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workspace has no ingested brand assets yet. Ingest assets first.",
+        )
+
+
 def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
     """Block destructive actions for the seeded demo user so visitors can't
     break the seeded Verdure corpus (DECISIONS #15)."""
