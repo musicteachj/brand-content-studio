@@ -17,3 +17,19 @@ def build_exemplar_guidance(notes: list[str]) -> str | None:
     for i, note in enumerate(clean, start=1):
         lines.append(f"{i}. {note}")
     return "\n".join(lines)
+
+
+def build_brand_context(workspace: dict) -> tuple[str, dict, str | None, str | None]:
+    """Assemble a generation's brand inputs from a workspace dict: the vector
+    namespace, the raw `brand_profile`, the voice summary, and the exemplar-steering
+    guidance block. Shared by the four streamed-generation routes (ARCH-02); the
+    document route ignores the exemplar guidance."""
+    brand_profile = workspace.get("brand_profile") or {}
+    return (
+        workspace["vector_namespace"],
+        brand_profile,
+        brand_profile.get("voice_summary"),
+        build_exemplar_guidance(
+            [e.get("style_note", "") for e in (brand_profile.get("exemplars") or [])]
+        ),
+    )

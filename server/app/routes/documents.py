@@ -12,35 +12,33 @@ Two surfaces, mirroring the existing generate/serve split:
 NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
 @limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
 """
-import json
 from collections.abc import AsyncGenerator
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
 from app.models.generation import DocumentGenerateRequest
 from app.prompts import document as document_prompt
+from app.prompts.exemplars import build_brand_context
 from app.rag.vector_store import get_vector_store
 from app.services import document_service, generations_service, retrieval_service
 from app.services.ai_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
-from app.utils.dependencies import enforce_demo_generation_quota, get_workspace_or_404
-from app.utils.errors import client_error
+from app.utils.dependencies import (
+    enforce_demo_generation_quota,
+    ensure_ready_corpus,
+    get_workspace_or_404,
+)
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
+from app.utils.sse import sse_response
 
 # Mounted at /api/workspaces/{workspace_id}/generate
 router = APIRouter()
 # Mounted at /api/workspaces/{workspace_id}/generations
 download_router = APIRouter()
-
-_SSE_HEADERS = {
-    "Cache-Control": "no-cache",
-    "Connection": "keep-alive",
-    "X-Accel-Buffering": "no",  # disable proxy buffering so tokens flush live
-}
 
 _DOC_MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -61,107 +59,89 @@ async def generate_document(
 ):
     """Stream the document draft for the live preview, then resolve the structured
     model via tool-use, render the branded files, and emit their format keys."""
-    if int(workspace.get("ready_chunk_count", 0)) <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This workspace has no ingested brand assets yet. Ingest assets first.",
-        )
-
-    namespace = workspace["vector_namespace"]
-    brand_profile = workspace.get("brand_profile") or {}
-    voice_summary = brand_profile.get("voice_summary")
+    ensure_ready_corpus(workspace)
+    namespace, brand_profile, voice_summary, _ = build_brand_context(workspace)
     archetype = payload.archetype.value
     workspace_oid = workspace["_id"]
     workspace_id = str(workspace_oid)
 
-    async def event_stream() -> AsyncGenerator[str, None]:
+    async def produce() -> AsyncGenerator[dict, None]:
         parts: list[str] = []
-        try:
-            result = await retrieval_service.retrieve(
-                get_vector_store(), namespace, payload.brief, k=6
-            )
-            if not result.chunks:
-                yield _frame({"error": "No brand context could be retrieved for this brief."})
-                return
+        result = await retrieval_service.retrieve(get_vector_store(), namespace, payload.brief, k=6)
+        if not result.chunks:
+            yield {"error": "No brand context could be retrieved for this brief."}
+            return
 
-            copy_system = document_prompt.build_copy_system(voice_summary)
-            copy_user = document_prompt.build_copy_user(
-                payload.brief, payload.archetype, payload.tone, result.chunks
-            )
-            async for delta in service.stream_document(copy_system, copy_user):
-                parts.append(delta)
-                yield _frame({"text": delta})
+        copy_system = document_prompt.build_copy_system(voice_summary)
+        copy_user = document_prompt.build_copy_user(
+            payload.brief, payload.archetype, payload.tone, result.chunks
+        )
+        async for delta in service.stream_document(copy_system, copy_user):
+            parts.append(delta)
+            yield {"text": delta}
 
-            draft = "".join(parts).strip()
-            if not draft:
-                yield _frame({"error": "The model returned an empty response. Try again."})
-                return
+        draft = "".join(parts).strip()
+        if not draft:
+            yield {"error": "The model returned an empty response. Try again."}
+            return
 
-            extracted = await service.extract_document_sections(
-                document_prompt.build_fields_system(),
-                document_prompt.build_fields_user(payload.brief, payload.archetype, draft),
-            )
-            output = document_service.build_document_output(archetype, extracted)
+        extracted = await service.extract_document_sections(
+            document_prompt.build_fields_system(),
+            document_prompt.build_fields_user(payload.brief, payload.archetype, draft),
+        )
+        output = document_service.build_document_output(archetype, extracted)
 
-            # Build + store the branded files BEFORE persisting, so a render or
-            # storage failure can't leave a "complete" generation with no files.
-            # The id is pre-generated because the storage keys derive from it.
-            generation_oid = ObjectId()
-            generation_id = str(generation_oid)
-            # Pre-fetch any uploaded-font bytes the selected heading/body families
-            # need, so the PDF renderer can embed them (full card↔PDF parity).
-            selected = brand_profile.get("fonts") or {}
-            wanted = {selected.get("heading"), selected.get("body")}
-            uploaded_font_bytes: dict[str, bytes] = {}
-            for f in (brand_profile.get("uploaded_fonts") or []):
-                if f.get("family") in wanted and f.get("storage_key"):
-                    try:
-                        uploaded_font_bytes[f["family"]] = await get_storage().read(f["storage_key"])
-                    except (FileNotFoundError, ValueError):
-                        pass
-            files = document_service.build_document_files(
-                output["document"], brand_profile, uploaded_font_bytes
-            )
-            storage = get_storage()
-            formats: dict[str, dict] = {}
-            for fmt, data in files.items():
-                key = build_document_key(workspace_id, generation_id, fmt)
-                await storage.save(key, data)
-                formats[fmt] = {"storage_key": key}
-            output["formats"] = formats
+        # Build + store the branded files BEFORE persisting, so a render or storage
+        # failure can't leave a "complete" generation with no files. The id is
+        # pre-generated because the storage keys derive from it.
+        generation_oid = ObjectId()
+        generation_id = str(generation_oid)
+        # Pre-fetch any uploaded-font bytes the selected heading/body families need,
+        # so the PDF renderer can embed them (full card↔PDF parity).
+        selected = brand_profile.get("fonts") or {}
+        wanted = {selected.get("heading"), selected.get("body")}
+        uploaded_font_bytes: dict[str, bytes] = {}
+        for f in (brand_profile.get("uploaded_fonts") or []):
+            if f.get("family") in wanted and f.get("storage_key"):
+                try:
+                    uploaded_font_bytes[f["family"]] = await get_storage().read(f["storage_key"])
+                except (FileNotFoundError, ValueError):
+                    pass
+        files = document_service.build_document_files(
+            output["document"], brand_profile, uploaded_font_bytes
+        )
+        storage = get_storage()
+        formats: dict[str, dict] = {}
+        for fmt, data in files.items():
+            key = build_document_key(workspace_id, generation_id, fmt)
+            await storage.save(key, data)
+            formats[fmt] = {"storage_key": key}
+        output["formats"] = formats
 
-            await generations_service.create_generation(
-                db,
-                workspace_oid=workspace_oid,
-                owner_oid=workspace["owner_id"],
-                type="document",
-                brief=payload.brief,
-                status="complete",
-                output=output,
-                retrieved_chunk_ids=result.chunk_ids,
-                retrieval_meta=result.meta,
-                gen_id=generation_oid,
-            )
+        await generations_service.create_generation(
+            db,
+            workspace_oid=workspace_oid,
+            owner_oid=workspace["owner_id"],
+            type="document",
+            brief=payload.brief,
+            status="complete",
+            output=output,
+            retrieved_chunk_ids=result.chunk_ids,
+            retrieval_meta=result.meta,
+            gen_id=generation_oid,
+        )
 
-            yield _frame(
-                {
-                    "meta": {
-                        "generation_id": generation_id,
-                        "archetype": archetype,
-                        "document": output["document"],
-                        "formats": formats,
-                        "retrieval": result.envelope(),
-                    }
-                }
-            )
-        except Exception as exc:  # surface to the client without crashing the stream
-            yield _frame({"error": client_error(exc, context="document generation")})
-        finally:
-            yield "data: [DONE]\n\n"
+        yield {
+            "meta": {
+                "generation_id": generation_id,
+                "archetype": archetype,
+                "document": output["document"],
+                "formats": formats,
+                "retrieval": result.envelope(),
+            }
+        }
 
-    return StreamingResponse(
-        event_stream(), media_type="text/event-stream", headers=_SSE_HEADERS
-    )
+    return sse_response(produce(), context="document generation")
 
 
 @download_router.get("/{generation_id}/download/{fmt}")
@@ -201,7 +181,3 @@ async def download_document(
         media_type=_DOC_MEDIA[fmt],
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-
-def _frame(payload: dict) -> str:
-    return f"data: {json.dumps(payload)}\n\n"
