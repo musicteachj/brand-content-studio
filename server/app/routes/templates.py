@@ -27,6 +27,7 @@ from app.services import template_service
 from app.services.ai_service import GenerationService
 from app.services.content_extraction import extract_document_text
 from app.services.storage_service import build_template_key, get_storage, safe_filename
+from app.services.upload_service import SOURCE_POLICY, TEMPLATE_POLICY, read_upload
 from app.utils.archives import UnsafeArchive
 from app.utils.dependencies import (
     enforce_demo_generation_quota,
@@ -37,25 +38,11 @@ from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
 
-MAX_TEMPLATE_BYTES = 10 * 1024 * 1024  # 10 MB
-MAX_SOURCE_BYTES = 10 * 1024 * 1024  # 10 MB
 SOURCE_PARSE_TIMEOUT_S = 30
-_SOURCE_EXTS = {".docx", ".pptx", ".pdf", ".txt", ".md", ".markdown"}
-_FORMAT_BY_EXT = {".docx": "docx", ".pptx": "pptx"}
 _MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
-
-
-def _resolve_format(filename: str) -> str:
-    fmt = _FORMAT_BY_EXT.get(os.path.splitext(filename)[1].lower())
-    if not fmt:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Unsupported template. Upload a .docx or .pptx file.",
-        )
-    return fmt
 
 
 @router.post("", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -65,16 +52,7 @@ async def upload_template(
     current_user: UserInDB = Depends(require_not_demo),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    filename = file.filename or "template"
-    fmt = _resolve_format(filename)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_TEMPLATE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Template exceeds the {MAX_TEMPLATE_BYTES // (1024 * 1024)} MB limit.",
-        )
+    data, filename, fmt = await read_upload(file, TEMPLATE_POLICY, default_name="template")
     try:
         # Off the event loop under a timeout: the template is untrusted, and
         # docxtpl parses it as Jinja source (a nested `{% for %}` over range() is a
@@ -192,20 +170,7 @@ async def fill_template_from_document(
     doc = await template_service.get_template(db, workspace["_id"], template_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    filename = file.filename or "source"
-    if os.path.splitext(filename)[1].lower() not in _SOURCE_EXTS:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Unsupported document. Upload a .docx, .pptx, .pdf, .txt, or .md file.",
-        )
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_SOURCE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Document exceeds the {MAX_SOURCE_BYTES // (1024 * 1024)} MB limit.",
-        )
+    data, filename, _ = await read_upload(file, SOURCE_POLICY, default_name="source")
     placeholders = doc.get("placeholders") or []
     if not placeholders:
         return TemplateAiFillResponse(values={})

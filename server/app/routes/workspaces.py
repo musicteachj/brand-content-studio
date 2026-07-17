@@ -20,10 +20,10 @@ from app.models.workspace import (
     WorkspaceUpdate,
 )
 from app.rag.vector_store import get_vector_store
-from app.routes.images import MAX_IMAGE_BYTES, resolve_image_content_type
 from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
+from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
 from app.services.workspace_service import MAX_BRAND_IMAGES, MAX_EXEMPLARS
 from app.utils.dependencies import (
     enforce_demo_generation_quota,
@@ -36,7 +36,6 @@ from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 router = APIRouter()
 
 MAX_UPLOADED_FONTS = 8
-MAX_FONT_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_CARD_PRESETS = 8
 
 # A font family is a user-typed label that gets interpolated into CSS/@font-face
@@ -96,17 +95,7 @@ async def upload_logo(
     """Upload a brand logo. Mirrors the card-image upload defenses (allow-listed
     type, size cap, server-derived key) and stores the result on
     `brand_profile.logo`. Served by the existing image route."""
-    filename = file.filename or "logo"
-    resolve_image_content_type(filename, file.content_type)  # validates type (415)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
-        )
-
+    data, filename, _ = await read_upload(file, IMAGE_POLICY, default_name="logo")
     workspace_id = str(workspace["_id"])
     logo_id = str(ObjectId())
     clean_name = safe_filename(filename)
@@ -156,16 +145,7 @@ async def extract_brand(
     Returns a **proposal only** — nothing is persisted; the client reviews it and
     applies it through the brand PATCH. Allowed for the demo user (it's generative,
     not a mutation — DECISIONS #15); validated like the image/logo uploads."""
-    filename = file.filename or "image"
-    media_type = resolve_image_content_type(filename, file.content_type)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
-        )
+    data, _, media_type = await read_upload(file, IMAGE_POLICY, default_name="image")
     _ = workspace  # ownership enforced by the dependency
     return await service.propose(data, media_type)
 
@@ -187,17 +167,7 @@ async def add_exemplar(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"At most {MAX_EXEMPLARS} example cards per workspace.",
         )
-    filename = file.filename or "card"
-    media_type = resolve_image_content_type(filename, file.content_type)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
-        )
-
+    data, filename, media_type = await read_upload(file, IMAGE_POLICY, default_name="card")
     note = await service.propose_exemplar_note(data, media_type)
     workspace_id = str(workspace["_id"])
     exemplar_id = str(ObjectId())
@@ -253,17 +223,7 @@ async def add_brand_image(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"At most {MAX_BRAND_IMAGES} brand images per workspace.",
         )
-    filename = file.filename or "image"
-    resolve_image_content_type(filename, file.content_type)  # validates type (415)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
-        )
-
+    data, filename, _ = await read_upload(file, IMAGE_POLICY, default_name="image")
     workspace_id = str(workspace["_id"])
     image_id = str(ObjectId())
     clean_name = safe_filename(filename)
@@ -343,16 +303,7 @@ async def add_font(
         )
     if any(f.get("family") == family for f in existing):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A font with that name exists.")
-    filename = file.filename or "font.ttf"
-    if not filename.lower().endswith(".ttf"):
-        raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                            detail="Unsupported font. Upload a .ttf file.")
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_FONT_BYTES:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                            detail=f"Font exceeds the {MAX_FONT_BYTES // (1024 * 1024)} MB limit.")
+    data, filename, _ = await read_upload(file, FONT_POLICY, default_name="font.ttf")
     workspace_id = str(workspace["_id"])
     font_id = str(ObjectId())
     clean_name = safe_filename(filename)

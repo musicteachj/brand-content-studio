@@ -1,4 +1,6 @@
 """Uploaded brand fonts: model + service + routes / PDF embedding."""
+from dataclasses import replace
+
 import pytest
 import pytest_asyncio
 from bson import ObjectId
@@ -10,6 +12,7 @@ from app.main import app
 from app.models.common import BrandProfile, UploadedFont, utcnow
 from app.models.user import UserInDB
 from app.services.storage_service import build_font_key, get_storage
+from app.services.upload_service import FONT_POLICY
 from app.services.workspace_service import resolve_uploaded_font
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
@@ -93,6 +96,23 @@ async def test_add_font_rejects_non_ttf(fc):
     resp = await fc.post(_url(), data={"name": "X"},
                          files={"file": ("x.otf", b"hi", "font/otf")})
     assert resp.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_add_font_rejects_empty(fc):
+    # The consolidated read_upload gate (ARCH-01) still 400s an empty upload.
+    resp = await fc.post(_url(), data={"name": "Empty"}, files={"file": ("x.ttf", b"", "font/ttf")})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_add_font_rejects_oversize(fc, monkeypatch):
+    # Shrinking FONT_POLICY exercises the 413 path + the "Font" noun via the gate.
+    monkeypatch.setattr("app.routes.workspaces.FONT_POLICY", replace(FONT_POLICY, max_bytes=4))
+    resp = await fc.post(
+        _url(), data={"name": "Big"}, files={"file": ("x.ttf", bytes.fromhex(TTF_HEX), "font/ttf")}
+    )
+    assert resp.status_code == 413
 
 
 @pytest.mark.asyncio
