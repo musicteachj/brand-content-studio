@@ -3,7 +3,6 @@ workspace id, so each workspace is isolated in its own Chroma collection."""
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -52,14 +51,14 @@ async def list_workspaces(db: AsyncIOMotorDatabase, owner_id: str) -> list[Works
 
 async def get_workspace(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     return _to_response(doc) if doc else None
 
 
 async def _get_owned_doc(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str
-) -> Optional[dict]:
+) -> dict | None:
     try:
         oid = ObjectId(workspace_id)
     except Exception:
@@ -94,7 +93,7 @@ async def create_workspace(
 
 async def update_workspace(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, payload: WorkspaceUpdate
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
         return None
@@ -118,7 +117,7 @@ async def update_workspace(
 
 async def set_workspace_logo(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, logo: BrandLogo
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Set just `brand_profile.logo` (a targeted update, so it never clobbers the
     rest of the profile). Returns the updated workspace, or None if not owned."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
@@ -136,7 +135,7 @@ async def set_workspace_logo(
 
 async def clear_workspace_logo(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str
-) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+) -> tuple[WorkspaceResponse, str | None] | None:
     """Unset `brand_profile.logo`. Returns the updated workspace plus the old
     storage key (so the caller can delete the stored bytes), or None if not owned."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
@@ -156,7 +155,7 @@ async def clear_workspace_logo(
 
 async def add_workspace_exemplar(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, exemplar: BrandExemplar
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Append an exemplar to `brand_profile.exemplars` (targeted $push)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
@@ -174,7 +173,7 @@ async def add_workspace_exemplar(
 
 async def remove_workspace_exemplar(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, exemplar_id: str
-) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+) -> tuple[WorkspaceResponse, str | None] | None:
     """Pull an exemplar by id; return the updated workspace + its storage key (so
     the caller can delete the bytes), or None if not owned."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
@@ -195,7 +194,7 @@ async def remove_workspace_exemplar(
 
 async def add_workspace_image(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image: BrandImage
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Append a brand image to `brand_profile.brand_images` (targeted $push)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
@@ -213,7 +212,7 @@ async def add_workspace_image(
 
 async def remove_workspace_image(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image_id: str
-) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+) -> tuple[WorkspaceResponse, str | None] | None:
     """Pull a brand image by id; return the updated workspace + its storage key
     (so the caller can delete the bytes), or None if not owned."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
@@ -234,7 +233,7 @@ async def remove_workspace_image(
 
 async def rename_workspace_image(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image_id: str, name: str
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Set a brand image's display name (targeted arrayFilters update). A blank
     name is ignored (keeps the existing label); long names clamp to 80."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
@@ -255,7 +254,7 @@ async def rename_workspace_image(
     return _to_response(doc)
 
 
-def resolve_uploaded_font(brand_profile: dict, family: Optional[str]) -> Optional[str]:
+def resolve_uploaded_font(brand_profile: dict, family: str | None) -> str | None:
     """Storage key of an uploaded font matching `family`, or None."""
     if not family:
         return None
@@ -267,7 +266,7 @@ def resolve_uploaded_font(brand_profile: dict, family: Optional[str]) -> Optiona
 
 async def add_workspace_font(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, font: UploadedFont
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Append an uploaded font to `brand_profile.uploaded_fonts` (targeted $push)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
@@ -286,7 +285,7 @@ async def add_workspace_font(
 
 async def remove_workspace_font(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, font_id: str
-) -> Optional[tuple[WorkspaceResponse, Optional[str]]]:
+) -> tuple[WorkspaceResponse, str | None] | None:
     """Pull an uploaded font by id; return the updated workspace + its storage key."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
@@ -306,7 +305,7 @@ async def remove_workspace_font(
 
 async def add_workspace_card_preset(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, preset: CardPreset
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Append a card preset to `brand_profile.card_presets` (targeted $push)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
@@ -325,7 +324,7 @@ async def add_workspace_card_preset(
 
 async def remove_workspace_card_preset(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, preset_id: str
-) -> Optional[WorkspaceResponse]:
+) -> WorkspaceResponse | None:
     """Pull a card preset by id (pure JSON — no stored bytes to delete)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:

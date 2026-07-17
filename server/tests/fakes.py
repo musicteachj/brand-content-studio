@@ -9,7 +9,7 @@ so the SSE route can be tested without calling Claude.
 from __future__ import annotations
 
 import re
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from app.rag.vector_store import Chunk, RetrievedChunk
 

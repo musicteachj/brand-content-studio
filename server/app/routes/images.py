@@ -52,7 +52,7 @@ async def unsplash_search(
     try:
         return await unsplash_service.search(query, page)
     except unsplash_service.UnsplashError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
 
 @router.post("/unsplash/track", status_code=status.HTTP_204_NO_CONTENT)
@@ -64,7 +64,7 @@ async def unsplash_track(
     requirement). Best-effort — a tracking failure must not block selection."""
     try:
         await unsplash_service.track_download(payload.download_location)
-    except Exception:  # noqa: BLE001 — best-effort, never surface to the user
+    except Exception:  # noqa: BLE001, S110 — best-effort, never surface to the user
         pass
 
 
@@ -123,7 +123,7 @@ async def serve_image(
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found") from None
     content_type = _IMAGE_CONTENT_TYPE.get(
         os.path.splitext(filename)[1].lower(), "application/octet-stream"
     )

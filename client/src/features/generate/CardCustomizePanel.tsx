@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { TemplatePicker } from "@/features/generate/TemplatePicker";
 import { cardColors } from "@/features/generate/cards/cardElement";
 import { cn } from "@/lib/utils";
+import { useRovingRadio } from "@/lib/useRovingRadio";
 import type { BrandProfile, CardTemplate } from "@/types";
 
 interface Props {
@@ -48,6 +49,11 @@ export function CardCustomizePanel({
   // The accent actually in effect (per-card override, else the brand default) —
   // so the matching swatch reads as selected even before the user picks one.
   const effectiveAccent = cardColors(brand, accentHex).accent.toLowerCase();
+  const { radioProps: accentRadioProps } = useRovingRadio(
+    brand.colors.length,
+    brand.colors.findIndex((c) => c.hex.toLowerCase() === effectiveAccent),
+    (i) => onAccent(brand.colors[i].hex),
+  );
 
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-light">
@@ -71,7 +77,7 @@ export function CardCustomizePanel({
 
       <Section label="Accent">
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Card accent color">
-          {brand.colors.map((color) => {
+          {brand.colors.map((color, index) => {
             const selected = color.hex.toLowerCase() === effectiveAccent;
             return (
               <button
@@ -82,6 +88,7 @@ export function CardCustomizePanel({
                 aria-label={`${color.name} accent`}
                 title={color.name}
                 onClick={() => onAccent(color.hex)}
+                {...accentRadioProps(index)}
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-full border transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selected

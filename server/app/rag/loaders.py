@@ -7,7 +7,6 @@ malicious-file DoS (ARCHITECTURE gotcha #9)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 MAX_PDF_PAGES = 80
 
@@ -23,7 +22,7 @@ class FileTooComplexError(ValueError):
 @dataclass
 class Section:
     text: str
-    page: Optional[int] = None
+    page: int | None = None
 
 
 def load_sections(path: str, content_type: str) -> list[Section]:
@@ -35,7 +34,7 @@ def load_sections(path: str, content_type: str) -> list[Section]:
 
 
 def _load_text(path: str) -> list[Section]:
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         return [Section(text=f.read(), page=None)]
 
 

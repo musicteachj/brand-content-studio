@@ -1,5 +1,6 @@
 import { cardColors } from "@/features/generate/cards/cardElement";
 import { cn } from "@/lib/utils";
+import { useRovingRadio } from "@/lib/useRovingRadio";
 import type { BrandProfile, CardTemplate } from "@/types";
 
 const TEMPLATES: { id: CardTemplate; label: string }[] = [
@@ -22,9 +23,14 @@ interface Props {
  *  use the workspace's own colors so the picker reflects the brand. Reused for the
  *  Phase 1.5 layout swap, where it re-renders the same copy with no generation. */
 export function TemplatePicker({ brand, value, onChange, disabled, accentHex }: Props) {
+  const { radioProps } = useRovingRadio(
+    TEMPLATES.length,
+    TEMPLATES.findIndex((t) => t.id === value),
+    (i) => onChange(TEMPLATES[i].id),
+  );
   return (
     <div className="grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Card template">
-      {TEMPLATES.map((t) => {
+      {TEMPLATES.map((t, index) => {
         const selected = value === t.id;
         return (
           <button
@@ -34,6 +40,7 @@ export function TemplatePicker({ brand, value, onChange, disabled, accentHex }: 
             aria-checked={selected}
             disabled={disabled}
             onClick={() => onChange(t.id)}
+            {...radioProps(index)}
             className={cn(
               "flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
               selected

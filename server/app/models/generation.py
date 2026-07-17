@@ -3,11 +3,10 @@
 debug panel survives later asset deletes/re-ingests (DATA_MODEL.md)."""
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
-
-import re
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -113,21 +112,21 @@ class ImageAttribution(BaseModel):
 
 class CardImage(BaseModel):
     source: str  # "unsplash" | "upload"
-    url: Optional[str] = None
-    storage_key: Optional[str] = None
-    unsplash_id: Optional[str] = None
-    attribution: Optional[ImageAttribution] = None  # required when source == "unsplash"
+    url: str | None = None
+    storage_key: str | None = None
+    unsplash_id: str | None = None
+    attribution: ImageAttribution | None = None  # required when source == "unsplash"
 
 
 class CardOutput(BaseModel):
     template_id: CardTemplate = CardTemplate.photo_led
     fields: CardFields = Field(default_factory=CardFields)
-    image: Optional[CardImage] = None
+    image: CardImage | None = None
     suggested_keywords: list[str] = Field(default_factory=list)
     # Phase 1.5: which brand-palette color this card uses as its accent. Null =
     # fall back to the brand's default accent role. Validated against the
     # workspace palette in the PATCH route (membership needs the workspace).
-    accent_hex: Optional[str] = None
+    accent_hex: str | None = None
 
 
 class PostPackOutput(BaseModel):
@@ -186,14 +185,14 @@ class GenerationUpdate(BaseModel):
     the selected image; Phase 1.5 adds inline field/template edits + the per-card
     accent. Every field is client-side customization: no `/generate` call."""
 
-    template_id: Optional[CardTemplate] = None
-    fields: Optional[CardFields] = None
-    image: Optional[CardImage] = None
-    accent_hex: Optional[str] = None
+    template_id: CardTemplate | None = None
+    fields: CardFields | None = None
+    image: CardImage | None = None
+    accent_hex: str | None = None
 
     @field_validator("accent_hex")
     @classmethod
-    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+    def _valid_hex(cls, v: str | None) -> str | None:
         # Shape-check only here; palette membership is enforced in the route,
         # which has the workspace's brand colors.
         if v is not None and not _HEX_RE.match(v):
@@ -211,7 +210,7 @@ class RetrievalMetaItem(BaseModel):
     score: float
     preview: str  # ~240 chars of the matched text
     chunk_index: int
-    page: Optional[int] = None
+    page: int | None = None
     pinned: bool = False  # always-injected brand fundamental (voice/pillars)
 
 
@@ -227,13 +226,13 @@ class GenerationResponse(BaseModel):
     retrieval_meta: list[RetrievalMetaItem] = Field(default_factory=list)
     model: str
     embedding_query_model: str
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class GenerationPage(BaseModel):
     items: list[GenerationResponse]
-    next_offset: Optional[int] = None
+    next_offset: int | None = None
 
 
 class GenerationCount(BaseModel):

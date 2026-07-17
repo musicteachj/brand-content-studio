@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -33,12 +32,12 @@ class AssetResponse(BaseModel):
     size_bytes: int
     ingestion_status: IngestionStatus
     chunk_count: int = 0
-    error: Optional[str] = None
-    ingested_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    error: str | None = None
+    ingested_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class AssetPage(BaseModel):
     items: list[AssetResponse]
-    next_offset: Optional[int] = None
+    next_offset: int | None = None

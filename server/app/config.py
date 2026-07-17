@@ -1,20 +1,19 @@
 """Application settings (pydantic-settings). Loads from server/.env."""
 from pathlib import Path
-from typing import List
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The shipped placeholder. Signing with it in production would let anyone forge a
 # token for any user_id, so a production boot that still has it must fail closed.
-DEFAULT_JWT_SECRET = "CHANGE-THIS-IN-PRODUCTION"
+DEFAULT_JWT_SECRET = "CHANGE-THIS-IN-PRODUCTION"  # noqa: S105 — placeholder; rejected in prod below
 MIN_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
     # App
     environment: str = "development"
-    cors_origins: List[str] = ["http://localhost:5173"]
+    cors_origins: list[str] = ["http://localhost:5173"]
 
     # MongoDB
     mongodb_url: str = "mongodb://localhost:27017"
@@ -27,7 +26,7 @@ class Settings(BaseSettings):
 
     # Seeded demo user ("Explore as demo")
     demo_email: str = "demo@folio.studio"
-    demo_password: str = "demo-folio-2026"
+    demo_password: str = "demo-folio-2026"  # noqa: S105 — public demo credential, not a secret
     demo_full_name: str = "Demo User"
     # Aggregate cap on the shared demo account's paid generations per UTC day
     # (per-IP rate limits don't bound total demo spend across many visitors).

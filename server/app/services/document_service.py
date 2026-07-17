@@ -151,7 +151,7 @@ def _register_pdf_font(
             pdfmetrics.registerFont(TTFont(name, src))
             _REGISTERED.add(name)
             return name
-        except Exception:  # noqa: BLE001 — a bad font file must not break rendering
+        except Exception:  # noqa: BLE001, S110 — a bad font file must not break rendering
             pass
     if role == "heading":
         return "Times-Bold" if is_serif(family) else "Helvetica-Bold"

@@ -10,7 +10,8 @@ from docx import Document
 from docx.shared import Pt, RGBColor
 from httpx import ASGITransport, AsyncClient
 from pptx import Presentation
-from pptx.util import Inches, Pt as PptxPt
+from pptx.util import Inches
+from pptx.util import Pt as PptxPt
 
 from app.config import settings
 from app.database import get_database
@@ -24,7 +25,7 @@ from app.prompts.template_fill import (
     build_fill_user,
     build_fill_user_from_content,
 )
-from app.services.generation_service import GenerationService
+from app.services.ai_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage
 from app.services.template_service import (
     TemplateHasLogic,
@@ -34,7 +35,6 @@ from app.services.template_service import (
 )
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
-
 
 # --- Task 1: storage key ----------------------------------------------------
 

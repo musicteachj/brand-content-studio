@@ -1,5 +1,4 @@
 """Auth + workspace-scoping dependencies."""
-from typing import Optional
 
 from bson import ObjectId
 from fastapi import Depends, HTTPException, status
@@ -28,7 +27,7 @@ async def get_current_user(
     payload = decode_access_token(credentials.credentials)
     if payload is None:
         raise credentials_exception
-    user_id: Optional[str] = payload.get("user_id")
+    user_id: str | None = payload.get("user_id")
     if user_id is None:
         raise credentials_exception
     user = await get_user_by_id(db, user_id)
@@ -52,7 +51,9 @@ async def get_workspace_or_404(
     try:
         oid = ObjectId(workspace_id)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found"
+        ) from None
     doc = await db.workspaces.find_one({"_id": oid})
     if not doc or str(doc.get("owner_id")) != str(current_user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 from io import BytesIO
-from typing import Optional
 
 from bson import ObjectId
 from docxtpl import DocxTemplate
@@ -193,7 +192,7 @@ async def list_templates(
 
 async def get_template(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, template_id: str
-) -> Optional[dict]:
+) -> dict | None:
     try:
         oid = ObjectId(template_id)
     except Exception:

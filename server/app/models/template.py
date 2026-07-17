@@ -3,7 +3,7 @@ serialize ObjectId → str `id` on the way out."""
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,7 @@ class TemplateResponse(BaseModel):
     format: TemplateFormat
     storage_key: str
     placeholders: list[str] = Field(default_factory=list)
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 class TemplateRenderRequest(BaseModel):

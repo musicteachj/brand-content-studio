@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { streamTextGeneration, type TextStreamBody } from "@/lib/sse";
 import type { SSEMetaFrame } from "@/types";
+import { useStreamedGeneration, type Status } from "./useStreamedGeneration";
 
-type Status = "idle" | "streaming" | "done" | "error";
-type Retrieval = SSEMetaFrame["meta"]["retrieval"];
+type Meta = SSEMetaFrame["meta"];
+type Retrieval = Meta["retrieval"];
 
 interface State {
   status: Status;
@@ -21,58 +21,22 @@ const INITIAL: State = {
   error: null,
 };
 
-/** Drives a single streamed text-post generation: accumulates tokens, captures
- *  the terminal retrieval meta, and exposes abort. */
+/** Drives a single streamed text-post generation: accumulates tokens, captures the
+ *  terminal retrieval meta, and exposes abort — a thin composition over the shared
+ *  streaming state machine (ARCH-04). */
 export function useTextGeneration(workspaceId: string | null) {
-  const [state, setState] = useState<State>(INITIAL);
-  const abortRef = useRef<AbortController | null>(null);
-
-  // Switching workspaces must not leave an in-flight stream writing into the new
-  // workspace's view: abort it and reset to a clean slate.
-  useEffect(() => {
-    setState(INITIAL);
-    return () => abortRef.current?.abort();
-  }, [workspaceId]);
-
-  const generate = useCallback(
-    async (body: TextStreamBody) => {
-      if (!workspaceId) return;
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setState({ ...INITIAL, status: "streaming" });
-
-      let errored = false;
-      await streamTextGeneration(
-        workspaceId,
-        body,
-        {
-          onText: (delta) => setState((s) => ({ ...s, text: s.text + delta })),
-          onMeta: (meta) =>
-            setState((s) => ({
-              ...s,
-              retrieval: meta.retrieval,
-              generationId: meta.generation_id,
-            })),
-          onError: (message) => {
-            errored = true;
-            setState((s) => ({ ...s, status: "error", error: message }));
-          },
-        },
-        controller.signal,
-      );
-
-      if (!controller.signal.aborted) {
-        setState((s) => (errored ? s : { ...s, status: "done" }));
-      }
+  const { state, generate, stop } = useStreamedGeneration<State, TextStreamBody, Meta>(
+    workspaceId,
+    {
+      initial: INITIAL,
+      stream: streamTextGeneration,
+      applyText: (s, delta) => ({ ...s, text: s.text + delta }),
+      applyMeta: (s, meta) => ({
+        ...s,
+        retrieval: meta.retrieval,
+        generationId: meta.generation_id,
+      }),
     },
-    [workspaceId],
   );
-
-  const stop = useCallback(() => {
-    abortRef.current?.abort();
-    setState((s) => (s.status === "streaming" ? { ...s, status: "done" } : s));
-  }, []);
-
   return { ...state, generate, stop };
 }

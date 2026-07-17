@@ -1,5 +1,5 @@
 """post-stream parsing into the persisted TextOutput shape."""
-from app.services.generation_service import parse_post
+from app.services.ai_service import parse_post
 
 
 def test_parse_post_extracts_hashtags_and_counts():

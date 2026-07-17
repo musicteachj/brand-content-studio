@@ -229,6 +229,7 @@ function PhotoLed(props: CardElementProps): ReactElement {
       {imageSrc ? (
         <img
           src={imageSrc}
+          alt=""
           width={CARD_W}
           height={CARD_H}
           style={{ position: "absolute", top: 0, left: 0, objectFit: "cover" }}

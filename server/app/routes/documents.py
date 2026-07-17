@@ -13,7 +13,7 @@ NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
 @limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
 """
 import json
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,7 +25,7 @@ from app.models.generation import DocumentGenerateRequest
 from app.prompts import document as document_prompt
 from app.rag.vector_store import get_vector_store
 from app.services import document_service, generations_service, retrieval_service
-from app.services.generation_service import GenerationService
+from app.services.ai_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
 from app.utils.dependencies import enforce_demo_generation_quota, get_workspace_or_404
 from app.utils.errors import client_error
@@ -190,7 +190,9 @@ async def download_document(
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        ) from None
 
     archetype = (doc.get("output") or {}).get("document", {}).get("archetype") or "document"
     filename = safe_filename(f"{archetype}.{fmt}")
