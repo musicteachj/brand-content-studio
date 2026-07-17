@@ -143,7 +143,7 @@ function ImageTile({
             if (v && v !== image.name) onRename(v);
           }}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-          className="w-full rounded-sm border border-transparent bg-transparent px-1 text-[11px] text-muted-foreground hover:border-border focus:border-border focus:outline-none"
+          className="w-full rounded-sm border border-transparent bg-transparent px-1 text-[11px] text-muted-foreground hover:border-border focus:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       )}
     </li>

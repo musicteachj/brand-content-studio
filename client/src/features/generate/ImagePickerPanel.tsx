@@ -259,7 +259,7 @@ function PhotoTile({
           alt={photo.description ?? "Unsplash photo"}
           loading="lazy"
           className="h-full w-full object-cover"
-          style={{ backgroundColor: photo.color ?? "var(--surface-variant)" }}
+          style={{ backgroundColor: photo.color ?? "hsl(var(--surface-variant))" }}
         />
         {selected && (
           <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-foreground">

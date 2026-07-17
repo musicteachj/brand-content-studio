@@ -278,7 +278,11 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
             Extract from image
           </Button>
         </div>
-        {extractError && <span className="text-xs text-destructive">{extractError}</span>}
+        {extractError && (
+          <span role="alert" className="text-xs text-destructive">
+            {extractError}
+          </span>
+        )}
         {proposal && (
           <div className="mt-1 flex flex-col gap-3 rounded-md border border-border bg-surface p-3">
             <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -353,10 +357,12 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
                   placeholder="Name (e.g. Forest)"
                   aria-label="Color name"
                   className="h-9"
+                  aria-invalid={!!errors.colors?.[i]?.name}
+                  aria-describedby={errors.colors?.[i]?.name ? `colors-${i}-name-error` : undefined}
                   {...register(`colors.${i}.name` as const)}
                 />
                 {errors.colors?.[i]?.name && (
-                  <span className="text-xs text-destructive">
+                  <span id={`colors-${i}-name-error`} role="alert" className="text-xs text-destructive">
                     {errors.colors[i]?.name?.message}
                   </span>
                 )}
@@ -366,10 +372,14 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
                   placeholder="#1C3A2E"
                   aria-label="Color hex"
                   className="h-9 font-mono"
+                  aria-invalid={!!errors.colors?.[i]?.hex}
+                  aria-describedby={errors.colors?.[i]?.hex ? `colors-${i}-hex-error` : undefined}
                   {...register(`colors.${i}.hex` as const)}
                 />
                 {errors.colors?.[i]?.hex && (
-                  <span className="text-xs text-destructive">{errors.colors[i]?.hex?.message}</span>
+                  <span id={`colors-${i}-hex-error`} role="alert" className="text-xs text-destructive">
+                    {errors.colors[i]?.hex?.message}
+                  </span>
                 )}
               </div>
               <Select
@@ -416,7 +426,13 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
           control={control}
           name="accent_hex"
           render={({ field }) => (
-            <Select id="accent_hex" className="max-w-xs" {...field}>
+            <Select
+              id="accent_hex"
+              className="max-w-xs"
+              aria-invalid={!!errors.accent_hex}
+              aria-describedby={errors.accent_hex ? "accent_hex-error" : undefined}
+              {...field}
+            >
               <option value="">None</option>
               {colors
                 .filter((c) => HEX_RE.test(c.hex))
@@ -429,7 +445,9 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
           )}
         />
         {errors.accent_hex && (
-          <span className="text-xs text-destructive">{errors.accent_hex.message}</span>
+          <span id="accent_hex-error" role="alert" className="text-xs text-destructive">
+            {errors.accent_hex.message}
+          </span>
         )}
       </div>
 
@@ -522,7 +540,11 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
         <p className="text-xs text-muted-foreground">
           Saves immediately. JPG, PNG, or WebP up to 8 MB.
         </p>
-        {logoError && <span className="text-xs text-destructive">{logoError}</span>}
+        {logoError && (
+          <span role="alert" className="text-xs text-destructive">
+            {logoError}
+          </span>
+        )}
       </div>
 
       {/* Actions */}
@@ -533,7 +555,11 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
         <Button type="button" size="sm" variant="ghost" onClick={onDone}>
           Cancel
         </Button>
-        {saveError && <span className="text-xs text-destructive">{saveError}</span>}
+        {saveError && (
+          <span role="alert" className="text-xs text-destructive">
+            {saveError}
+          </span>
+        )}
       </div>
     </form>
   );
