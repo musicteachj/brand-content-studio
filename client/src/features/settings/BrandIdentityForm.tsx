@@ -98,9 +98,7 @@ export function BrandIdentityForm({
 
       {/* Colors */}
       <fieldset className="flex flex-col gap-3">
-        <legend className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Colors
-        </legend>
+        <legend className="eyebrow">Colors</legend>
         <div className="flex flex-col gap-2.5">
           {fields.map((f, i) => (
             <div key={f.id} className="flex items-start gap-2">

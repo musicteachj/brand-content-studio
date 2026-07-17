@@ -38,7 +38,7 @@ export function DocumentPage({ document: doc, brand, compact = false, className 
         <p
           className={cn(
             "font-medium uppercase",
-            compact ? "text-[10px] tracking-[0.16em]" : "text-[11px] tracking-[0.18em]",
+            compact ? "text-2xs tracking-eyebrow" : "text-[11px] tracking-eyebrow",
           )}
           style={{ color: colors.accent }}
         >

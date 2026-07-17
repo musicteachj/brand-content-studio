@@ -49,12 +49,8 @@ export function SettingsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-8">
       <header className="animate-fade-in-up">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          Settings
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
-          Appearance
-        </h1>
+        <p className="eyebrow text-[11px]">Settings</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">Appearance</h1>
       </header>
 
       {isDemo && (
@@ -103,7 +99,7 @@ export function SettingsPage() {
             label="Use the workspace brand color for accents"
           />
           {primary && (
-            <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="flex items-center gap-2 eyebrow text-[11px]">
               <span
                 className="h-4 w-4 rounded-full border border-border"
                 style={{ backgroundColor: primary }}

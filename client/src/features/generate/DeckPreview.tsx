@@ -61,8 +61,8 @@ export function DeckPreview({ document: doc, brand, compact = false, className }
           {doc.eyebrow && (
             <p
               className={cn(
-                "font-medium uppercase tracking-[0.16em]",
-                compact ? "text-[10px]" : "text-[11px] sm:text-xs",
+                "font-medium uppercase tracking-eyebrow",
+                compact ? "text-2xs" : "text-[11px] sm:text-xs",
               )}
               style={{ color: colors.accent }}
             >

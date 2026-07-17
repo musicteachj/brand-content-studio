@@ -141,12 +141,12 @@ function WorkspaceRow({
             <span className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
               {ws.name}
               {isActive && (
-                <span className="rounded-full bg-surface-variant px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                <span className="rounded-full bg-surface-variant px-2 py-0.5 eyebrow text-3xs">
                   Active
                 </span>
               )}
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+            <span className="eyebrow">
               {ws.asset_count} asset{ws.asset_count === 1 ? "" : "s"}
             </span>
           </div>

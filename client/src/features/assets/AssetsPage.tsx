@@ -54,10 +54,8 @@ export function AssetsPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="animate-fade-in-up">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          Asset Manager
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+        <p className="eyebrow text-[11px]">Asset Manager</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
           Brand corpus
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
@@ -218,7 +216,7 @@ function AssetRow({
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{asset.filename}</p>
-        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+        <p className="mt-0.5 eyebrow text-[11px]">
           {asset.asset_kind} · {formatBytes(asset.size_bytes)}
           {asset.ingestion_status === "ready" && ` · ${asset.chunk_count} chunks`}
         </p>

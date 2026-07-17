@@ -15,10 +15,8 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <header className="animate-fade-in-up">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          Dashboard
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+        <p className="eyebrow text-[11px]">Dashboard</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
           Welcome back, {firstName}.
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
@@ -100,10 +98,8 @@ export function DashboardPage() {
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-5 shadow-light">
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-3 text-3xl font-semibold tracking-[-0.02em] text-foreground">{value}</p>
+      <p className="eyebrow">{label}</p>
+      <p className="mt-3 text-3xl font-semibold tracking-display text-foreground">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
     </div>
   );

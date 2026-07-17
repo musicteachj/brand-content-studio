@@ -55,7 +55,7 @@
   h1,
   h2,
   h3 {
-    @apply font-display tracking-[-0.015em];
+    @apply font-display tracking-display;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -88,5 +88,17 @@
   .card-edit-field:empty::before {
     content: attr(data-placeholder);
     opacity: 0.4;
+  }
+}
+
+@layer components {
+  /*
+   * The one eyebrow style (DESIGN.md §2): DM Mono, uppercase, 0.12em tracking,
+   * muted — used for category labels, metadata, counts, and technical
+   * indicators. Bakes the canonical 10px size; page-header eyebrows override
+   * with `text-[11px]`, tiny badges with `text-3xs`.
+   */
+  .eyebrow {
+    @apply font-mono text-2xs uppercase tracking-eyebrow text-muted-foreground;
   }
 }

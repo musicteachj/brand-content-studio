@@ -30,9 +30,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
       <StreamAnnouncer status={status} label="Caption" />
       <div className="mb-3 flex items-center gap-1.5">
         <Type className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          Post caption
-        </span>
+        <span className="eyebrow text-[11px]">Post caption</span>
       </div>
 
       {status === "idle" && (
@@ -67,9 +65,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
             className="text-[15px] leading-relaxed"
           />
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              {value.length} chars
-            </span>
+            <span className="eyebrow">{value.length} chars</span>
             <Button variant="ghost" size="sm" onClick={copy}>
               {copied ? (
                 <Check className="h-4 w-4 text-success" aria-hidden />

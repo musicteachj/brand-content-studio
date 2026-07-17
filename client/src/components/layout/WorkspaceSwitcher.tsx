@@ -28,9 +28,7 @@ export function WorkspaceSwitcher() {
         aria-label="Switch workspace"
       >
         <span className="flex flex-col leading-none">
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            Workspace
-          </span>
+          <span className="eyebrow">Workspace</span>
           <span className="mt-1 text-sm font-medium text-foreground">
             {workspace?.name ?? "No workspace"}
           </span>

@@ -49,7 +49,7 @@ function StepHeader({
     <div className="flex items-center gap-2">
       <span
         className={cn(
-          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold",
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-2xs font-semibold",
           done
             ? "bg-accent text-accent-foreground"
             : active
@@ -59,9 +59,7 @@ function StepHeader({
       >
         {done ? <Check className="h-3 w-3" aria-hidden /> : n}
       </span>
-      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </span>
+      <span className="eyebrow text-[11px]">{label}</span>
     </div>
   );
 }

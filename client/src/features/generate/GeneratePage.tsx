@@ -42,10 +42,8 @@ export function GeneratePage() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4 animate-fade-in-up">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Generate
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+          <p className="eyebrow text-[11px]">Generate</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
             {MODE_TITLE[mode]}
           </h1>
         </div>

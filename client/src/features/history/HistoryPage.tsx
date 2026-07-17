@@ -36,10 +36,8 @@ export function HistoryPage() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-4 animate-fade-in-up">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Content History
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+          <p className="eyebrow text-[11px]">Content History</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
             Generations
           </h1>
         </div>

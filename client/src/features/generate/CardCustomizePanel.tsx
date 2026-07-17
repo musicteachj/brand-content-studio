@@ -22,9 +22,7 @@ interface Props {
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2.5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </span>
+      <span className="eyebrow">{label}</span>
       {children}
     </div>
   );
@@ -60,7 +58,7 @@ export function CardCustomizePanel({
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Customize</h2>
         {dirty && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-warning">
+          <span className="font-mono text-2xs uppercase tracking-eyebrow text-warning">
             Unsaved
           </span>
         )}

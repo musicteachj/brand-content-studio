@@ -179,9 +179,7 @@ export function ImagePickerPanel({
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {brandImages.length > 0 && (
               <section className="mb-5">
-                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Brand images
-                </p>
+                <p className="mb-2 eyebrow">Brand images</p>
                 <div className="grid grid-cols-3 gap-3">
                   {brandImages.map((img) => (
                     <BrandImageTile

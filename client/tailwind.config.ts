@@ -57,6 +57,20 @@ export default {
         display: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
         mono: ["DM Mono", "ui-monospace", "monospace"],
       },
+      // Sub-`xs` micro sizes for mono eyebrows / badges / data labels. The main
+      // DESIGN.md §2 rem type-scale (0.75…3rem) already equals Tailwind's
+      // xs…5xl defaults, so only the below-scale sizes need naming. Size-only (no
+      // line-height) so they swap 1:1 for the arbitrary text-[10px]/[9px] values.
+      fontSize: {
+        "2xs": "0.625rem", // 10px — the canonical eyebrow/label size
+        "3xs": "0.5625rem", // 9px — tiny badges
+      },
+      letterSpacing: {
+        // DESIGN.md §2: one eyebrow tracking; headings tighten -0.01 to -0.015em.
+        eyebrow: "0.12em",
+        heading: "-0.01em",
+        display: "-0.015em",
+      },
       borderRadius: {
         sm: "6px",
         md: "8px",

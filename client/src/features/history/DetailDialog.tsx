@@ -68,7 +68,7 @@ export function DetailDialog({
               <Dialog.Title className="text-sm font-semibold text-foreground">
                 {gen.brief}
               </Dialog.Title>
-              <Dialog.Description className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <Dialog.Description className="mt-0.5 eyebrow">
                 {gen.type} · {gen.model} · {formatDate(gen.created_at)}
               </Dialog.Description>
             </div>
