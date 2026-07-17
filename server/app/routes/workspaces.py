@@ -24,7 +24,13 @@ from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
-from app.services.workspace_service import MAX_BRAND_IMAGES, MAX_EXEMPLARS
+from app.services.workspace_service import (
+    MAX_BRAND_IMAGES,
+    MAX_CARD_PRESETS,
+    MAX_EXEMPLARS,
+    MAX_UPLOADED_FONTS,
+    WorkspaceWriteConflict,
+)
 from app.utils.dependencies import (
     enforce_demo_generation_quota,
     get_current_user,
@@ -34,9 +40,6 @@ from app.utils.dependencies import (
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
-
-MAX_UPLOADED_FONTS = 8
-MAX_CARD_PRESETS = 8
 
 # A font family is a user-typed label that gets interpolated into CSS/@font-face
 # on the client; restrict it to an allow-list so it can't carry CSS-injection
@@ -180,9 +183,18 @@ async def add_exemplar(
         url=f"/api/workspaces/{workspace_id}/images/file/{exemplar_id}/{clean_name}",
         style_note=note,
     )
-    updated = await workspace_service.add_workspace_exemplar(
-        db, workspace_id, current_user.id, exemplar
-    )
+    try:
+        updated = await workspace_service.add_workspace_exemplar(
+            db, workspace_id, current_user.id, exemplar
+        )
+    except WorkspaceWriteConflict:
+        # Lost the race against a concurrent add (the pre-check passed but the cap
+        # filled between then and the write) — drop the bytes we just stored.
+        await get_storage().delete(storage_key)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"At most {MAX_EXEMPLARS} example cards per workspace.",
+        ) from None
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated
@@ -235,9 +247,16 @@ async def add_brand_image(
         url=f"/api/workspaces/{workspace_id}/images/file/{image_id}/{clean_name}",
         name=filename,
     )
-    updated = await workspace_service.add_workspace_image(
-        db, workspace_id, current_user.id, image
-    )
+    try:
+        updated = await workspace_service.add_workspace_image(
+            db, workspace_id, current_user.id, image
+        )
+    except WorkspaceWriteConflict:
+        await get_storage().delete(storage_key)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"At most {MAX_BRAND_IMAGES} brand images per workspace.",
+        ) from None
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated
@@ -313,7 +332,14 @@ async def add_font(
         id=font_id, family=family, storage_key=key,
         url=f"/api/workspaces/{workspace_id}/fonts/file/{font_id}/{clean_name}",
     )
-    updated = await workspace_service.add_workspace_font(db, workspace_id, current_user.id, font)
+    try:
+        updated = await workspace_service.add_workspace_font(db, workspace_id, current_user.id, font)
+    except WorkspaceWriteConflict:
+        await get_storage().delete(key)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Font limit reached or a font with that name already exists.",
+        ) from None
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated
@@ -376,9 +402,15 @@ async def add_card_preset(
     preset = CardPreset(
         id=str(ObjectId()), name=name, template_id=payload.template_id, accent_hex=payload.accent_hex
     )
-    updated = await workspace_service.add_workspace_card_preset(
-        db, str(workspace["_id"]), current_user.id, preset
-    )
+    try:
+        updated = await workspace_service.add_workspace_card_preset(
+            db, str(workspace["_id"]), current_user.id, preset
+        )
+    except WorkspaceWriteConflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Preset limit reached or a preset with that name already exists.",
+        ) from None
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     return updated

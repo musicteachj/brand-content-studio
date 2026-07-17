@@ -19,6 +19,11 @@ from app.prompts.brand_extract import (
 from app.prompts.exemplars import build_exemplar_guidance
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import get_storage
+from app.services.workspace_service import (
+    MAX_EXEMPLARS,
+    WorkspaceWriteConflict,
+    add_workspace_exemplar,
+)
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
@@ -191,3 +196,19 @@ async def test_delete_exemplar_pulls_and_removes_bytes(ex_client, test_db):
     assert resp.json()["brand_profile"]["exemplars"] == []
     with pytest.raises(FileNotFoundError):
         await get_storage().read(ex["storage_key"])
+
+
+@pytest.mark.asyncio
+async def test_service_enforces_cap_atomically(test_db, monkeypatch):
+    """The cap is enforced by the service write, not just the route pre-check —
+    a direct caller can't exceed it (ARCH-05)."""
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await _seed(test_db)
+    for i in range(MAX_EXEMPLARS):
+        ex = BrandExemplar(id=str(ObjectId()), storage_key=f"k{i}", url=None, style_note="n")
+        assert await add_workspace_exemplar(test_db, str(WS_OID), str(OWNER_OID), ex)
+    over = BrandExemplar(id=str(ObjectId()), storage_key="over", url=None, style_note="n")
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_exemplar(test_db, str(WS_OID), str(OWNER_OID), over)
+    doc = await test_db.workspaces.find_one({"_id": WS_OID})
+    assert len(doc["brand_profile"]["exemplars"]) == MAX_EXEMPLARS

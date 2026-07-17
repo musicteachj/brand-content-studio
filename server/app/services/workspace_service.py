@@ -21,8 +21,26 @@ from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUp
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
+# Hard caps on the four capped `brand_profile` sub-collections. Enforced by the
+# atomic guards below (not just the route pre-checks), so the invariant holds for
+# any caller — see ARCH-05.
 MAX_EXEMPLARS = 5
 MAX_BRAND_IMAGES = 24
+MAX_UPLOADED_FONTS = 8
+MAX_CARD_PRESETS = 8
+
+
+class WorkspaceWriteConflict(Exception):
+    """A capped/deduped ``$push`` was rejected by its atomic guard — the cap is
+    full or a uniqueness clash (``family``/``name``) lost a concurrent race. The
+    data invariant is upheld regardless; the route maps this to a ``409``."""
+
+
+def _room_for_one(field: str, cap: int) -> dict:
+    """Filter clause matching only when array ``field`` has room for one more
+    (current length < ``cap``). Makes the ``$push`` atomic — no read-then-write
+    window — so two concurrent adds can't both exceed the cap (ARCH-05)."""
+    return {"$expr": {"$lt": [{"$size": {"$ifNull": [f"${field}", []]}}, cap]}}
 
 
 def _slugify(name: str) -> str:
@@ -156,15 +174,19 @@ async def clear_workspace_logo(
 async def add_workspace_exemplar(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, exemplar: BrandExemplar
 ) -> WorkspaceResponse | None:
-    """Append an exemplar to `brand_profile.exemplars` (targeted $push)."""
+    """Append an exemplar to `brand_profile.exemplars` (atomic capped $push).
+
+    Raises `WorkspaceWriteConflict` if the cap is already reached (ARCH-05)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
         return None
     now = utcnow()
-    await db.workspaces.update_one(
-        {"_id": doc["_id"]},
+    result = await db.workspaces.update_one(
+        {"_id": doc["_id"], **_room_for_one("brand_profile.exemplars", MAX_EXEMPLARS)},
         {"$push": {"brand_profile.exemplars": exemplar.model_dump()}, "$set": {"updated_at": now}},
     )
+    if result.matched_count == 0:
+        raise WorkspaceWriteConflict
     bp = doc.setdefault("brand_profile", {})
     bp.setdefault("exemplars", []).append(exemplar.model_dump())
     doc["updated_at"] = now
@@ -195,15 +217,19 @@ async def remove_workspace_exemplar(
 async def add_workspace_image(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, image: BrandImage
 ) -> WorkspaceResponse | None:
-    """Append a brand image to `brand_profile.brand_images` (targeted $push)."""
+    """Append a brand image to `brand_profile.brand_images` (atomic capped $push).
+
+    Raises `WorkspaceWriteConflict` if the cap is already reached (ARCH-05)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
         return None
     now = utcnow()
-    await db.workspaces.update_one(
-        {"_id": doc["_id"]},
+    result = await db.workspaces.update_one(
+        {"_id": doc["_id"], **_room_for_one("brand_profile.brand_images", MAX_BRAND_IMAGES)},
         {"$push": {"brand_profile.brand_images": image.model_dump()}, "$set": {"updated_at": now}},
     )
+    if result.matched_count == 0:
+        raise WorkspaceWriteConflict
     bp = doc.setdefault("brand_profile", {})
     bp.setdefault("brand_images", []).append(image.model_dump())
     doc["updated_at"] = now
@@ -267,16 +293,26 @@ def resolve_uploaded_font(brand_profile: dict, family: str | None) -> str | None
 async def add_workspace_font(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, font: UploadedFont
 ) -> WorkspaceResponse | None:
-    """Append an uploaded font to `brand_profile.uploaded_fonts` (targeted $push)."""
+    """Append an uploaded font to `brand_profile.uploaded_fonts` (atomic capped,
+    `family`-deduped $push).
+
+    Raises `WorkspaceWriteConflict` if the cap is reached or a font with the same
+    `family` already exists (ARCH-05)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
         return None
     now = utcnow()
-    await db.workspaces.update_one(
-        {"_id": doc["_id"]},
+    result = await db.workspaces.update_one(
+        {
+            "_id": doc["_id"],
+            **_room_for_one("brand_profile.uploaded_fonts", MAX_UPLOADED_FONTS),
+            "brand_profile.uploaded_fonts.family": {"$ne": font.family},
+        },
         {"$push": {"brand_profile.uploaded_fonts": font.model_dump()},
          "$set": {"updated_at": now}},
     )
+    if result.matched_count == 0:
+        raise WorkspaceWriteConflict
     bp = doc.setdefault("brand_profile", {})
     bp.setdefault("uploaded_fonts", []).append(font.model_dump())
     doc["updated_at"] = now
@@ -306,16 +342,26 @@ async def remove_workspace_font(
 async def add_workspace_card_preset(
     db: AsyncIOMotorDatabase, workspace_id: str, owner_id: str, preset: CardPreset
 ) -> WorkspaceResponse | None:
-    """Append a card preset to `brand_profile.card_presets` (targeted $push)."""
+    """Append a card preset to `brand_profile.card_presets` (atomic capped,
+    `name`-deduped $push).
+
+    Raises `WorkspaceWriteConflict` if the cap is reached or a preset with the
+    same `name` already exists (ARCH-05)."""
     doc = await _get_owned_doc(db, workspace_id, owner_id)
     if not doc:
         return None
     now = utcnow()
-    await db.workspaces.update_one(
-        {"_id": doc["_id"]},
+    result = await db.workspaces.update_one(
+        {
+            "_id": doc["_id"],
+            **_room_for_one("brand_profile.card_presets", MAX_CARD_PRESETS),
+            "brand_profile.card_presets.name": {"$ne": preset.name},
+        },
         {"$push": {"brand_profile.card_presets": preset.model_dump(mode="json")},
          "$set": {"updated_at": now}},
     )
+    if result.matched_count == 0:
+        raise WorkspaceWriteConflict
     bp = doc.setdefault("brand_profile", {})
     bp.setdefault("card_presets", []).append(preset.model_dump(mode="json"))
     doc["updated_at"] = now

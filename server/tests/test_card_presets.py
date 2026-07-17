@@ -1,4 +1,6 @@
 """Custom card presets: model + service + routes (Phase 5 PR-B)."""
+import asyncio
+
 import pytest
 import pytest_asyncio
 from bson import ObjectId
@@ -10,6 +12,8 @@ from app.main import app
 from app.models.common import BrandProfile, CardPreset, utcnow
 from app.models.user import UserInDB
 from app.services.workspace_service import (
+    MAX_CARD_PRESETS,
+    WorkspaceWriteConflict,
     add_workspace_card_preset,
     remove_workspace_card_preset,
 )
@@ -142,4 +146,60 @@ async def test_service_add_remove_roundtrip(test_db, monkeypatch):
     assert ws is not None and ws.brand_profile.card_presets[0].id == "p1"
     ws2 = await remove_workspace_card_preset(test_db, str(WS), str(OWNER), "p1")
     assert ws2 is not None and ws2.brand_profile.card_presets == []
+    await test_db.workspaces.delete_many({})
+
+
+# --- ARCH-05: the cap/dedupe invariant lives in the service write ------------
+# These call the service directly (bypassing the route pre-check) — the "no other
+# caller can honor it" path the audit flagged.
+
+def _preset(name: str) -> CardPreset:
+    return CardPreset(id=str(ObjectId()), name=name, template_id="quote", accent_hex=None)
+
+
+@pytest.mark.asyncio
+async def test_service_enforces_cap_atomically(test_db, monkeypatch):
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await test_db.workspaces.delete_many({})
+    await _seed(test_db)
+    for i in range(MAX_CARD_PRESETS):
+        assert await add_workspace_card_preset(test_db, str(WS), str(OWNER), _preset(f"P{i}"))
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_card_preset(test_db, str(WS), str(OWNER), _preset("over"))
+    doc = await test_db.workspaces.find_one({"_id": WS})
+    assert len(doc["brand_profile"]["card_presets"]) == MAX_CARD_PRESETS
+    await test_db.workspaces.delete_many({})
+
+
+@pytest.mark.asyncio
+async def test_service_dedupes_name_atomically(test_db, monkeypatch):
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await test_db.workspaces.delete_many({})
+    await _seed(test_db)
+    assert await add_workspace_card_preset(test_db, str(WS), str(OWNER), _preset("dup"))
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_card_preset(test_db, str(WS), str(OWNER), _preset("dup"))
+    doc = await test_db.workspaces.find_one({"_id": WS})
+    assert len(doc["brand_profile"]["card_presets"]) == 1
+    await test_db.workspaces.delete_many({})
+
+
+@pytest.mark.asyncio
+async def test_concurrent_adds_cannot_exceed_cap(test_db, monkeypatch):
+    """Fire cap+5 distinct adds at once; the atomic $push guard lets exactly the
+    cap through and rejects the rest — the TOCTOU is closed (ARCH-05)."""
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await test_db.workspaces.delete_many({})
+    await _seed(test_db)
+    presets = [_preset(f"C{i}") for i in range(MAX_CARD_PRESETS + 5)]
+    results = await asyncio.gather(
+        *(add_workspace_card_preset(test_db, str(WS), str(OWNER), p) for p in presets),
+        return_exceptions=True,
+    )
+    succeeded = [r for r in results if not isinstance(r, Exception)]
+    rejected = [r for r in results if isinstance(r, WorkspaceWriteConflict)]
+    assert len(succeeded) == MAX_CARD_PRESETS
+    assert len(rejected) == 5
+    doc = await test_db.workspaces.find_one({"_id": WS})
+    assert len(doc["brand_profile"]["card_presets"]) == MAX_CARD_PRESETS
     await test_db.workspaces.delete_many({})

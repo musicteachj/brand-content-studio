@@ -13,7 +13,12 @@ from app.models.common import BrandProfile, UploadedFont, utcnow
 from app.models.user import UserInDB
 from app.services.storage_service import build_font_key, get_storage
 from app.services.upload_service import FONT_POLICY
-from app.services.workspace_service import resolve_uploaded_font
+from app.services.workspace_service import (
+    MAX_UPLOADED_FONTS,
+    WorkspaceWriteConflict,
+    add_workspace_font,
+    resolve_uploaded_font,
+)
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
@@ -134,6 +139,63 @@ async def test_add_font_demo_blocked(test_db, tmp_path, monkeypatch):
     app.dependency_overrides.clear()
     get_storage.cache_clear()
     assert resp.status_code == 403
+
+
+def _seed_fonts(n):
+    return [{"id": str(ObjectId()), "family": f"F{i}", "storage_key": f"k{i}", "url": None}
+            for i in range(n)]
+
+
+@pytest.mark.asyncio
+async def test_add_font_enforces_cap(test_db, tmp_path, monkeypatch):
+    ac = await _mk(test_db, tmp_path, monkeypatch, fonts=_seed_fonts(MAX_UPLOADED_FONTS))
+    async with ac:
+        resp = await ac.post(_url(), data={"name": "One More"},
+                             files={"file": ("x.ttf", bytes.fromhex(TTF_HEX), "font/ttf")})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_add_font_dedupes_family(test_db, tmp_path, monkeypatch):
+    seeded = [{"id": str(ObjectId()), "family": "Acme Sans", "storage_key": "k", "url": None}]
+    ac = await _mk(test_db, tmp_path, monkeypatch, fonts=seeded)
+    async with ac:
+        resp = await ac.post(_url(), data={"name": "Acme Sans"},
+                             files={"file": ("x.ttf", bytes.fromhex(TTF_HEX), "font/ttf")})
+    app.dependency_overrides.clear()
+    get_storage.cache_clear()
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_service_enforces_cap_atomically(test_db, monkeypatch):
+    """The cap is enforced by the service write, not just the route pre-check —
+    a direct caller can't exceed it (ARCH-05)."""
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await _seed(test_db)
+    for i in range(MAX_UPLOADED_FONTS):
+        f = UploadedFont(id=str(ObjectId()), family=f"Fam {i}", storage_key=f"k{i}", url=None)
+        assert await add_workspace_font(test_db, str(WS), str(OWNER), f)
+    over = UploadedFont(id=str(ObjectId()), family="Over", storage_key="over", url=None)
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_font(test_db, str(WS), str(OWNER), over)
+    doc = await test_db.workspaces.find_one({"_id": WS})
+    assert len(doc["brand_profile"]["uploaded_fonts"]) == MAX_UPLOADED_FONTS
+
+
+@pytest.mark.asyncio
+async def test_service_dedupes_family_atomically(test_db, monkeypatch):
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await _seed(test_db)
+    first = UploadedFont(id=str(ObjectId()), family="Dup", storage_key="k1", url=None)
+    assert await add_workspace_font(test_db, str(WS), str(OWNER), first)
+    again = UploadedFont(id=str(ObjectId()), family="Dup", storage_key="k2", url=None)
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_font(test_db, str(WS), str(OWNER), again)
+    doc = await test_db.workspaces.find_one({"_id": WS})
+    assert len(doc["brand_profile"]["uploaded_fonts"]) == 1
 
 
 @pytest.mark.asyncio

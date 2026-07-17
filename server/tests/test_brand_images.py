@@ -11,7 +11,11 @@ from app.main import app
 from app.models.common import BrandImage, BrandProfile, utcnow
 from app.models.user import UserInDB
 from app.services.storage_service import get_storage
-from app.services.workspace_service import MAX_BRAND_IMAGES
+from app.services.workspace_service import (
+    MAX_BRAND_IMAGES,
+    WorkspaceWriteConflict,
+    add_workspace_image,
+)
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
@@ -235,3 +239,19 @@ async def test_rename_brand_image_demo_blocked(test_db, tmp_path, monkeypatch):
     app.dependency_overrides.clear()
     get_storage.cache_clear()
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_service_enforces_cap_atomically(test_db, monkeypatch):
+    """The cap is enforced by the service write, not just the route pre-check —
+    a direct caller can't exceed it (ARCH-05)."""
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await _seed(test_db)
+    for i in range(MAX_BRAND_IMAGES):
+        img = BrandImage(id=str(ObjectId()), storage_key=f"k{i}", url=None, name="n")
+        assert await add_workspace_image(test_db, str(WS_OID), str(OWNER_OID), img)
+    over = BrandImage(id=str(ObjectId()), storage_key="over", url=None, name="n")
+    with pytest.raises(WorkspaceWriteConflict):
+        await add_workspace_image(test_db, str(WS_OID), str(OWNER_OID), over)
+    doc = await test_db.workspaces.find_one({"_id": WS_OID})
+    assert len(doc["brand_profile"]["brand_images"]) == MAX_BRAND_IMAGES
