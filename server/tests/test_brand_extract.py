@@ -16,8 +16,11 @@ from app.main import app
 from app.models.common import BrandColor, BrandFonts, utcnow
 from app.models.user import UserInDB
 from app.models.workspace import BrandExtractResponse
-from app.services.brand_extract_service import build_extract_response, extract_palette
-from app.services.brand_extract_service import BrandExtractService
+from app.services.brand_extract_service import (
+    BrandExtractService,
+    build_extract_response,
+    extract_palette,
+)
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 

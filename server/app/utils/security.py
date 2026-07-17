@@ -1,6 +1,5 @@
 """JWT + password hashing. Uses PyJWT (python-jose was unmaintained — SEC-05)."""
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import jwt
 from jwt import InvalidTokenError
@@ -26,7 +25,7 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(_truncate(password))
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
@@ -35,7 +34,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str) -> dict | None:
     try:
         # algorithms pinned → blocks alg=none / HS↔RS confusion; exp verified by default.
         return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])

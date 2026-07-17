@@ -12,8 +12,8 @@ import app.routes.generate as generate_mod
 from app.config import settings
 from app.database import get_database
 from app.main import app
-from app.services.generation_service import GenerationService
 from app.models.user import UserInDB
+from app.services.generation_service import GenerationService
 from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import NS_A, TEST_DB_NAME, build_corpus_chunks
 from tests.fakes import FakeGenerationService, FakeVectorStore

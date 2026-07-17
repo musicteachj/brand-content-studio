@@ -400,7 +400,7 @@ async def serve_font(
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found") from None
     return Response(content=data, media_type="font/ttf")
 
 

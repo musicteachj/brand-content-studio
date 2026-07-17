@@ -25,9 +25,9 @@ from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
 from app.services.content_extraction import extract_document_text
-from app.utils.archives import UnsafeArchive
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage, safe_filename
+from app.utils.archives import UnsafeArchive
 from app.utils.dependencies import (
     enforce_demo_generation_quota,
     get_workspace_or_404,
@@ -86,19 +86,21 @@ async def upload_template(
     except UnsafeArchive as exc:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
-        )
+        ) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Reading this template timed out — try a smaller or simpler file.",
-        )
+        ) from None
     except template_service.TemplateHasLogic as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     except Exception:  # noqa: BLE001 — a corrupt file must not 500
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Couldn't read this template — is it a valid .docx/.pptx?",
-        )
+        ) from None
     if len(placeholders) > template_service.MAX_PLACEHOLDERS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -215,9 +217,11 @@ async def fill_template_from_document(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Parsing the document timed out — try a smaller or simpler file.",
-        )
+        ) from None
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     tool = template_fill.build_fill_tool(placeholders)
     result = await service.fill_template_values(
         template_fill.build_fill_system(),
@@ -244,7 +248,9 @@ async def render_template(
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template file missing")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template file missing"
+        ) from None
     values = template_service.clamp_values(payload.values, doc.get("placeholders") or [])
     try:
         # Same reasoning as upload: the stored template is user-uploaded, and
@@ -256,14 +262,16 @@ async def render_template(
     except UnsafeArchive as exc:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
-        )
+        ) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Rendering this template timed out — try a smaller or simpler file.",
-        )
+        ) from None
     except template_service.TemplateHasLogic as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     out_name = safe_filename(f"{os.path.splitext(doc['name'])[0]}-filled.{fmt}")
     return Response(
         content=filled,

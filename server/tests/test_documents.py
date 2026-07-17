@@ -21,10 +21,10 @@ import app.routes.documents as documents_mod
 from app.config import settings
 from app.database import get_database
 from app.main import app
+from app.models.user import UserInDB
 from app.services import document_service, storage_service
 from app.services.generation_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage
-from app.models.user import UserInDB
 from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import NS_A, TEST_DB_NAME, build_corpus_chunks
 from tests.fakes import FakeGenerationService, FakeVectorStore

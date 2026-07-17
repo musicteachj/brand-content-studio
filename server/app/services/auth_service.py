@@ -1,6 +1,5 @@
 """User lookup + authentication (mirrors EMS pattern)."""
 import secrets
-from typing import Optional
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -19,12 +18,12 @@ def _to_user(doc: dict) -> UserInDB:
     return UserInDB(id=str(doc["_id"]), **{k: v for k, v in doc.items() if k != "_id"})
 
 
-async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[UserInDB]:
+async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> UserInDB | None:
     doc = await db.users.find_one({"email": email})
     return _to_user(doc) if doc else None
 
 
-async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[UserInDB]:
+async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> UserInDB | None:
     try:
         doc = await db.users.find_one({"_id": ObjectId(user_id)})
     except Exception:
@@ -32,14 +31,14 @@ async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[Use
     return _to_user(doc) if doc else None
 
 
-async def get_demo_user(db: AsyncIOMotorDatabase) -> Optional[dict]:
+async def get_demo_user(db: AsyncIOMotorDatabase) -> dict | None:
     """Raw demo user doc (includes _id) for the demo-login bypass."""
     return await db.users.find_one({"is_demo": True})
 
 
 async def authenticate_user(
     db: AsyncIOMotorDatabase, email: str, password: str
-) -> Optional[dict]:
+) -> dict | None:
     doc = await db.users.find_one({"email": email})
     if not doc:
         verify_password(password, _DECOY_HASH)  # constant-cost; see _DECOY_HASH

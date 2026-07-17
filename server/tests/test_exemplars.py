@@ -22,7 +22,6 @@ from app.services.storage_service import get_storage
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
-
 # --- build_exemplar_guidance (pure) ----------------------------------------
 
 def test_build_exemplar_guidance_joins_notes():

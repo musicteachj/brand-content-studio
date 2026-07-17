@@ -10,7 +10,8 @@ the stream."""
 from __future__ import annotations
 
 import re
-from typing import Any, AsyncGenerator, cast
+from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 from anthropic import AsyncAnthropic
 from anthropic.types import ToolChoiceToolParam, ToolParam

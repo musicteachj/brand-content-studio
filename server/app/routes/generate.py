@@ -9,7 +9,7 @@ NOTE: no `from __future__ import annotations` here — it turns route annotation
 into ForwardRefs that FastAPI can't resolve through slowapi's @limiter.limit
 wrapper (bodies would 422). Keep annotations concrete in rate-limited routes."""
 import json
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse

@@ -12,7 +12,6 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings
-from app.utils.ratelimit import limiter
 from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
 from app.rag.vector_store import get_vector_store
 from app.routes import (
@@ -26,6 +25,7 @@ from app.routes import (
     templates,
     workspaces,
 )
+from app.utils.ratelimit import limiter
 
 logging.basicConfig(level=logging.INFO)
 

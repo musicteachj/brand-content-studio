@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -33,14 +33,14 @@ class BrandColor(BaseModel):
 
 
 class BrandFonts(BaseModel):
-    heading: Optional[str] = None
-    body: Optional[str] = None
-    mono: Optional[str] = None
+    heading: str | None = None
+    body: str | None = None
+    mono: str | None = None
 
 
 class BrandLogo(BaseModel):
     storage_key: str
-    url: Optional[str] = None
+    url: str | None = None
 
 
 class BrandExemplar(BaseModel):
@@ -49,7 +49,7 @@ class BrandExemplar(BaseModel):
 
     id: str
     storage_key: str
-    url: Optional[str] = None
+    url: str | None = None
     style_note: str
 
 
@@ -60,8 +60,8 @@ class BrandImage(BaseModel):
 
     id: str
     storage_key: str
-    url: Optional[str] = None
-    name: Optional[str] = None  # original filename, for a picker label
+    url: str | None = None
+    name: str | None = None  # original filename, for a picker label
 
 
 class UploadedFont(BaseModel):
@@ -73,7 +73,7 @@ class UploadedFont(BaseModel):
     id: str
     family: str
     storage_key: str
-    url: Optional[str] = None
+    url: str | None = None
 
 
 class CardPreset(BaseModel):
@@ -85,11 +85,11 @@ class CardPreset(BaseModel):
     id: str
     name: str
     template_id: CardTemplate
-    accent_hex: Optional[str] = None
+    accent_hex: str | None = None
 
     @field_validator("accent_hex")
     @classmethod
-    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+    def _valid_hex(cls, v: str | None) -> str | None:
         if v is not None and not _HEX_RE.match(v):
             raise ValueError("accent_hex must be a hex color like #1C3A2E")
         return v
@@ -100,10 +100,10 @@ class BrandProfile(BaseModel):
     never the app's own Folio chrome (DESIGN.md §7)."""
 
     colors: list[BrandColor] = Field(default_factory=list)
-    accent_hex: Optional[str] = None  # optional UI tint, cosmetic only
+    accent_hex: str | None = None  # optional UI tint, cosmetic only
     fonts: BrandFonts = Field(default_factory=BrandFonts)
-    logo: Optional[BrandLogo] = None
-    voice_summary: Optional[str] = None  # cached blurb injected into the prompt header
+    logo: BrandLogo | None = None
+    voice_summary: str | None = None  # cached blurb injected into the prompt header
     exemplars: list[BrandExemplar] = Field(default_factory=list)
     brand_images: list[BrandImage] = Field(default_factory=list)
     uploaded_fonts: list[UploadedFont] = Field(default_factory=list)

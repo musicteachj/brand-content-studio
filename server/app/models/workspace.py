@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,7 +15,7 @@ class BrandExtractResponse(BaseModel):
     into the brand editor, which saves via the existing brand PATCH."""
 
     colors: list[BrandColor] = Field(default_factory=list)
-    voice_summary: Optional[str] = None
+    voice_summary: str | None = None
     fonts: BrandFonts = Field(default_factory=BrandFonts)
 
 
@@ -26,8 +25,8 @@ class WorkspaceCreate(BaseModel):
 
 
 class WorkspaceUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
-    brand_profile: Optional[BrandProfile] = None
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    brand_profile: BrandProfile | None = None
 
 
 class BrandImageRename(BaseModel):
@@ -41,11 +40,11 @@ class CardPresetCreate(BaseModel):
 
     name: str = Field(default="", max_length=500)  # clamped to 80 in the route
     template_id: CardTemplate
-    accent_hex: Optional[str] = None
+    accent_hex: str | None = None
 
     @field_validator("accent_hex")
     @classmethod
-    def _valid_hex(cls, v: Optional[str]) -> Optional[str]:
+    def _valid_hex(cls, v: str | None) -> str | None:
         if v is not None and not _HEX_RE.match(v):
             raise ValueError("accent_hex must be a hex color like #1C3A2E")
         return v
@@ -62,5 +61,5 @@ class WorkspaceResponse(BaseModel):
     embedding_dim: int
     asset_count: int = 0
     ready_chunk_count: int = 0
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

@@ -3,8 +3,6 @@ chunk → embed → upsert) lives in `ingestion_service`; this module owns the
 Mongo doc lifecycle and the denormalized counts on the workspace."""
 from __future__ import annotations
 
-from typing import Optional
-
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -52,7 +50,7 @@ async def create_asset(
 
 async def list_assets(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, *, limit: int = 30, offset: int = 0
-) -> tuple[list[AssetResponse], Optional[int]]:
+) -> tuple[list[AssetResponse], int | None]:
     cursor = (
         db.assets.find({"workspace_id": workspace_oid})
         .sort("created_at", -1)
@@ -67,7 +65,7 @@ async def list_assets(
 
 async def get_asset(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, asset_id: str
-) -> Optional[dict]:
+) -> dict | None:
     try:
         oid = ObjectId(asset_id)
     except Exception:
@@ -81,7 +79,7 @@ async def asset_response(doc: dict) -> AssetResponse:
 
 async def mark_ready(
     db: AsyncIOMotorDatabase, asset_oid: ObjectId, chunk_count: int
-) -> Optional[dict]:
+) -> dict | None:
     """Flip an asset to ready and bump the workspace's retrievable-chunk count.
 
     Returns the asset doc, or None if the asset was deleted mid-ingest (the
@@ -120,7 +118,7 @@ async def mark_error(db: AsyncIOMotorDatabase, asset_oid: ObjectId, error: str) 
     )
 
 
-async def mark_processing(db: AsyncIOMotorDatabase, asset_oid: ObjectId) -> Optional[dict]:
+async def mark_processing(db: AsyncIOMotorDatabase, asset_oid: ObjectId) -> dict | None:
     """Reset an asset to `processing` for a re-ingest: clear the error and, if it
     was `ready`, decrement the workspace's ready-chunk count (a fresh ingest will
     re-add the new count). Returns the updated asset doc, or None if it's gone."""

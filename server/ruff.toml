@@ -1,0 +1,35 @@
+# Ruff config (TOOL-02). Adds high-value rule sets on top of Ruff's defaults.
+# `S` (flake8-bandit) and `ASYNC` are the security / async-blocking guards the
+# audit called out — `S105/S106` would have flagged the SEC-06 secret defaults,
+# and `ASYNC` catches the kind of blocking-in-async-def that was SEC-03. `I`/`B`/
+# `UP` are hygiene (import order, bugbear, pyupgrade).
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
+ignore = [
+    # Line wrapping — deferred. The Python code has never been run through a
+    # formatter, so ~348 pre-existing long lines are out of scope for a
+    # lint-config change; enable once a `ruff format` pass lands.
+    "E501",
+]
+
+[lint.per-file-ignores]
+# Tests assert by design, use fixture credentials that aren't real secrets, and
+# reference throwaway temp paths in fakes.
+"tests/**" = ["S101", "S105", "S106", "S108"]
+
+[lint.flake8-bugbear]
+# FastAPI's dependency-injection defaults (`x = Depends(...)`, `Query(...)`, …)
+# are the framework's intended pattern, not B008 mutable-default bugs.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Security",
+]

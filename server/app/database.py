@@ -1,6 +1,5 @@
 """MongoDB connection + index management (Motor)."""
 import logging
-from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
@@ -8,7 +7,7 @@ from app.config import settings
 
 
 class Database:
-    client: Optional[AsyncIOMotorClient] = None
+    client: AsyncIOMotorClient | None = None
 
 
 db = Database()
@@ -34,7 +33,8 @@ async def close_mongo_connection() -> None:
 
 async def ensure_indexes() -> None:
     """Idempotent index creation (see docs/DATA_MODEL.md)."""
-    assert db.client is not None, "connect_to_mongo() must run before ensure_indexes()"
+    if db.client is None:
+        raise RuntimeError("connect_to_mongo() must run before ensure_indexes()")
     database = db.client[settings.database_name]
     await database.users.create_index("email", unique=True)
     await database.workspaces.create_index("owner_id")

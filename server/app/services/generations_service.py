@@ -3,8 +3,6 @@ stream end (ARCHITECTURE §6); the retrieval snapshot is stored on the document
 so the debug panel survives later asset deletes/re-ingests (DATA_MODEL.md)."""
 from __future__ import annotations
 
-from typing import Optional
-
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -28,7 +26,7 @@ async def create_generation(
     output: dict,
     retrieved_chunk_ids: list[str],
     retrieval_meta: list[dict],
-    gen_id: Optional[ObjectId] = None,
+    gen_id: ObjectId | None = None,
 ) -> dict:
     """`gen_id` lets the caller pre-generate the id (documents derive their file
     storage keys from it, so the files are built before the row is persisted)."""
@@ -59,7 +57,7 @@ async def list_generations(
     *,
     limit: int = 24,
     offset: int = 0,
-) -> tuple[list[GenerationResponse], Optional[int]]:
+) -> tuple[list[GenerationResponse], int | None]:
     query: dict = {"workspace_id": workspace_oid}
     if type_filter in ("text", "card", "document", "post_pack"):
         query["type"] = type_filter
@@ -80,8 +78,8 @@ async def update_generation_output(
     workspace_oid: ObjectId,
     generation_id: str,
     output_patch: dict,
-    nested_key: Optional[str] = None,
-) -> Optional[dict]:
+    nested_key: str | None = None,
+) -> dict | None:
     """Merge a partial patch into a generation's `output` (Phase 1b attaches the
     selected card image; Phase 1.5 extends to inline field/template edits). Only
     provided keys are written, so a partial patch never wipes the rest of the
@@ -115,7 +113,7 @@ async def update_generation_output(
 
 async def get_generation(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, generation_id: str
-) -> Optional[dict]:
+) -> dict | None:
     try:
         oid = ObjectId(generation_id)
     except Exception:

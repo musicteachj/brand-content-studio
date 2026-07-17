@@ -104,7 +104,7 @@ class ChromaStore:
         def _do() -> None:
             try:
                 self._client.delete_collection(name=f"ws_{workspace_id}")
-            except Exception:
+            except Exception:  # noqa: S110 — best-effort; a missing collection is already gone
                 pass
 
         await asyncio.to_thread(_do)
