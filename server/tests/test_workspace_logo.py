@@ -2,6 +2,8 @@
 upload defenses (allow-listed type, size cap, server-derived key), stores the
 result on `brand_profile.logo`, and serves it via the existing image route.
 Demo users are blocked by `require_not_demo` before any mutation."""
+from dataclasses import replace
+
 import pytest
 import pytest_asyncio
 from bson import ObjectId
@@ -13,6 +15,7 @@ from app.main import app
 from app.models.common import utcnow
 from app.models.user import UserInDB
 from app.services.storage_service import get_storage
+from app.services.upload_service import IMAGE_POLICY
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
@@ -120,7 +123,7 @@ async def test_logo_upload_rejects_bad_type(client, test_db):
 
 @pytest.mark.asyncio
 async def test_logo_upload_rejects_oversize(client, test_db, monkeypatch):
-    monkeypatch.setattr("app.routes.workspaces.MAX_IMAGE_BYTES", 4)
+    monkeypatch.setattr("app.routes.workspaces.IMAGE_POLICY", replace(IMAGE_POLICY, max_bytes=4))
     resp = await client.post(
         _logo_url(), files={"file": ("logo.png", PNG_1x1, "image/png")}
     )

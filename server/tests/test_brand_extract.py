@@ -3,6 +3,7 @@ unit-tested directly; the route is tested with the vision service faked (no mode
 call), asserting it returns a proposal, validates the upload, allows the demo
 user, and **never mutates** the workspace."""
 import io
+from dataclasses import replace
 
 import pytest
 import pytest_asyncio
@@ -21,6 +22,7 @@ from app.services.brand_extract_service import (
     build_extract_response,
     extract_palette,
 )
+from app.services.upload_service import IMAGE_POLICY
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
 
@@ -167,7 +169,7 @@ async def test_extract_rejects_empty(client):
 
 @pytest.mark.asyncio
 async def test_extract_rejects_oversize(client, monkeypatch):
-    monkeypatch.setattr("app.routes.workspaces.MAX_IMAGE_BYTES", 4)
+    monkeypatch.setattr("app.routes.workspaces.IMAGE_POLICY", replace(IMAGE_POLICY, max_bytes=4))
     resp = await client.post(_url(), files={"file": ("logo.png", _png((1, 2, 3)), "image/png")})
     assert resp.status_code == 413
 

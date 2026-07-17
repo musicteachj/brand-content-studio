@@ -23,21 +23,13 @@ from app.models.image import (
 )
 from app.services import unsplash_service
 from app.services.storage_service import build_image_key, get_storage, safe_filename
+from app.services.upload_service import IMAGE_CONTENT_TYPE, IMAGE_POLICY, read_upload
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 
 # Global (auth-only) router — mounted at /api/images
 router = APIRouter()
 # Workspace-scoped router — mounted at /api/workspaces/{workspace_id}/images
 ws_router = APIRouter()
-
-MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB
-_IMAGE_CONTENT_TYPE = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-}
-_ALLOWED = set(_IMAGE_CONTENT_TYPE.values())
 
 
 @router.get("/unsplash/search", response_model=UnsplashSearchResponse)
@@ -68,41 +60,18 @@ async def unsplash_track(
         pass
 
 
-def resolve_image_content_type(filename: str, provided: str | None) -> str:
-    ext = os.path.splitext(filename)[1].lower()
-    if ext in _IMAGE_CONTENT_TYPE:
-        return _IMAGE_CONTENT_TYPE[ext]
-    if provided in _ALLOWED:
-        return provided  # type: ignore[return-value]
-    raise HTTPException(
-        status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-        detail="Unsupported image type. Upload a JPG, PNG, or WebP.",
-    )
-
-
 @ws_router.post("/upload", response_model=ImageUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_image(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
-    _: object = Depends(require_not_demo),
+    _ro: object = Depends(require_not_demo),
 ):
-    filename = file.filename or "image"
-    content_type = resolve_image_content_type(filename, file.content_type)
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_IMAGE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image exceeds the {MAX_IMAGE_BYTES // (1024 * 1024)} MB limit.",
-        )
-
+    data, filename, _ = await read_upload(file, IMAGE_POLICY, default_name="image")
     workspace_id = str(workspace["_id"])
     image_id = str(ObjectId())
     clean_name = safe_filename(filename)
     storage_key = build_image_key(workspace_id, image_id, clean_name)
     await get_storage().save(storage_key, data)
-    _ = content_type  # validated above; served content type is re-derived on GET
     return ImageUploadResponse(
         storage_key=storage_key,
         url=f"/api/workspaces/{workspace_id}/images/file/{image_id}/{clean_name}",
@@ -124,7 +93,7 @@ async def serve_image(
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found") from None
-    content_type = _IMAGE_CONTENT_TYPE.get(
+    content_type = IMAGE_CONTENT_TYPE.get(
         os.path.splitext(filename)[1].lower(), "application/octet-stream"
     )
     return Response(content=data, media_type=content_type)

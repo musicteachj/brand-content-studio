@@ -5,8 +5,6 @@ server-side, and ingestion runs out-of-band so the request returns immediately
 and the UI polls the status pill."""
 from __future__ import annotations
 
-import os
-
 from bson import ObjectId
 from fastapi import (
     APIRouter,
@@ -26,33 +24,10 @@ from app.rag.vector_store import get_vector_store
 from app.services import asset_service
 from app.services.ingestion_service import ingest_asset
 from app.services.storage_service import build_storage_key, get_storage
+from app.services.upload_service import ASSET_POLICY, read_upload
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
 
 router = APIRouter()
-
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
-
-# Map common extensions → canonical content types (browsers are inconsistent,
-# e.g. .md often arrives as application/octet-stream).
-_EXT_CONTENT_TYPE = {
-    ".pdf": "application/pdf",
-    ".md": "text/markdown",
-    ".markdown": "text/markdown",
-    ".txt": "text/plain",
-}
-_ALLOWED = set(_EXT_CONTENT_TYPE.values())
-
-
-def _resolve_content_type(filename: str, provided: str | None) -> str:
-    ext = os.path.splitext(filename)[1].lower()
-    if ext in _EXT_CONTENT_TYPE:
-        return _EXT_CONTENT_TYPE[ext]
-    if provided in _ALLOWED:
-        return provided  # type: ignore[return-value]
-    raise HTTPException(
-        status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-        detail="Unsupported file type. Upload a PDF, Markdown, or plain-text file.",
-    )
 
 
 @router.post("", response_model=AssetResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -64,17 +39,7 @@ async def upload_asset(
     _: object = Depends(require_not_demo),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    filename = file.filename or "upload"
-    content_type = _resolve_content_type(filename, file.content_type)
-
-    data = await file.read()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
-        )
+    data, filename, content_type = await read_upload(file, ASSET_POLICY, default_name="upload")
 
     workspace_oid = workspace["_id"]
     # Store the raw file *before* writing any Mongo state, so a storage failure
