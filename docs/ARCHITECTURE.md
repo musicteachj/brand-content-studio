@@ -16,7 +16,7 @@
 | Vector store | Chroma (dev) / Qdrant (prod) behind `VectorStore` protocol | new |
 | RAG orchestration | Hand-rolled (SDKs + vector-store client directly); `langchain-text-splitters` (standalone) for chunking; pdfplumber | new |
 | App DB | MongoDB (Docker dev / shared self-hosted prod) | EMS |
-| Auth | python-jose JWT + seeded demo user + demo bypass | EMS |
+| Auth | PyJWT (HS256, algorithms pinned) + seeded demo user + demo bypass | EMS |
 | Images | Unsplash API (server-proxied) + user upload | new |
 | Storage | Local FS (dev) / S3 (prod) behind `StorageBackend` protocol | new |
 | Card export | Satori (HTML/JSX→SVG) + `@resvg/resvg-wasm` (SVG→PNG) → 1080×1350 PNG; client-side, free; Playwright fallback | new |
@@ -31,23 +31,23 @@ Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` 
 
 ```
 server/app/
-  config.py database.py main.py          # extend EMS; lifespan: connect Mongo + init vector store + ensure indexes
-  routes/    auth · workspaces · assets · generate · images · generations · health
-  services/  auth · workspace · asset · ingestion · retrieval · generation · unsplash · storage
+  config.py database.py main.py          # lifespan: connect Mongo + init vector store + ensure indexes; pure-ASGI security-headers middleware
+  routes/    auth · workspaces · assets · templates · generate · documents · generations · images · health
+  services/  auth · workspace · asset · ingestion · retrieval · ai (Claude client) · generations (Mongo persistence) ·
+             document · template · content_extraction · brand_extract · brand_fonts · upload · unsplash · storage
   rag/       vector_store(Protocol + factory) · chroma_store · qdrant_store · embeddings · chunking · loaders
-  models/    common · user · workspace · asset · generation · image
-  prompts/   text_post · image_card
-  utils/     security · dependencies (get_current_user, get_workspace_or_404)
-  seed/      seed_demo.py + verdure_corpus/   # see docs/demo-corpus/
+  models/    common · user · workspace · asset · generation · template · image
+  prompts/   text_post · image_card · post_pack · document · template_fill · brand_extract · exemplars · context
+  utils/     security · dependencies (get_current_user, get_workspace_or_404, …) · sse · errors · ratelimit · archives
+  seed/      seed_demo.py + docs/demo-corpus/ (Verdure)
 
 client/src/
-  lib/       api.ts · sse.ts (fetch + ReadableStream; NOT EventSource) · utils.ts (cn)
-  components/ ui/ (shadcn) · layout/ (AppShell, SideNav, TopBar)
-  features/  auth · workspace-setup · dashboard · generate · history · assets · settings
-  generate/  ControlsPanel · CardPreview · cards/{PhotoLed,Statement,Quote} · ImagePickerPanel
-             · RetrievalDebugPanel · useCardExport
-  pages/     LandingPage.tsx              # built last
-  stores/ api/ types/ styles/(workspace-font injector)
+  lib/       api.ts · sse.ts (fetch + ReadableStream; NOT EventSource) · utils.ts (cn) · theme · colorTint
+  components/ ui/ (shadcn) · layout/ (AppShell, SideNav, TopBar) · Brand · DemoNotice
+  features/  auth · workspace-setup · workspace · dashboard · generate · history · assets · templates · settings
+             # generate/ = the 4 streamed-generation hooks + CardPreview · cards/ · ImagePickerPanel · RetrievalDebugPanel
+  stores/ (auth, workspace, generate, settings) · api/ · types/ · styles/ (brand-font injector) · test/ (factories + MSW)
+  App.tsx · main.tsx
 ```
 
 ### Reuse from sibling projects (do not reinvent)
@@ -141,17 +141,20 @@ The panel (DESIGN: "precise, trustworthy tooling — no glow") lists each source
 
 All under `/api`. JWT bearer (EMS `HTTPBearer`). Workspace-scoped routes go through `get_workspace_or_404`, which also enforces `owner_id == current_user`.
 
+Workspace-scoped paths below are shortened to `…` for `/workspaces/{id}`.
+
 | Group | Endpoints |
 |---|---|
 | auth | `POST /auth/login` · `POST /auth/demo-login` · `GET /auth/me` |
-| workspaces | `GET/POST /workspaces` · `GET/PATCH/DELETE /workspaces/{id}` · `POST /workspaces/{id}/logo` |
-| assets | `POST /workspaces/{id}/assets` (202 + BackgroundTask) · `GET …/assets` · `GET/DELETE …/assets/{aid}` |
-| generate | `POST …/generate/text` (SSE) · `POST …/generate/card` (SSE) |
-| images | `GET /images/unsplash/search?q=&page=` · `POST …/images/upload` |
-| generations | `GET …/generations?type=all\|text\|card` · `GET/PATCH/DELETE …/generations/{gid}` |
+| workspaces | `GET/POST /workspaces` · `GET/PATCH/DELETE /workspaces/{id}` · logo `POST/DELETE …/logo` · `POST …/brand/extract` · exemplars `POST …/exemplars` `DELETE …/exemplars/{eid}` · brand-images `POST …/brand-images` `PATCH/DELETE …/brand-images/{iid}` · fonts `POST …/fonts` `DELETE …/fonts/{fid}` `GET …/fonts/file/{fid}/{name}` · card-presets `POST …/card-presets` `DELETE …/card-presets/{pid}` |
+| assets | `POST …/assets` (202 + BackgroundTask) · `GET …/assets` · `POST …/assets/{aid}/reingest` · `GET/DELETE …/assets/{aid}` |
+| templates | `POST …/templates` (upload) · `GET …/templates` · `DELETE …/templates/{tid}` · `POST …/templates/{tid}/ai-fill` · `POST …/templates/{tid}/fill-from-document` · `POST …/templates/{tid}/render` |
+| generate (SSE) | `POST …/generate/text` · `POST …/generate/card` · `POST …/generate/post` · `POST …/generate/document` |
+| generations | `GET …/generations?type=` · `GET …/generations/count` · `GET/PATCH/DELETE …/generations/{gid}` · `GET …/generations/{gid}/download/{fmt}` |
+| images | `GET /images/unsplash/search?q=&page=` · `POST /images/unsplash/track` · `POST …/images/upload` · `GET …/images/file/{iid}/{name}` |
 | health | `GET /health` → `{status, mongo, vector_store}` |
 
-Generations are **persisted server-side at stream end**; `PATCH` is for Phase 1.5 inline edits / re-export.
+Generations are **persisted server-side at stream end**; `PATCH` is for the Phase 1.5 inline edits (copy, layout, per-card accent). Document renders are served from the `download` route, not re-generated.
 
 ---
 

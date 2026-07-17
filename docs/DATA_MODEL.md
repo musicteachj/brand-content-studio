@@ -3,7 +3,7 @@
 > MongoDB collections + vector-store schema for Brand Content Studio. Follows [DECISIONS.md](./DECISIONS.md).
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [PLAN.md](./PLAN.md)
 
-Database: `brand_content` (dev: `brand_content_dev`). Four collections. All documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
+Database: `brand_content` (dev: `brand_content_dev`). Five collections (`users`, `workspaces`, `assets`, `generations`, `templates`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
 
 ---
 
@@ -49,7 +49,11 @@ Copy the EMS user model. Seed exactly one demo user.
   "accent_hex": "#1C3A2E",        // optional UI tint override (DESIGN §4), cosmetic only
   "fonts": { "heading": "DM Serif Display", "body": "Spectral", "mono": null },  // workspace fonts, NOT app fonts
   "logo": { "storage_key": "…", "url": "…" } | null,
-  "voice_summary": "Short cached blurb injected into the prompt header" | null
+  "voice_summary": "Short cached blurb injected into the prompt header" | null,
+  "exemplars":      [ { "id": "…", "storage_key": "…", "url": "…", "style_note": "…" } ],          // past cards → vision style notes (cap 5, Phase 4c)
+  "brand_images":   [ { "id": "…", "storage_key": "…", "url": "…", "name": "…" } ],                // reusable image library (cap 24)
+  "uploaded_fonts": [ { "id": "…", "family": "…", "storage_key": "…", "url": "…" } ],              // user .ttf brand fonts (cap 8; `family` = the handle used everywhere)
+  "card_presets":   [ { "id": "…", "name": "…", "template_id": "photo-led", "accent_hex": "#1C3A2E" | null } ]  // saved card looks (cap 8, Phase 5)
 }
 ```
 
@@ -85,7 +89,7 @@ Copy the EMS user model. Seed exactly one demo user.
 | `_id` | ObjectId | |
 | `workspace_id` | ObjectId | |
 | `owner_id` | ObjectId | |
-| `type` | enum | `text` \| `card` |
+| `type` | enum | `text` \| `card` \| `document` \| `post_pack` |
 | `brief` | str | the user prompt |
 | `status` | enum | `complete` \| `error` |
 | `output` | object | discriminated by `type`, see below |
@@ -93,7 +97,6 @@ Copy the EMS user model. Seed exactly one demo user.
 | `retrieval_meta` | object[] | snapshot for the debug panel + re-open survival (see ARCHITECTURE §5) |
 | `model` | str | `"claude-sonnet-4-6"` |
 | `embedding_query_model` | str | `"text-embedding-3-small"` |
-| `png_export_key` | str \| null | set on export (Phase 1.5) |
 | `created_at` / `updated_at` | datetime | |
 
 `output` when `type == "text"`:
@@ -106,18 +109,58 @@ Copy the EMS user model. Seed exactly one demo user.
 {
   "template_id": "photo-led",            // photo-led | statement | quote
   "fields": { "eyebrow": "…", "headline": "…", "body": "…", "cta": "…", "hashtag": "…" },
-  "image": {
+  "image": {                             // null until an image is picked
     "source": "unsplash",                // unsplash | upload
     "storage_key": null, "unsplash_id": "abc123", "url": "…",
     "attribution": { "author": "…", "author_url": "…", "source_url": "…" }   // required when source==unsplash
+  } | null,
+  "suggested_keywords": ["…"],
+  "accent_hex": "#1C3A2E" | null         // per-card accent, validated against the palette (Phase 1.5)
+}
+```
+
+`output` when `type == "document"`:
+```jsonc
+{
+  "document": {
+    "archetype": "one-pager",            // one-pager | short-deck
+    "title": "…", "eyebrow": "…", "lede": "…",
+    "sections": [ { "heading": "…", "body": "…", "bullets": ["…"] } ],
+    "footer": "…"
   },
-  "suggested_keywords": ["…"]
+  "formats": { "docx": { "storage_key": "…" }, "pdf": { "storage_key": "…" }, "pptx": { "storage_key": "…" } }  // rendered files, keyed by format
+}
+```
+
+`output` when `type == "post_pack"` (the "LinkedIn Post" objective — caption + a matching card):
+```jsonc
+{
+  "post_text": "…", "hashtags": ["…"], "char_count": 1287,
+  "card": { … }                          // a nested card output (same shape as type=="card" above)
 }
 ```
 
 `retrieval_meta` is **snapshotted onto the generation** so the debug panel and history re-open keep working even if assets are later deleted or re-ingested (vector ids may go stale; the snapshot preview survives).
 
-**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (All / Cards / Text filter).
+**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (history type filter); `(owner_id, created_at desc)` (backs the shared demo account's daily-quota count, SEC-02).
+
+---
+
+## `templates`
+
+Uploaded branded `.docx`/`.pptx` templates (Phase 5). The template's own styling is authoritative — only `{{placeholder}}` text is swapped; renders are returned for immediate download, never persisted.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | ObjectId | |
+| `workspace_id` | ObjectId | → `workspaces._id` |
+| `name` | str | sanitized upload filename |
+| `format` | enum | `docx` \| `pptx` |
+| `storage_key` | str | the uploaded template file |
+| `placeholders` | str[] | discovered `{{names}}` (docxtpl Jinja analysis / pptx paragraph scan) |
+| `created_at` | datetime | |
+
+**Indexes:** `workspace_id`.
 
 ---
 
