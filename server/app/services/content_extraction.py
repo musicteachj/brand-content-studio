@@ -8,10 +8,8 @@ from __future__ import annotations
 import io
 import os
 
+from app.limits import MAX_PDF_PAGES, MAX_SOURCE_CHARS
 from app.utils.archives import assert_safe_ooxml
-
-MAX_SOURCE_CHARS = 40000  # ~10-12 pages / ~10k input tokens — generous, bounded
-_MAX_PDF_PAGES = 80
 
 _TEXT_EXTS = {".txt", ".md", ".markdown"}
 
@@ -92,7 +90,7 @@ def _extract_pdf(data: bytes) -> str:
 
     pages: list[str] = []
     with pdfplumber.open(io.BytesIO(data)) as pdf:
-        for page in pdf.pages[:_MAX_PDF_PAGES]:
+        for page in pdf.pages[:MAX_PDF_PAGES]:
             t = page.extract_text() or ""
             if t.strip():
                 pages.append(t)

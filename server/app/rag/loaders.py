@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-MAX_PDF_PAGES = 80
+from app.limits import MAX_PDF_PAGES
 
 
 class UnsupportedFileError(ValueError):

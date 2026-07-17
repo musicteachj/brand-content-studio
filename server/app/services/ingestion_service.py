@@ -11,6 +11,7 @@ import logging
 from bson import ObjectId
 
 from app.database import get_database
+from app.limits import MAX_CHUNKS, PARSE_TIMEOUT_S
 from app.rag.chunking import chunk_text, split_posts
 from app.rag.loaders import Section, load_sections
 from app.rag.vector_store import Chunk, get_vector_store
@@ -21,9 +22,6 @@ from app.utils.errors import client_error
 logger = logging.getLogger(__name__)
 
 POSTS_KIND = "posts"
-
-PARSE_TIMEOUT_S = 30
-MAX_CHUNKS = 400
 
 
 def build_chunks(

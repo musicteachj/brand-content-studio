@@ -16,14 +16,15 @@ from typing import Generic, TypeVar
 
 from fastapi import HTTPException, UploadFile, status
 
-T = TypeVar("T")
+from app.limits import (
+    MAX_ASSET_BYTES,
+    MAX_FONT_BYTES,
+    MAX_IMAGE_BYTES,
+    MAX_SOURCE_BYTES,
+    MAX_TEMPLATE_BYTES,
+)
 
-# --- Size caps (per file class) ------------------------------------------------
-MAX_IMAGE_BYTES = 8 * 1024 * 1024  # 8 MB — logos, exemplars, brand images, uploads
-MAX_ASSET_BYTES = 10 * 1024 * 1024  # 10 MB — ingested PDF/MD/TXT source assets
-MAX_TEMPLATE_BYTES = 10 * 1024 * 1024  # 10 MB — .docx/.pptx templates
-MAX_SOURCE_BYTES = 10 * 1024 * 1024  # 10 MB — fill-from-document source
-MAX_FONT_BYTES = 5 * 1024 * 1024  # 5 MB — uploaded .ttf brand fonts
+T = TypeVar("T")
 
 
 # --- Type validators (each raises 415 on a bad type) ---------------------------
