@@ -91,9 +91,7 @@ function PostOutput({
             </div>
             {status === "done" && (
               <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {text.length} chars
-                </span>
+                <span className="eyebrow">{text.length} chars</span>
                 <Button variant="ghost" size="sm" onClick={copy}>
                   {copied ? (
                     <Check className="h-4 w-4 text-success" aria-hidden />

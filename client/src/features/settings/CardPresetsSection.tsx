@@ -57,7 +57,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
-      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+      <span className="eyebrow">
         Card presets · {presets.length} of {MAX_PRESETS}
       </span>
       <p className="text-sm text-muted-foreground">
@@ -162,9 +162,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
                   aria-hidden
                 />
                 <span className="font-medium">{p.name}</span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {TEMPLATE_LABEL[p.template_id]}
-                </span>
+                <span className="eyebrow">{TEMPLATE_LABEL[p.template_id]}</span>
               </span>
               {!isDemo && (
                 <Button

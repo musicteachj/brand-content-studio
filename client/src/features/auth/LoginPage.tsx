@@ -23,10 +23,8 @@ function BrandPanel() {
       <Brand className="animate-fade-in-up" />
 
       <div className="max-w-md animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          Retrieval-augmented · on-brand
-        </p>
-        <h1 className="mt-5 text-[2.5rem] font-semibold leading-[1.08] tracking-[-0.02em] text-foreground">
+        <p className="eyebrow text-[11px]">Retrieval-augmented · on-brand</p>
+        <h1 className="mt-5 text-[2.5rem] font-semibold leading-[1.08] tracking-display text-foreground">
           Your brand’s voice, retrieved — not invented.
         </h1>
         <p className="mt-5 text-[15px] leading-relaxed text-muted-foreground">
@@ -39,14 +37,12 @@ function BrandPanel() {
         className="animate-fade-in-up rounded-xl border border-border bg-surface p-5 shadow-preview"
         style={{ animationDelay: "120ms" }}
       >
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          Verdure Materials · retrieved 6 sources
-        </p>
+        <p className="eyebrow">Verdure Materials · retrieved 6 sources</p>
         <p className="mt-3 text-[15px] leading-relaxed text-foreground">
           Hempcrete sequesters ~110&nbsp;kg of CO₂ per cubic meter. That’s not an offset we bought —
           it’s carbon locked into the wall for the life of the building.
         </p>
-        <div className="mt-4 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <div className="mt-4 flex items-center gap-2 eyebrow">
           <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
           On-brand · ready to export
         </div>
@@ -89,7 +85,7 @@ function AuthPanel() {
           <Brand />
         </div>
 
-        <h2 className="mt-8 text-2xl font-semibold tracking-[-0.01em] text-foreground lg:mt-0">
+        <h2 className="mt-8 text-2xl font-semibold tracking-heading text-foreground lg:mt-0">
           Sign in
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -103,9 +99,7 @@ function AuthPanel() {
 
         <div className="my-6 flex items-center gap-3">
           <span className="h-px flex-1 bg-border" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            or sign in
-          </span>
+          <span className="eyebrow">or sign in</span>
           <span className="h-px flex-1 bg-border" />
         </div>
 

@@ -64,9 +64,7 @@ export function DocumentPreview({
 
       {status === "streaming" && (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-border bg-surface p-7 shadow-preview sm:p-9">
-          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Drafting
-          </p>
+          <p className="eyebrow">Drafting</p>
           <div
             aria-busy="true"
             className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground"
@@ -88,9 +86,7 @@ export function DocumentPreview({
           )}
           {generationId && (
             <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3">
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                Branded · ready to download
-              </span>
+              <span className="eyebrow">Branded · ready to download</span>
               <DocumentDownloadRow
                 workspaceId={workspaceId}
                 generationId={generationId}

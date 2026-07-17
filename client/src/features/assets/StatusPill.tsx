@@ -22,7 +22,7 @@ export function StatusPill({ status }: { status: IngestionStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em]",
+        "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 font-mono text-2xs uppercase tracking-eyebrow",
         className,
       )}
     >

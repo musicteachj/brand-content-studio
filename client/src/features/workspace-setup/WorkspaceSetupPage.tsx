@@ -40,7 +40,7 @@ export function WorkspaceSetupPage() {
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground shadow-light">
           <FolderPlus className="h-6 w-6" aria-hidden />
         </span>
-        <h1 className="mt-5 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+        <h1 className="mt-5 text-2xl font-semibold tracking-heading text-foreground">
           Create a workspace
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">

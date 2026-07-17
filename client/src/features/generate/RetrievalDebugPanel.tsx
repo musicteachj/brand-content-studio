@@ -17,7 +17,7 @@ export function RetrievalDebugPanel({ retrieval }: { retrieval: Retrieval | null
         <Database className="h-4 w-4 text-muted-foreground" aria-hidden />
         <h2 className="text-sm font-semibold text-foreground">Retrieved context</h2>
         {retrieval && (
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="ml-auto eyebrow">
             {retrieval.retrieved.length} chunks
             {retrieval.latency_ms != null ? ` · ${retrieval.latency_ms}ms` : ""}
           </span>
@@ -36,7 +36,7 @@ export function RetrievalDebugPanel({ retrieval }: { retrieval: Retrieval | null
             ))}
           </ul>
           <footer className="border-t border-border px-4 py-2.5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            <p className="eyebrow">
               {retrieval.embedding_model}
               {retrieval.k != null ? ` · k=${retrieval.k}` : ""}
             </p>
@@ -53,20 +53,16 @@ function ChunkRow({ item }: { item: RetrievalMetaItem }) {
     <li className="px-4 py-3">
       <div className="flex items-center gap-2">
         <span className="truncate text-xs font-medium text-foreground">{item.filename}</span>
-        <span className="shrink-0 rounded-sm bg-surface-variant px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+        <span className="shrink-0 rounded-sm bg-surface-variant px-1.5 py-0.5 eyebrow text-3xs">
           {item.asset_kind}
         </span>
-        {item.page != null && (
-          <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-            p.{item.page}
-          </span>
-        )}
+        {item.page != null && <span className="shrink-0 eyebrow text-3xs">p.{item.page}</span>}
         {item.pinned ? (
-          <span className="ml-auto inline-flex shrink-0 items-center gap-1 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1 eyebrow text-3xs">
             <Pin className="h-3 w-3" aria-hidden /> Pinned
           </span>
         ) : (
-          <span className="ml-auto shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+          <span className="ml-auto shrink-0 font-mono text-2xs tabular-nums text-muted-foreground">
             {item.score.toFixed(3)}
           </span>
         )}

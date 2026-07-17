@@ -43,10 +43,8 @@ export function TemplatesPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-8">
       <header className="animate-fade-in-up">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          Templates
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-0.01em] text-foreground">
+        <p className="eyebrow text-[11px]">Templates</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
           On-brand templates
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -93,7 +91,7 @@ export function TemplatesPage() {
                 <FileText className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="flex min-w-0 flex-col leading-tight">
                   <span className="truncate text-sm font-medium text-foreground">{t.name}</span>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="eyebrow">
                     {t.format} · {t.placeholders.length} field
                     {t.placeholders.length === 1 ? "" : "s"}
                   </span>

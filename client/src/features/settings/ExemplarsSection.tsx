@@ -34,7 +34,7 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="eyebrow">
           Example cards · {exemplars.length} of {MAX_EXEMPLARS}
         </span>
         <input

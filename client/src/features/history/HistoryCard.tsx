@@ -34,12 +34,10 @@ export function HistoryCard({
         className="flex flex-1 flex-col rounded-t-lg p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex items-center gap-2">
-          <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 eyebrow text-3xs">
             {isPost ? "post + card" : gen.type}
           </span>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-            {formatDate(gen.created_at)}
-          </span>
+          <span className="ml-auto eyebrow">{formatDate(gen.created_at)}</span>
         </div>
         <p className="mt-3 line-clamp-2 text-sm font-medium text-foreground">{gen.brief}</p>
         {card && brand ? (
@@ -62,9 +60,7 @@ export function HistoryCard({
             {postText(gen)}
           </p>
         )}
-        <span className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-          {gen.retrieved_chunk_ids.length} sources
-        </span>
+        <span className="mt-3 eyebrow">{gen.retrieved_chunk_ids.length} sources</span>
       </button>
       <div className="flex items-center gap-1 border-t border-border px-2 py-1.5">
         {card ? (

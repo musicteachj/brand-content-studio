@@ -22,9 +22,7 @@ export function BrandIdentityView({
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-light">
       <div className="flex items-start justify-between gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Colors
-        </span>
+        <span className="eyebrow">Colors</span>
         {canEdit && (
           <Button size="sm" variant="secondary" onClick={onEdit}>
             <Pencil className="h-4 w-4" aria-hidden />
@@ -42,7 +40,7 @@ export function BrandIdentityView({
             />
             <div className="flex flex-col leading-tight">
               <span className="text-xs font-medium text-foreground">{c.name}</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              <span className="eyebrow">
                 {c.hex}
                 {brand.accent_hex?.toLowerCase() === c.hex.toLowerCase() ? " · accent" : ""}
               </span>
@@ -56,15 +54,11 @@ export function BrandIdentityView({
 
       {fonts.length > 0 && (
         <div className="flex flex-col gap-2.5 border-t border-border pt-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Typography
-          </span>
+          <span className="eyebrow">Typography</span>
           <dl className="flex flex-col gap-1.5">
             {fonts.map(([role, name]) => (
               <div key={role} className="flex items-baseline justify-between gap-4">
-                <dt className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                  {role}
-                </dt>
+                <dt className="eyebrow">{role}</dt>
                 <dd className="text-sm text-foreground">{name}</dd>
               </div>
             ))}
@@ -74,17 +68,13 @@ export function BrandIdentityView({
 
       {brand.voice_summary && (
         <div className="flex flex-col gap-2 border-t border-border pt-4">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Voice
-          </span>
+          <span className="eyebrow">Voice</span>
           <p className="text-sm leading-relaxed text-foreground">{brand.voice_summary}</p>
         </div>
       )}
 
       <div className="flex flex-col gap-2.5 border-t border-border pt-4">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Logo
-        </span>
+        <span className="eyebrow">Logo</span>
         <LogoPreview url={brand.logo?.url ?? null} />
       </div>
     </div>

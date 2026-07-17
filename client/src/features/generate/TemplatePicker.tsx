@@ -49,9 +49,7 @@ export function TemplatePicker({ brand, value, onChange, disabled, accentHex }: 
             )}
           >
             <Thumb template={t.id} brand={brand} accentHex={accentHex} />
-            <span className="px-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-              {t.label}
-            </span>
+            <span className="px-0.5 eyebrow text-3xs">{t.label}</span>
           </button>
         );
       })}

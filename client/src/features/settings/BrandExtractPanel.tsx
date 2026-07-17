@@ -72,9 +72,7 @@ export function BrandExtractPanel({
       )}
       {proposal && (
         <div className="mt-1 flex flex-col gap-3 rounded-md border border-border bg-surface p-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Proposed — review before applying
-          </span>
+          <span className="eyebrow">Proposed — review before applying</span>
           <div className="flex flex-wrap gap-2">
             {proposal.colors.map((c) => (
               <span key={`${c.hex}-${c.name}`} className="flex items-center gap-1.5">
@@ -83,9 +81,7 @@ export function BrandExtractPanel({
                   style={{ backgroundColor: c.hex }}
                   aria-hidden
                 />
-                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                  {c.hex}
-                </span>
+                <span className="eyebrow">{c.hex}</span>
               </span>
             ))}
           </div>

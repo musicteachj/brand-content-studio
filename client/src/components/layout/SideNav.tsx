@@ -88,11 +88,7 @@ export function SideNav() {
               <span className="truncate text-sm font-medium text-foreground">
                 {user?.full_name ?? "Demo User"}
               </span>
-              {user?.is_demo && (
-                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Demo session
-                </span>
-              )}
+              {user?.is_demo && <span className="mt-0.5 eyebrow">Demo session</span>}
             </div>
           )}
           {!collapsed && (
