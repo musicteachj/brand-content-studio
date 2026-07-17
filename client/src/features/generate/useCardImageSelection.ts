@@ -69,7 +69,13 @@ export function useCardImageSelection(workspaceId: string | null, generationId: 
       setState({
         imageError: null,
         imageDataUrl: dataUrl,
-        image: { source: "upload", url, storage_key: storageKey, unsplash_id: null, attribution: null },
+        image: {
+          source: "upload",
+          url,
+          storage_key: storageKey,
+          unsplash_id: null,
+          attribution: null,
+        },
       });
     } catch {
       if (epochRef.current !== epoch) return;

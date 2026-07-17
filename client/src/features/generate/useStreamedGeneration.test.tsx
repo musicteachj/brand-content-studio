@@ -21,7 +21,12 @@ type Body = { brief: string };
 let handlers: StreamHandlers<Meta> | undefined;
 let signal: AbortSignal | undefined;
 let resolve: (() => void) | undefined;
-function fakeStream(_ws: string, _body: Body, h: StreamHandlers<Meta>, s: AbortSignal): Promise<void> {
+function fakeStream(
+  _ws: string,
+  _body: Body,
+  h: StreamHandlers<Meta>,
+  s: AbortSignal,
+): Promise<void> {
   handlers = h;
   signal = s;
   return new Promise<void>((r) => {

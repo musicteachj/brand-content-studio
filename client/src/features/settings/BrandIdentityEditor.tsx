@@ -362,7 +362,11 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
                   {...register(`colors.${i}.name` as const)}
                 />
                 {errors.colors?.[i]?.name && (
-                  <span id={`colors-${i}-name-error`} role="alert" className="text-xs text-destructive">
+                  <span
+                    id={`colors-${i}-name-error`}
+                    role="alert"
+                    className="text-xs text-destructive"
+                  >
                     {errors.colors[i]?.name?.message}
                   </span>
                 )}
@@ -377,7 +381,11 @@ function BrandIdentityForm({ workspace, onDone }: { workspace: Workspace; onDone
                   {...register(`colors.${i}.hex` as const)}
                 />
                 {errors.colors?.[i]?.hex && (
-                  <span id={`colors-${i}-hex-error`} role="alert" className="text-xs text-destructive">
+                  <span
+                    id={`colors-${i}-hex-error`}
+                    role="alert"
+                    className="text-xs text-destructive"
+                  >
                     {errors.colors[i]?.hex?.message}
                   </span>
                 )}

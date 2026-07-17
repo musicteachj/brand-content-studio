@@ -34,7 +34,9 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
   const accentOptions: (string | null)[] = [null, ...brand.colors.map((c) => c.hex)];
   const { radioProps: accentRadioProps } = useRovingRadio(
     accentOptions.length,
-    accentOptions.findIndex((hex) => (hex?.toLowerCase() ?? null) === (accentHex?.toLowerCase() ?? null)),
+    accentOptions.findIndex(
+      (hex) => (hex?.toLowerCase() ?? null) === (accentHex?.toLowerCase() ?? null),
+    ),
     (i) => setAccentHex(accentOptions[i]),
   );
 

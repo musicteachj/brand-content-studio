@@ -13,17 +13,30 @@ interface State {
   error: string | null;
 }
 
-const INITIAL: State = { status: "idle", text: "", retrieval: null, generationId: null, error: null };
+const INITIAL: State = {
+  status: "idle",
+  text: "",
+  retrieval: null,
+  generationId: null,
+  error: null,
+};
 
 /** Drives a single streamed text-post generation: accumulates tokens, captures the
  *  terminal retrieval meta, and exposes abort — a thin composition over the shared
  *  streaming state machine (ARCH-04). */
 export function useTextGeneration(workspaceId: string | null) {
-  const { state, generate, stop } = useStreamedGeneration<State, TextStreamBody, Meta>(workspaceId, {
-    initial: INITIAL,
-    stream: streamTextGeneration,
-    applyText: (s, delta) => ({ ...s, text: s.text + delta }),
-    applyMeta: (s, meta) => ({ ...s, retrieval: meta.retrieval, generationId: meta.generation_id }),
-  });
+  const { state, generate, stop } = useStreamedGeneration<State, TextStreamBody, Meta>(
+    workspaceId,
+    {
+      initial: INITIAL,
+      stream: streamTextGeneration,
+      applyText: (s, delta) => ({ ...s, text: s.text + delta }),
+      applyMeta: (s, meta) => ({
+        ...s,
+        retrieval: meta.retrieval,
+        generationId: meta.generation_id,
+      }),
+    },
+  );
   return { ...state, generate, stop };
 }
