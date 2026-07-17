@@ -15,6 +15,7 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
+from app.limits import SOURCE_PARSE_TIMEOUT_S
 from app.models.template import (
     TemplateAiFillRequest,
     TemplateAiFillResponse,
@@ -38,7 +39,6 @@ from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 
 router = APIRouter()
 
-SOURCE_PARSE_TIMEOUT_S = 30
 _MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",

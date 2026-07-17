@@ -14,9 +14,7 @@ from __future__ import annotations
 import zipfile
 from io import BytesIO
 
-# Generous vs. any real brand template, tiny vs. a bomb.
-MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024  # 100 MB summed across members
-MAX_COMPRESSION_RATIO = 100  # uncompressed : compressed
+from app.limits import MAX_COMPRESSION_RATIO, MAX_UNCOMPRESSED_BYTES
 
 
 class UnsafeArchive(ValueError):

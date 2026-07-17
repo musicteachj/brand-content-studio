@@ -8,6 +8,12 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
+from app.limits import (
+    MAX_BRAND_IMAGES,
+    MAX_CARD_PRESETS,
+    MAX_EXEMPLARS,
+    MAX_UPLOADED_FONTS,
+)
 from app.models.common import (
     BrandExemplar,
     BrandImage,
@@ -21,13 +27,8 @@ from app.models.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUp
 
 _SLUG_STRIP = re.compile(r"[^a-z0-9]+")
 
-# Hard caps on the four capped `brand_profile` sub-collections. Enforced by the
-# atomic guards below (not just the route pre-checks), so the invariant holds for
-# any caller — see ARCH-05.
-MAX_EXEMPLARS = 5
-MAX_BRAND_IMAGES = 24
-MAX_UPLOADED_FONTS = 8
-MAX_CARD_PRESETS = 8
+# Caps on the four `brand_profile` sub-collections live in app/limits.py (ARCH-05)
+# and are imported above; the atomic guards below enforce them for any caller.
 
 
 class WorkspaceWriteConflict(Exception):

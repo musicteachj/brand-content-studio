@@ -9,6 +9,12 @@ from fastapi.responses import Response
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
+from app.limits import (
+    MAX_BRAND_IMAGES,
+    MAX_CARD_PRESETS,
+    MAX_EXEMPLARS,
+    MAX_UPLOADED_FONTS,
+)
 from app.models.common import BrandExemplar, BrandImage, BrandLogo, CardPreset, UploadedFont
 from app.models.user import UserInDB
 from app.models.workspace import (
@@ -24,13 +30,7 @@ from app.services import workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
-from app.services.workspace_service import (
-    MAX_BRAND_IMAGES,
-    MAX_CARD_PRESETS,
-    MAX_EXEMPLARS,
-    MAX_UPLOADED_FONTS,
-    WorkspaceWriteConflict,
-)
+from app.services.workspace_service import WorkspaceWriteConflict
 from app.utils.dependencies import (
     enforce_demo_generation_quota,
     get_current_user,
