@@ -25,7 +25,7 @@ from app.prompts.template_fill import (
     build_fill_user,
     build_fill_user_from_content,
 )
-from app.services.generation_service import GenerationService
+from app.services.ai_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage
 from app.services.template_service import (
     TemplateHasLogic,

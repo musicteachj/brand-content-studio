@@ -25,7 +25,7 @@ from app.models.generation import DocumentGenerateRequest
 from app.prompts import document as document_prompt
 from app.rag.vector_store import get_vector_store
 from app.services import document_service, generations_service, retrieval_service
-from app.services.generation_service import GenerationService
+from app.services.ai_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
 from app.utils.dependencies import enforce_demo_generation_quota, get_workspace_or_404
 from app.utils.errors import client_error

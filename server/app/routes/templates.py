@@ -24,8 +24,8 @@ from app.models.template import (
 from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
+from app.services.ai_service import GenerationService
 from app.services.content_extraction import extract_document_text
-from app.services.generation_service import GenerationService
 from app.services.storage_service import build_template_key, get_storage, safe_filename
 from app.utils.archives import UnsafeArchive
 from app.utils.dependencies import (

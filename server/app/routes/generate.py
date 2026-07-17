@@ -26,7 +26,7 @@ from app.prompts import image_card, post_pack, text_post
 from app.prompts.exemplars import build_exemplar_guidance
 from app.rag.vector_store import get_vector_store
 from app.services import generations_service, retrieval_service
-from app.services.generation_service import (
+from app.services.ai_service import (
     GenerationService,
     build_card_output,
     build_post_pack_output,
