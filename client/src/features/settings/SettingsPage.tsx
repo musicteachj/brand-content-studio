@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { DemoNotice } from "@/components/DemoNotice";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
 import { cn } from "@/lib/utils";
+import { useRovingRadio } from "@/lib/useRovingRadio";
 import { useAuthStore } from "@/stores/auth";
 import { useSettingsStore, type ThemePref } from "@/stores/settings";
 import { BrandIdentityEditor } from "./BrandIdentityEditor";
@@ -30,6 +31,11 @@ export function SettingsPage() {
   const setBrandTint = useSettingsStore((s) => s.setBrandTint);
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const { hash } = useLocation();
+  const { radioProps: themeRadioProps } = useRovingRadio(
+    THEMES.length,
+    THEMES.findIndex((t) => t.value === theme),
+    (i) => setTheme(THEMES[i].value),
+  );
 
   // Deep-link from the workspace switcher's "Manage workspaces" (/settings#workspaces).
   useEffect(() => {
@@ -61,7 +67,7 @@ export function SettingsPage() {
           role="radiogroup"
           aria-label="Theme"
         >
-          {THEMES.map(({ value, label, icon: Icon }) => {
+          {THEMES.map(({ value, label, icon: Icon }, index) => {
             const active = theme === value;
             return (
               <button
@@ -70,6 +76,7 @@ export function SettingsPage() {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setTheme(value)}
+                {...themeRadioProps(index)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active

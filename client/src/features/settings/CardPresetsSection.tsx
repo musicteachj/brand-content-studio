@@ -5,6 +5,7 @@ import { TemplatePicker } from "@/features/generate/TemplatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useRovingRadio } from "@/lib/useRovingRadio";
 import { useAuthStore } from "@/stores/auth";
 import type { CardTemplate, Workspace } from "@/types";
 
@@ -29,6 +30,13 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
   const [error, setError] = useState<string | null>(null);
   const presets = brand.card_presets ?? [];
   const atCap = presets.length >= MAX_PRESETS;
+  // Accent radiogroup options: index 0 = brand default (null), then each palette color.
+  const accentOptions: (string | null)[] = [null, ...brand.colors.map((c) => c.hex)];
+  const { radioProps: accentRadioProps } = useRovingRadio(
+    accentOptions.length,
+    accentOptions.findIndex((hex) => (hex?.toLowerCase() ?? null) === (accentHex?.toLowerCase() ?? null)),
+    (i) => setAccentHex(accentOptions[i]),
+  );
 
   async function onAdd() {
     if (!name.trim()) {
@@ -80,6 +88,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
               aria-label="Brand default accent"
               title="Brand default"
               onClick={() => setAccentHex(null)}
+              {...accentRadioProps(0)}
               className={cn(
                 "h-7 rounded-full border px-3 text-xs transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 accentHex === null
@@ -89,7 +98,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
             >
               Default
             </button>
-            {brand.colors.map((color) => {
+            {brand.colors.map((color, i) => {
               const selected = color.hex.toLowerCase() === accentHex?.toLowerCase();
               return (
                 <button
@@ -100,6 +109,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
                   aria-label={`${color.name} accent`}
                   title={color.name}
                   onClick={() => setAccentHex(color.hex)}
+                  {...accentRadioProps(i + 1)}
                   className={cn(
                     "h-7 w-7 rounded-full border transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selected
