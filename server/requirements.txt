@@ -14,7 +14,7 @@ python-dotenv==1.2.2  # 1.2.2 fixes GHSA-mf9w-mj56-hr94
 pyjwt==2.15.1  # replaces python-jose (HS256 only); 2.15 fixes PYSEC-2026-4140..4152 + 4183
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-email-validator>=2.1
+email-validator>=2.3.0
 slowapi==0.1.10  # rate limiting (SEC-02); in-memory storage, single-instance
 
 # AI — generation + embeddings
