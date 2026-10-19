@@ -36,6 +36,34 @@ _SERIF_HINTS = (
 )
 
 
+# The curated brand-font set, mirroring client/src/styles/fontCatalog.ts.
+# Heading/body pick from serif + sans; mono from mono. tests/test_brand_fonts.py
+# fails if this drifts from the client catalog or a serif/sans family lacks a
+# bundled TTF for PDF parity.
+CURATED_TEXT_FAMILIES: tuple[str, ...] = (
+    "DM Serif Display",
+    "Playfair Display",
+    "Fraunces",
+    "Spectral",
+    "Lora",
+    "Inter",
+    "Work Sans",
+    "Libre Franklin",
+    "Archivo",
+)
+CURATED_MONO_FAMILIES: tuple[str, ...] = ("JetBrains Mono", "IBM Plex Mono")
+
+
+def curated_family(name: str | None, *, mono: bool = False) -> str | None:
+    """Canonical curated family for a (case-insensitive) name, or None if it isn't
+    one. `mono` selects the mono set; otherwise the heading/body set."""
+    if not name or not name.strip():
+        return None
+    wanted = name.strip().lower()
+    pool = CURATED_MONO_FAMILIES if mono else CURATED_TEXT_FAMILIES
+    return next((f for f in pool if f.lower() == wanted), None)
+
+
 def font_slug(family: str) -> str:
     """`"DM Serif Display"` -> `"dm-serif-display"` — the on-disk TTF basename."""
     return _SLUG_RE.sub("-", family.strip().lower()).strip("-")

@@ -18,6 +18,7 @@ from typing import Any, cast
 from anthropic import AsyncAnthropic
 from anthropic.types import MessageParam, ToolChoiceToolParam, ToolParam
 from PIL import Image
+from pydantic import ValidationError
 
 from app.config import settings
 from app.models.common import BrandColor, BrandFonts
@@ -30,6 +31,7 @@ from app.prompts.brand_extract import (
     build_extract_system,
     build_extract_user,
 )
+from app.services.brand_fonts import curated_family
 
 EXTRACT_MAX_TOKENS = 800
 _PALETTE_MAX = 6
@@ -56,24 +58,31 @@ def extract_palette(data: bytes, max_colors: int = _PALETTE_MAX) -> list[str]:
 
 
 def build_extract_response(detected_hexes: list[str], tool_result: dict[str, Any]) -> BrandExtractResponse:
-    """Shape the tool-use result into the typed proposal. Colors fall back to the
-    detected palette if the model returns none; empty font/voice strings → None."""
+    """Shape the tool-use result into the typed proposal. Colors with an invalid
+    hex are dropped (one bad value mustn't lose the whole proposal), and the
+    palette falls back to the detected hexes if none survive. Fonts keep only
+    curated families (canonical spelling), so a style description like "Clean
+    sans-serif" can never become a brand font the card renderer can't load."""
     raw_colors = tool_result.get("colors") or []
     colors: list[BrandColor] = []
     for c in raw_colors:
         hex_ = str(c.get("hex", "")).strip()
         name = str(c.get("name", "")).strip()
         role = c.get("role", "primary")
-        if hex_:
+        if not hex_:
+            continue
+        try:
             colors.append(BrandColor(name=name or hex_, hex=hex_, role=role))
+        except ValidationError:
+            continue
     if not colors:
         colors = [BrandColor(name=h, hex=h, role="primary") for h in detected_hexes]
 
     fonts_raw = tool_result.get("fonts") or {}
     fonts = BrandFonts(
-        heading=(str(fonts_raw.get("heading", "")).strip() or None),
-        body=(str(fonts_raw.get("body", "")).strip() or None),
-        mono=(str(fonts_raw.get("mono", "")).strip() or None),
+        heading=curated_family(str(fonts_raw.get("heading", ""))),
+        body=curated_family(str(fonts_raw.get("body", ""))),
+        mono=curated_family(str(fonts_raw.get("mono", "")), mono=True),
     )
     voice = str(tool_result.get("voice_summary", "")).strip() or None
     return BrandExtractResponse(colors=colors, voice_summary=voice, fonts=fonts)

@@ -29,7 +29,7 @@ export function HistoryPage() {
 
   // Load workspace fonts so card thumbnails render in the brand type.
   useEffect(() => {
-    if (brand) injectBrandFontFaces(brand.fonts);
+    if (brand) injectBrandFontFaces(brand.fonts, brand.uploaded_fonts ?? []);
   }, [brand]);
 
   return (

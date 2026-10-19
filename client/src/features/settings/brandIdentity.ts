@@ -58,9 +58,11 @@ export function proposalToForm(
   return {
     colors: p.colors.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
     fonts: {
-      heading: findCatalogFamily(p.fonts.heading) ?? p.fonts.heading ?? "",
-      body: findCatalogFamily(p.fonts.body) ?? p.fonts.body ?? "",
-      mono: findCatalogFamily(p.fonts.mono) ?? p.fonts.mono ?? "",
+      // Only catalog families: a non-catalog proposal (e.g. a style description)
+      // would be saved as a brand font the card can't load (QA-14).
+      heading: findCatalogFamily(p.fonts.heading, "heading") ?? "",
+      body: findCatalogFamily(p.fonts.body, "body") ?? "",
+      mono: findCatalogFamily(p.fonts.mono, "mono") ?? "",
     },
     voice_summary: p.voice_summary ?? "",
   };

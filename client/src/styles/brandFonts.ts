@@ -5,6 +5,8 @@
 //
 // App chrome (Plus Jakarta Sans / DM Mono) is never used here: the card is the
 // workspace's artifact, not Folio's UI (DESIGN §7).
+import loraBoldUrl from "@/assets/fonts/lora-latin-700-normal.ttf?url";
+import loraRegularUrl from "@/assets/fonts/lora-latin-400-normal.ttf?url";
 import { useAuthStore } from "@/stores/auth";
 import type { BrandFonts, UploadedFont } from "@/types";
 
@@ -35,14 +37,26 @@ function ttfUrl(family: string, weight: number): string {
 const HEADING_WEIGHTS: Array<400 | 700> = [400, 700];
 const BODY_WEIGHTS: Array<400 | 600 | 700> = [400, 600, 700];
 
-export const FALLBACK_HEADING = "Georgia, serif";
-export const FALLBACK_BODY = "Georgia, serif";
+// The card's bundled font (Lora, OFL; see src/assets/fonts). It's the default when a
+// workspace sets no brand font, and the stand-in for a family the CDN doesn't have
+// (a system font like Georgia, a typo, a legacy free-text value), so a card can
+// always render and export. A private name, so the default never collides with a
+// real family.
+export const FALLBACK_FAMILY = "Folio Card Serif";
 
-export function headingFamily(fonts: BrandFonts): string {
-  return fonts.heading || fonts.body || "Georgia";
+// Documents keep their own default: the server renders an unset font as a serif
+// base face (PDF) or leaves it to Word (.docx), so the preview shouldn't show Lora.
+export const DOCUMENT_DEFAULT_FAMILY = "Georgia";
+
+function fallbackUrl(weight: number): string {
+  return weight >= 600 ? loraBoldUrl : loraRegularUrl;
 }
-export function bodyFamily(fonts: BrandFonts): string {
-  return fonts.body || fonts.heading || "Georgia";
+
+export function headingFamily(fonts: BrandFonts, fallback: string = FALLBACK_FAMILY): string {
+  return fonts.heading || fonts.body || fallback;
+}
+export function bodyFamily(fonts: BrandFonts, fallback: string = FALLBACK_FAMILY): string {
+  return fonts.body || fonts.heading || fallback;
 }
 
 interface FontReq {
@@ -66,32 +80,44 @@ function requiredFonts(fonts: BrandFonts): FontReq[] {
   });
 }
 
-// Only successful loads are cached. A transient failure (offline, CDN 5xx) must
-// not be memoized — otherwise the very first network blip would permanently break
-// card preview/export until a full reload.
+// A font load is the bytes, MISSING (the CDN answered 404: permanent, so cached),
+// or null (a transient failure: offline, CDN 5xx). Transient failures are never
+// memoized, otherwise the first network blip would break preview/export until a
+// full reload, and they never trigger the fallback, so a blip can't silently swap
+// a real brand font for Lora.
+const MISSING = "missing" as const;
+type FontLoad = ArrayBuffer | typeof MISSING | null;
+
 const bufferCache = new Map<string, ArrayBuffer>();
+const missCache = new Set<string>();
+const cdnInflight = new Map<string, Promise<FontLoad>>();
 const inflight = new Map<string, Promise<ArrayBuffer | null>>();
 
-async function loadBuffer(family: string, weight: number): Promise<ArrayBuffer | null> {
+async function loadBuffer(family: string, weight: number): Promise<FontLoad> {
   const url = ttfUrl(family, weight);
   const cached = bufferCache.get(url);
   if (cached) return cached;
-  let p = inflight.get(url);
+  if (missCache.has(url)) return MISSING;
+  let p = cdnInflight.get(url);
   if (!p) {
-    p = (async () => {
+    p = (async (): Promise<FontLoad> => {
       try {
         const r = await fetch(url);
-        if (!r.ok) return null; // 404 (weight not on the CDN) — a real "skip"
+        if (r.status === 404) {
+          missCache.add(url);
+          return MISSING;
+        }
+        if (!r.ok) return null;
         const buf = await r.arrayBuffer();
         bufferCache.set(url, buf);
         return buf;
       } catch {
-        return null; // transient — not cached, retried on next render
+        return null;
       } finally {
-        inflight.delete(url);
+        cdnInflight.delete(url);
       }
     })();
-    inflight.set(url, p);
+    cdnInflight.set(url, p);
   }
   return p;
 }
@@ -105,7 +131,7 @@ function uploadedUrl(family: string, uploaded: UploadedFont[]): string | null {
   return uploaded.find((f) => f.family === family)?.url ?? null;
 }
 
-async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
+async function fetchFontBytes(url: string, auth = true): Promise<ArrayBuffer | null> {
   const cached = bufferCache.get(url);
   if (cached) return cached;
   // Dedup concurrent requests for the same url (Satori needs an uploaded family
@@ -114,7 +140,7 @@ async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
   if (!p) {
     p = (async () => {
       const sameOrigin = url.startsWith("/") && !url.startsWith("//");
-      const token = useAuthStore.getState().token;
+      const token = auth ? useAuthStore.getState().token : null;
       try {
         const resp = await fetch(url, {
           headers: sameOrigin && token ? { Authorization: `Bearer ${token}` } : {},
@@ -134,17 +160,40 @@ async function fetchFontBytes(url: string): Promise<ArrayBuffer | null> {
   return p;
 }
 
-/** Font buffers for Satori. Uploaded families load their own bytes (auth-gated);
- *  the rest come from the CDN, where weights that 404 are skipped. */
+/** One source decision for preview and export: the bundled fallback, an uploaded
+ *  family's own (auth-gated) bytes, or the CDN. */
+function loadFace(family: string, weight: number, uploaded: UploadedFont[]): Promise<FontLoad> {
+  if (family === FALLBACK_FAMILY) return fetchFontBytes(fallbackUrl(weight), false);
+  const up = uploadedUrl(family, uploaded);
+  return up ? fetchFontBytes(up) : loadBuffer(family, weight);
+}
+
+/** A family is missing when its regular (400) cut is a definite 404. A family
+ *  that has its regular cut but lacks a bold (single-weight display faces) is
+ *  real, and a transient failure proves nothing, so neither counts. */
+async function familyIsMissing(family: string, uploaded: UploadedFont[]): Promise<boolean> {
+  return (await loadFace(family, 400, uploaded)) === MISSING;
+}
+
+/** Font buffers for Satori. A missing family gets the bundled fallback at every
+ *  weight, under its own name, so the card still renders and exports. Otherwise
+ *  a weight that 404s is skipped (Satori uses the nearest one), and a transient
+ *  failure leaves the list short so the export reports a retryable error. */
 export async function loadBrandFontBuffers(
   fonts: BrandFonts,
   uploaded: UploadedFont[] = [],
 ): Promise<SatoriFont[]> {
+  const reqs = requiredFonts(fonts);
+  const loaded = await Promise.all(reqs.map((r) => loadFace(r.family, r.weight, uploaded)));
+  const missing = new Set(
+    reqs.filter((r, i) => r.weight === 400 && loaded[i] === MISSING).map((r) => r.family),
+  );
   const out = await Promise.all(
-    requiredFonts(fonts).map(async (req) => {
-      const up = uploadedUrl(req.family, uploaded);
-      const data = up ? await fetchFontBytes(up) : await loadBuffer(req.family, req.weight);
-      return data
+    reqs.map(async (req, i) => {
+      const data = missing.has(req.family)
+        ? await fetchFontBytes(fallbackUrl(req.weight), false)
+        : loaded[i];
+      return data instanceof ArrayBuffer
         ? ({ name: req.family, data, weight: req.weight, style: "normal" } as SatoriFont)
         : null;
     }),
@@ -154,7 +203,12 @@ export async function loadBrandFontBuffers(
 
 const injected = new Set<string>();
 
-function addFontFace(family: string, weight: number, source: string | ArrayBuffer): void {
+function addFontFace(
+  family: string,
+  weight: number,
+  source: string | ArrayBuffer,
+  onLoadError?: () => void,
+): void {
   // Register via the CSSOM FontFace API rather than interpolating `family`/`src`
   // into a <style> string. The constructor treats `family` as data (quoting it
   // internally), so a crafted family name — `"`, `}`, `</style>` — cannot break
@@ -171,10 +225,14 @@ function addFontFace(family: string, weight: number, source: string | ArrayBuffe
     });
     document.fonts.add(face);
     void face.load().catch(() => {
-      // A transient CDN failure must be retryable, so clear the dedup key too
-      // (injectFamily marked it before calling us) — matching the uploaded path.
       document.fonts.delete(face);
-      injected.delete(key);
+      if (onLoadError) {
+        onLoadError();
+      } else {
+        // A transient failure must be retryable, so clear the dedup key too
+        // (injectFamily marked it before calling us).
+        injected.delete(key);
+      }
     });
   } catch {
     injected.delete(key); // invalid descriptor — drop the key so a later call retries
@@ -185,6 +243,10 @@ function injectFamily(family: string, weight: number, uploaded: UploadedFont[]):
   const key = `${family}:${weight}`;
   if (injected.has(key)) return;
   injected.add(key);
+  if (family === FALLBACK_FAMILY) {
+    addFontFace(family, weight, fallbackUrl(weight));
+    return;
+  }
   const up = uploadedUrl(family, uploaded);
   if (up) {
     // Uploaded bytes are auth-gated, so a bare `url()` can't fetch them; pull the
@@ -194,7 +256,23 @@ function injectFamily(family: string, weight: number, uploaded: UploadedFont[]):
       else injected.delete(key);
     });
   } else {
-    addFontFace(family, weight, ttfUrl(family, weight));
+    // Mirror the Satori rule so preview == export: a missing family shows the
+    // bundled fallback, registered under the brand's own name so the card's
+    // font-family resolves the same way in both. (A legacy value naming a system
+    // font, e.g. "Georgia", is therefore stood in for on this page too.) Anything
+    // else (a transient failure, or a real family lacking this weight) clears the
+    // dedup key so a later render retries, as before.
+    addFontFace(family, weight, ttfUrl(family, weight), () => {
+      void familyIsMissing(family, uploaded).then(async (missing) => {
+        if (!missing) {
+          injected.delete(key);
+          return;
+        }
+        const buf = await fetchFontBytes(fallbackUrl(weight), false);
+        if (buf) addFontFace(family, weight, buf);
+        else injected.delete(key);
+      });
+    });
   }
 }
 

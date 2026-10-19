@@ -51,9 +51,19 @@ export function optionsForRole(
   return opts;
 }
 
-/** Canonical catalog family for a (case-insensitive) name, or null if unknown. */
-export function findCatalogFamily(name: string | null | undefined): string | null {
+/** Canonical catalog family for a (case-insensitive) name, or null if unknown.
+ *  With a `role`, only that role's categories count (mono for mono, else serif/sans). */
+export function findCatalogFamily(name: string | null | undefined, role?: FontRole): string | null {
   if (!name) return null;
   const lower = name.trim().toLowerCase();
-  return FONT_OPTIONS.find((o) => o.family.toLowerCase() === lower)?.family ?? null;
+  const cats: FontCategory[] | null = role
+    ? role === "mono"
+      ? ["mono"]
+      : ["serif", "sans"]
+    : null;
+  return (
+    FONT_OPTIONS.find(
+      (o) => o.family.toLowerCase() === lower && (!cats || cats.includes(o.category)),
+    )?.family ?? null
+  );
 }
