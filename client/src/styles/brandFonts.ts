@@ -5,6 +5,9 @@
 //
 // App chrome (Plus Jakarta Sans / DM Mono) is never used here: the card is the
 // workspace's artifact, not Folio's UI (DESIGN §7).
+import scriptsRegularUrl from "@/assets/fonts/folio-card-scripts-400.ttf?url";
+import scriptsBoldUrl from "@/assets/fonts/folio-card-scripts-700.ttf?url";
+import symbolsUrl from "@/assets/fonts/folio-card-symbols-400.ttf?url";
 import loraBoldUrl from "@/assets/fonts/lora-latin-700-normal.ttf?url";
 import loraRegularUrl from "@/assets/fonts/lora-latin-400-normal.ttf?url";
 import { useAuthStore } from "@/stores/auth";
@@ -51,6 +54,32 @@ export const DOCUMENT_DEFAULT_FAMILY = "Georgia";
 function fallbackUrl(weight: number): string {
   return weight >= 600 ? loraBoldUrl : loraRegularUrl;
 }
+
+// Glyph fallbacks (QA-17). The brand fonts are fontsource Latin subsets, so
+// characters outside Latin drew a NO GLYPH box in the export ("CO₂" above all).
+// These small bundled faces (OFL; see src/assets/fonts) ride last in Satori's
+// font list, which it falls back through per glyph, so they're only used where
+// the brand face has no glyph. The DOM preview gets the same faces through
+// `unicode-range` (see injectFamily), so preview == export holds.
+export const SCRIPTS_FAMILY = "Folio Card Scripts"; // ⁰ ⁴-⁹ ₀-₉ and script signs (Noto Serif)
+export const SYMBOLS_FAMILY = "Folio Card Symbols"; // arrows, ≈ ≠ ≤ ≥ and friends, ✓ (Noto Sans Math)
+
+interface GlyphFallback {
+  family: string;
+  weight: 400 | 700;
+  url: string;
+  unicodeRange: string;
+}
+
+const SCRIPTS_RANGE = "U+2070-209F";
+const SYMBOLS_RANGE =
+  "U+2190-2199, U+21D2, U+21D4, U+2211, U+2213, U+221A, U+221D-221E, U+2234, U+2248, U+2260-2261, U+2264-2265, U+226A-226B, U+2713";
+
+const GLYPH_FALLBACKS: GlyphFallback[] = [
+  { family: SCRIPTS_FAMILY, weight: 400, url: scriptsRegularUrl, unicodeRange: SCRIPTS_RANGE },
+  { family: SCRIPTS_FAMILY, weight: 700, url: scriptsBoldUrl, unicodeRange: SCRIPTS_RANGE },
+  { family: SYMBOLS_FAMILY, weight: 400, url: symbolsUrl, unicodeRange: SYMBOLS_RANGE },
+];
 
 export function headingFamily(fonts: BrandFonts, fallback: string = FALLBACK_FAMILY): string {
   return fonts.heading || fonts.body || fallback;
@@ -160,6 +189,10 @@ async function fetchFontBytes(url: string, auth = true): Promise<ArrayBuffer | n
   return p;
 }
 
+function satoriFont(name: string, weight: 400 | 600 | 700, data: FontLoad): SatoriFont | null {
+  return data instanceof ArrayBuffer ? { name, data, weight, style: "normal" } : null;
+}
+
 /** One source decision for preview and export: the bundled fallback, an uploaded
  *  family's own (auth-gated) bytes, or the CDN. */
 function loadFace(family: string, weight: number, uploaded: UploadedFont[]): Promise<FontLoad> {
@@ -184,21 +217,30 @@ export async function loadBrandFontBuffers(
   uploaded: UploadedFont[] = [],
 ): Promise<SatoriFont[]> {
   const reqs = requiredFonts(fonts);
+  // Same-origin assets: start them alongside the brand fonts, not after.
+  const glyphBytes = Promise.all(GLYPH_FALLBACKS.map((g) => fetchFontBytes(g.url, false)));
   const loaded = await Promise.all(reqs.map((r) => loadFace(r.family, r.weight, uploaded)));
   const missing = new Set(
     reqs.filter((r, i) => r.weight === 400 && loaded[i] === MISSING).map((r) => r.family),
   );
-  const out = await Promise.all(
-    reqs.map(async (req, i) => {
-      const data = missing.has(req.family)
-        ? await fetchFontBytes(fallbackUrl(req.weight), false)
-        : loaded[i];
-      return data instanceof ArrayBuffer
-        ? ({ name: req.family, data, weight: req.weight, style: "normal" } as SatoriFont)
-        : null;
-    }),
+  const brand = await Promise.all(
+    reqs.map(async (req, i) =>
+      satoriFont(
+        req.family,
+        req.weight,
+        missing.has(req.family) ? await fetchFontBytes(fallbackUrl(req.weight), false) : loaded[i],
+      ),
+    ),
   );
-  return out.filter((f): f is SatoriFont => f !== null);
+  const glyphs = (await glyphBytes).map((data, i) =>
+    satoriFont(GLYPH_FALLBACKS[i].family, GLYPH_FALLBACKS[i].weight, data),
+  );
+  const brandFaces = brand.filter((f): f is SatoriFont => f !== null);
+  // An empty list surfaces the retryable "couldn't load fonts" error. A missing
+  // glyph face counts too: it's a same-origin asset, so failing means a network
+  // problem, and exporting without it would bring the NO GLYPH boxes back.
+  if (brandFaces.length === 0 || glyphs.includes(null)) return [];
+  return [...brandFaces, ...(glyphs as SatoriFont[])];
 }
 
 const injected = new Set<string>();
@@ -208,6 +250,7 @@ function addFontFace(
   weight: number,
   source: string | ArrayBuffer,
   onLoadError?: () => void,
+  unicodeRange?: string,
 ): void {
   // Register via the CSSOM FontFace API rather than interpolating `family`/`src`
   // into a <style> string. The constructor treats `family` as data (quoting it
@@ -222,6 +265,7 @@ function addFontFace(
       weight: String(weight),
       style: "normal",
       display: "swap",
+      ...(unicodeRange ? { unicodeRange } : {}),
     });
     document.fonts.add(face);
     void face.load().catch(() => {
@@ -239,10 +283,25 @@ function addFontFace(
   }
 }
 
+/** The glyph fallbacks, registered under the brand family with a `unicode-range`,
+ *  so the browser reaches them per character exactly as Satori does. Added before
+ *  the brand face, so for a character both cover the brand's own glyph wins. */
+function injectGlyphFallbacks(family: string, weight: number): void {
+  const key = `${family}:${weight}:glyphs`;
+  if (injected.has(key)) return;
+  injected.add(key);
+  const bold = weight >= 600;
+  for (const g of GLYPH_FALLBACKS) {
+    if (g.family === SCRIPTS_FAMILY && g.weight >= 600 !== bold) continue;
+    addFontFace(family, weight, g.url, () => injected.delete(key), g.unicodeRange);
+  }
+}
+
 function injectFamily(family: string, weight: number, uploaded: UploadedFont[]): void {
   const key = `${family}:${weight}`;
   if (injected.has(key)) return;
   injected.add(key);
+  injectGlyphFallbacks(family, weight);
   if (family === FALLBACK_FAMILY) {
     addFontFace(family, weight, fallbackUrl(weight));
     return;
