@@ -18,7 +18,7 @@ email-validator>=2.1
 slowapi==0.1.10  # rate limiting (SEC-02); in-memory storage, single-instance
 
 # AI — generation + embeddings
-anthropic>=0.40
+anthropic>=1.15.0
 openai>=1.40
 
 # RAG
