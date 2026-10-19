@@ -1,4 +1,4 @@
-"""Phase 6 PR-B — ingestion is bounded: a slow parse times out and an oversized
+"""Phase 6 PR-B: ingestion is bounded. a slow parse times out and an oversized
 doc is rejected, both marking the asset `error` with nothing upserted."""
 import time
 
@@ -7,7 +7,7 @@ from bson import ObjectId
 
 import app.services.ingestion_service as ing
 from app.models.common import utcnow
-from app.rag.loaders import Section
+from app.rag.loaders import FileTooComplexError, Section
 from tests.fakes import FakeVectorStore
 
 NS = "ws-ns"
@@ -74,3 +74,36 @@ async def test_parse_timeout_marks_error(test_db, monkeypatch):
     doc = await test_db.assets.find_one({"_id": ObjectId(asset_id)})
     assert doc["ingestion_status"] == "error"
     assert "timed out" in doc["error"].lower()
+
+
+async def _ingest_raising(test_db, monkeypatch, exc: Exception) -> dict:
+    async def _db():
+        return test_db
+
+    def _raise(path, ct):
+        raise exc
+
+    monkeypatch.setattr(ing, "get_database", _db)
+    monkeypatch.setattr(ing, "get_storage", lambda: _FakeStorage())
+    monkeypatch.setattr(ing, "get_vector_store", lambda: FakeVectorStore())
+    monkeypatch.setattr(ing, "load_sections", _raise)
+    asset_id = await _seed_asset(test_db)
+    await ing.ingest_asset(asset_id, NS)
+    return await test_db.assets.find_one({"_id": ObjectId(asset_id)})
+
+
+@pytest.mark.asyncio
+async def test_user_facing_loader_errors_reach_the_asset(test_db, monkeypatch):
+    # QA-03: the page limit used to be redacted to "Something went wrong", which
+    # no Retry can fix. The loader's own messages are written for users.
+    doc = await _ingest_raising(test_db, monkeypatch, FileTooComplexError("PDF has 81 pages; the limit is 80."))
+    assert doc["ingestion_status"] == "error"
+    assert doc["error"] == "PDF has 81 pages; the limit is 80."
+
+
+@pytest.mark.asyncio
+async def test_unexpected_ingestion_errors_stay_redacted(test_db, monkeypatch):
+    doc = await _ingest_raising(test_db, monkeypatch, RuntimeError("/srv/secret/path exploded"))
+    assert doc["ingestion_status"] == "error"
+    assert "secret" not in doc["error"]
+    assert "(ref: " in doc["error"]

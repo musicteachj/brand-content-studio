@@ -3,6 +3,7 @@ import { Trash2, Type, Upload } from "lucide-react";
 import { useAddFont, useRemoveFont } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { Workspace } from "@/types";
 
@@ -31,8 +32,13 @@ export function BrandFontsSection({ workspace }: { workspace: Workspace }) {
     try {
       await add.mutateAsync({ file, name: name.trim() });
       setName("");
-    } catch {
-      setError("Couldn’t add that font. Upload a .ttf under 5 MB with a unique name.");
+    } catch (err) {
+      setError(
+        apiErrorMessage(
+          err,
+          "Couldn’t add that font. Upload a .ttf under 5 MB with a unique name.",
+        ),
+      );
     }
   }
 
@@ -66,10 +72,14 @@ export function BrandFontsSection({ workspace }: { workspace: Workspace }) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        Upload your own TrueType fonts — they appear in the font picker and render on cards and in
+        Upload your own TrueType fonts. They appear in the font picker and render on cards and in
         exported PDFs.
       </p>
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
       {fonts.length === 0 ? (
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <Type className="h-4 w-4" aria-hidden />

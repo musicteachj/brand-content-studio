@@ -1,9 +1,10 @@
 // The multi-format download row under a generated document (Generate preview +
 // History). Each button pulls the pre-rendered file through the auth-gated route
-// — no model call. Per-format loading/error state lives here.
+// with no model call. Per-format loading/error state lives here.
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { downloadDocumentFile } from "@/features/generate/documentDownload";
 import type { DocumentFormat, DocumentOutput } from "@/types";
@@ -29,8 +30,8 @@ export function DocumentDownloadRow({ workspaceId, generationId, output, classNa
     setError(null);
     try {
       await downloadDocumentFile(workspaceId, generationId, fmt, output.document.archetype);
-    } catch {
-      setError("Download failed.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Download failed."));
     } finally {
       setBusy(null);
     }

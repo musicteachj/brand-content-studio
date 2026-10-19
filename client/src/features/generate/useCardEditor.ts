@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
 import type { CardFields, CardTemplate, GenerationUpdate } from "@/types";
 
 /** The card's persisted customization state, the editor's seed + save baseline. */
@@ -43,14 +44,14 @@ function draftEqual(a: Draft, b: Draft): boolean {
 /** Client-side card customization (Phase 1.5): layout swap, inline copy edits, and
  *  the per-card accent. Edits are a local draft rendered live in the preview;
  *  nothing persists until an explicit Save, which PATCHes only the changed keys
- *  onto the generation's `output` — NEVER a `/generate` call. Discard resets to
+ *  onto the generation's `output`, NEVER a `/generate` call. Discard resets to
  *  the last-saved baseline. Re-seeds when a different generation is loaded. */
 export function useCardEditor(workspaceId: string | null, base: CardEditorBase | null) {
   const [draft, setDraft] = useState<Draft | null>(base ? toDraft(base) : null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // The last-persisted draft — what Save diffs against and Discard reverts to.
+  // The last-persisted draft: what Save diffs against and Discard reverts to.
   const baselineRef = useRef<Draft | null>(base ? toDraft(base) : null);
   // Re-seed only when the underlying generation changes (not on every keystroke
   // upstream), so in-progress edits aren't clobbered by parent re-renders.
@@ -107,8 +108,8 @@ export function useCardEditor(workspaceId: string | null, base: CardEditorBase |
       await api.patch(`/workspaces/${workspaceId}/generations/${base.generationId}`, patch);
       baselineRef.current = { ...draft };
       return true;
-    } catch {
-      setSaveError("Couldn’t save your changes. Try again.");
+    } catch (err) {
+      setSaveError(apiErrorMessage(err, "Couldn’t save your changes. Try again."));
       return false;
     } finally {
       setSaving(false);

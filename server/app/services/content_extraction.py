@@ -1,6 +1,6 @@
 """Extract a bounded, lightly-structured plain-text representation of an uploaded
 source document, for mapping onto a branded template's placeholders. Distinct
-from `rag/loaders` (which yields Sections for chunking) — here we want one
+from `rag/loaders` (which yields Sections for chunking); here we want one
 readable blob for the fill prompt. Pure + synchronous so it's unit-testable; the
 route runs it off the event loop under a timeout."""
 from __future__ import annotations
@@ -18,10 +18,16 @@ class UnsupportedSourceError(ValueError):
     """The uploaded source file type can't be extracted."""
 
 
+class NoExtractableTextError(ValueError):
+    """The source parsed but held no text."""
+
+
 def extract_document_text(data: bytes, filename: str) -> str:
     """Return up to MAX_SOURCE_CHARS of plain text from a docx/pptx/pdf/txt/md
-    source. Raises UnsupportedSourceError for other types, ValueError if no text
-    could be extracted."""
+    source. Raises UnsupportedSourceError for other types, NoExtractableTextError
+    if no text could be extracted, and UnsafeArchive for an unreadable or
+    oversized OOXML file. Those messages are written for users; anything else a
+    parser raises is not."""
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".docx":
         assert_safe_ooxml(data)  # zip bomb: the size cap only saw the compressed bytes
@@ -34,10 +40,10 @@ def extract_document_text(data: bytes, filename: str) -> str:
     elif ext in _TEXT_EXTS:
         text = data.decode("utf-8", errors="replace")
     else:
-        raise UnsupportedSourceError(f"Unsupported source type: {ext or '(none)'}")
+        raise UnsupportedSourceError("That file type can't be read. Use a .docx, .pptx, .pdf, .txt, or .md file.")
     text = text.strip()
     if not text:
-        raise ValueError("No extractable text found in the document.")
+        raise NoExtractableTextError("No extractable text found in the document.")
     return text[:MAX_SOURCE_CHARS]
 
 

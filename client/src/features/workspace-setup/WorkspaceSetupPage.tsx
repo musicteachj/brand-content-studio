@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { AxiosError } from "axios";
 import { ArrowRight, Check, FolderPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCreateWorkspace } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspace";
 
@@ -26,11 +26,7 @@ export function WorkspaceSetupPage() {
       setActive(ws.id);
       setStep(1);
     } catch (err) {
-      const detail =
-        err instanceof AxiosError && typeof err.response?.data?.detail === "string"
-          ? err.response.data.detail
-          : "Couldn't create workspace.";
-      setError(detail);
+      setError(apiErrorMessage(err, "Couldn't create workspace."));
     }
   }
 

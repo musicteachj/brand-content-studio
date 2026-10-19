@@ -2,7 +2,7 @@
 
 Markdown/plain text load as a single section; PDFs load one section per page
 (so chunks can carry a `page` for the debug panel). Uploaded brand docs are
-*untrusted* input — page count is capped to bound parse time / avoid a
+*untrusted* input: page count is capped to bound parse time / avoid a
 malicious-file DoS (ARCHITECTURE gotcha #9)."""
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ def load_sections(path: str, content_type: str) -> list[Section]:
         return _load_pdf(path)
     if content_type in ("text/markdown", "text/plain", "text/x-markdown"):
         return _load_text(path)
-    raise UnsupportedFileError(f"Unsupported content type: {content_type}")
+    raise UnsupportedFileError("This file type can't be ingested. Upload a PDF, Markdown, or plain-text file.")
 
 
 def _load_text(path: str) -> list[Section]:

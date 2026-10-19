@@ -2,10 +2,11 @@ import { useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useExtractBrand } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/apiError";
 import type { BrandExtract } from "@/types";
 
 /** "Learn from an image" (Phase 4c): upload a logo/guideline page → Claude vision
- *  proposes a palette + voice + fonts. Proposal only — `onApply` hands it to the
+ *  proposes a palette + voice + fonts. Proposal only: `onApply` hands it to the
  *  form for review; nothing persists until the form is saved. */
 export function BrandExtractPanel({
   workspaceId,
@@ -27,8 +28,10 @@ export function BrandExtractPanel({
     setProposal(null);
     try {
       setProposal(await extract.mutateAsync(file));
-    } catch {
-      setExtractError("Couldn’t read that image. Use a JPG, PNG, or WebP under 8 MB.");
+    } catch (err) {
+      setExtractError(
+        apiErrorMessage(err, "Couldn’t read that image. Use a JPG, PNG, or WebP under 8 MB."),
+      );
     }
   }
 
@@ -44,7 +47,8 @@ export function BrandExtractPanel({
         <div className="flex flex-col">
           <span className="text-sm font-medium text-foreground">Learn from an image</span>
           <span className="text-xs text-muted-foreground">
-            Upload a logo or guideline page — we’ll propose a palette, voice, and fonts to review.
+            Upload a logo or guideline page, and we’ll propose a palette, voice, and fonts to
+            review.
           </span>
         </div>
         <input
@@ -72,7 +76,7 @@ export function BrandExtractPanel({
       )}
       {proposal && (
         <div className="mt-1 flex flex-col gap-3 rounded-md border border-border bg-surface p-3">
-          <span className="eyebrow">Proposed — review before applying</span>
+          <span className="eyebrow">Proposed: review before applying</span>
           <div className="flex flex-wrap gap-2">
             {proposal.colors.map((c) => (
               <span key={`${c.hex}-${c.name}`} className="flex items-center gap-1.5">
@@ -108,7 +112,8 @@ export function BrandExtractPanel({
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Applying fills the fields below — review, then <strong>Save changes</strong> to persist.
+            Applying fills the fields below. Review them, then <strong>Save changes</strong> to
+            persist.
           </p>
         </div>
       )}
