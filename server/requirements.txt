@@ -5,13 +5,13 @@
 # Core (pinned to current-clean versions per OSV; see docs/AUDIT-2026-07.md SEC-05)
 fastapi==0.139.0  # pulls starlette >=1.x (clears the multipart-DoS advisories)
 uvicorn[standard]==0.24.0
-pymongo==4.6.3  # 4.6.3 fixes GHSA-m87m-mmvp-v9qm (BSON OOB read)
-motor==3.3.2
+pymongo==4.19.0  # >=4.18.2 fixes PYSEC-2026-4294..4297 (GridFS ID match, host parsing, BSON overflow)
+motor==3.7.1  # 3.6+ is required for pymongo >=4.9
 pydantic>=2.7,<3
 pydantic-settings>=2.3
 python-multipart==0.0.32  # clears the ReDoS + multipart-DoS advisories
 python-dotenv==1.2.2  # 1.2.2 fixes GHSA-mf9w-mj56-hr94
-pyjwt==2.13.0  # replaces the unmaintained python-jose (HS256 only; no crypto extra needed)
+pyjwt==2.15.1  # replaces python-jose (HS256 only); 2.15 fixes PYSEC-2026-4140..4152 + 4183
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 email-validator>=2.1
@@ -25,7 +25,10 @@ openai>=1.40
 # NOTE: chromadb has an unpatched pre-auth RCE (GHSA-f4j7-r4q5-qw2c, no fixed
 # release). Mitigated by binding the dev Chroma to loopback (docker-compose.yml);
 # revisit at deploy time (auth/network isolation) — see docs/AUDIT-2026-07.md.
-chromadb>=0.5
+# Pinned to the same version as the chromadb/chroma server image in
+# docker-compose.yml and .github/workflows/ci.yml: bump all three together.
+# Its advisories are allow-listed, with reasons, in the CI audit job.
+chromadb==1.5.9
 qdrant-client>=1.9
 langchain-text-splitters>=0.2
 pypdf>=4.2
