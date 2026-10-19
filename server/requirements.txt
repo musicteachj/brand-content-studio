@@ -38,7 +38,7 @@ Pillow>=12.3.0  # 12.3.0 fixes PYSEC-2026-2253..2257; also a pdfplumber transiti
 
 # Documents (Phase 2 — branded .docx + PDF + .pptx from one shared model; no soffice/native deps)
 python-docx>=1.1
-reportlab>=4.1
+reportlab>=5.0.1
 python-pptx>=0.6.23
 docxtpl>=0.16  # Jinja2-for-Word template fill (Phase 5); depends on python-docx
 
