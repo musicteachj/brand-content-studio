@@ -4,7 +4,7 @@
 -r requirements.txt
 
 # Exact pins: a new ruff/mypy release can add rules that fail CI on unchanged
-# code. Dependabot proposes upgrades as their own PRs, where new findings get fixed.
+# code. Upgrade them deliberately, in their own PR, and fix any new findings there.
 ruff==0.15.18
 mypy==2.1.0
 pytest==9.1.1
