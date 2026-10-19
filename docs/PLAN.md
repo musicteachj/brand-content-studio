@@ -128,7 +128,7 @@ Per `./aws_infrastructure_plan.md` Phase 3. CDK app: ECS Fargate service (FastAP
 
 ## Verification strategy
 
-Run `docker-compose up` + `npm run dev` for every phase. Every phase also passes the **quality gate**: `ruff` + `mypy` (server), `eslint` + `prettier` + `tsc --noEmit` (client) — wired into CI in the deploy phase (see [WORKFLOW.md](./WORKFLOW.md) §5).
+Run `docker-compose up` + `npm run dev` for every phase. Every phase also passes the **quality gate**: `ruff` + `mypy` (server), `eslint` + `prettier` + `tsc --noEmit` (client), all enforced in CI along with a Docker image boot test and a dependency audit (see [WORKFLOW.md](./WORKFLOW.md) §5).
 
 - **Phase 0:** `curl /api/health`; `python -m seed.seed_demo`; click "Explore as demo". pytest: `test_health`, `test_demo_login_returns_jwt`, `test_vector_store_factory_returns_chroma`.
 - **Phase 1a (pytest is the backbone of RAG confidence):**

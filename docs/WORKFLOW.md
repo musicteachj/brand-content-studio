@@ -105,7 +105,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 - **Fix loop:** fix every finding, or consciously accept it with a one-line reason in the PR; re-run the relevant review after material changes. Use `/code-review --fix` only with an eyeball of the applied diff; `/simplify` for pure cleanup, not bug-hunting.
 - **Paper trail:** record the outcome in the PR description (e.g. "code-review: 2 fixed; security-review: clean").
 - **Where reviews run:** on the local diff before the first push of a branch (you must push before opening its PR); they may be re-run on the PR.
-- **CI (deploy phase):** GitHub Actions runs the quality gate on every PR — `ruff` + `mypy` + `pytest` (server) and `eslint` + `prettier --check` + `tsc --noEmit` + build (client) — so the automated half stops depending on memory.
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every PR and push to `dev`/`main`, so the automated half stops depending on memory. Four jobs, all required checks on both branches: `client` (`eslint`, `prettier --check`, `tsc -b` + `vite build`, `vitest`), `server` (`ruff`, `mypy`, `pytest` against real Mongo + Chroma), `docker` (builds the production image, checks no `.env` was baked in, boots it against Mongo + Chroma and waits for its `HEALTHCHECK`), and `audit` (`pip-audit` + `npm audit`; advisories with no fixed release are allow-listed in the workflow with a reason). The `/code-review` + `/security-review` gate above stays manual.
 
 ---
 
@@ -120,7 +120,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
 - **Squash-merge** `feat/*` → `dev` to keep `dev` history readable; use a merge commit for `dev` → `main` so release points are visible.
-- **CI (added in the deploy phase):** run pytest + client build on every PR; later, build/push the Docker image on merge to `main`.
+- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5). No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Dependabot (`.github/dependabot.yml`) opens weekly update PRs against `dev`. Pushing the Docker image on merge to `main` comes with the deploy phase.
 
 ---
 

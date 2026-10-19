@@ -12,7 +12,8 @@ services:
       - mongo_data:/data/db
 
   chroma:
-    image: chromadb/chroma:latest
+    # Pinned to match chromadb in server/requirements.txt (and the CI services).
+    image: chromadb/chroma:1.5.9
     container_name: brand_content_chroma
     # Loopback-only, and non-negotiable: chromadb <=1.5.9 has an unpatched
     # pre-auth code-injection RCE (GHSA-f4j7-r4q5-qw2c) with no fixed release.
