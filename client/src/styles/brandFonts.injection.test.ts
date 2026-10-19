@@ -53,4 +53,75 @@ describe("brand font injection uses the CSSOM FontFace API (SEC-11)", () => {
     );
     expect(leaked).toBe(false);
   });
+
+  it("registers the bundled fallback bytes when a CDN face fails to load", async () => {
+    const calls: Captured[] = [];
+    class FailingCdnFace {
+      constructor(
+        public family: string,
+        public source: string | ArrayBuffer,
+      ) {
+        calls.push({ family, source });
+      }
+      load() {
+        return typeof this.source === "string" && this.source.includes("cdn.jsdelivr.net")
+          ? Promise.reject(new Error("404"))
+          : Promise.resolve(this);
+      }
+    }
+    vi.stubGlobal("FontFace", FailingCdnFace);
+    // The family isn't on the CDN at any weight; the bundled asset is.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("cdn.jsdelivr.net")
+          ? { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) }
+          : { ok: true, arrayBuffer: async () => new Uint8Array([7]).buffer },
+      ),
+    );
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { add: vi.fn(), delete: vi.fn() },
+    });
+
+    injectFontFace("Nowhere Grotesk");
+    await vi.waitFor(() => expect(calls.length).toBe(2));
+    expect(calls[1].family).toBe("Nowhere Grotesk");
+    expect(calls[1].source).toBeInstanceOf(ArrayBuffer);
+  });
+
+  it("retries a CDN face after a transient failure instead of falling back", async () => {
+    const calls: Captured[] = [];
+    class FailingFace {
+      constructor(
+        public family: string,
+        public source: string | ArrayBuffer,
+      ) {
+        calls.push({ family, source });
+      }
+      load() {
+        return Promise.reject(new Error("network down"));
+      }
+    }
+    vi.stubGlobal("FontFace", FailingFace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("network down");
+      }),
+    );
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { add: vi.fn(), delete: vi.fn() },
+    });
+
+    injectFontFace("Blip Sans");
+    await vi.waitFor(() =>
+      expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(calls.every((c) => typeof c.source === "string")).toBe(true);
+    injectFontFace("Blip Sans");
+    expect(calls.length).toBe(2);
+  });
 });

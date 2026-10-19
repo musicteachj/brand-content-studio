@@ -3,7 +3,12 @@
 // the preview reads like the file (preview == file). Brand colors arrive as data
 // (inline styles, like the card preview); app chrome never leaks in (DESIGN §7).
 import { useEffect } from "react";
-import { bodyFamily, headingFamily, injectBrandFontFaces } from "@/styles/brandFonts";
+import {
+  bodyFamily,
+  DOCUMENT_DEFAULT_FAMILY,
+  headingFamily,
+  injectBrandFontFaces,
+} from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import type { BrandProfile, DocumentModel } from "@/types";
 import { documentColors } from "./documentColors";
@@ -18,8 +23,8 @@ interface Props {
 
 export function DocumentPage({ document: doc, brand, compact = false, className }: Props) {
   const colors = documentColors(brand);
-  const heading = headingFamily(brand.fonts);
-  const body = bodyFamily(brand.fonts);
+  const heading = headingFamily(brand.fonts, DOCUMENT_DEFAULT_FAMILY);
+  const body = bodyFamily(brand.fonts, DOCUMENT_DEFAULT_FAMILY);
 
   // Load the workspace @font-face so the paper renders in brand type, not the app's.
   useEffect(() => {

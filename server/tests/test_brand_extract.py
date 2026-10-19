@@ -17,6 +17,7 @@ from app.main import app
 from app.models.common import BrandColor, BrandFonts, utcnow
 from app.models.user import UserInDB
 from app.models.workspace import BrandExtractResponse
+from app.prompts.brand_extract import BRAND_EXTRACT_TOOL
 from app.services.brand_extract_service import (
     BrandExtractService,
     build_extract_response,
@@ -73,6 +74,65 @@ def test_build_extract_response_falls_back_to_detected_palette():
     out = build_extract_response(["#112233"], {"colors": [], "voice_summary": "v", "fonts": {}})
     assert out.colors == [BrandColor(name="#112233", hex="#112233", role="primary")]
     assert out.voice_summary == "v"
+
+
+def test_build_extract_response_maps_fonts_onto_the_curated_list():
+    # QA-14: the model returned style descriptions ("Clean sans-serif"); stored as
+    # brand fonts they broke card export. Only curated families survive, and they
+    # come back in their canonical spelling.
+    out = build_extract_response(
+        ["#142846"],
+        {
+            "colors": [],
+            "voice_summary": "",
+            "fonts": {
+                "heading": "Classic serif (e.g. Freight Display or similar old-style serif)",
+                "body": "inter",
+                "mono": "JETBRAINS MONO",
+            },
+        },
+    )
+    assert out.fonts == BrandFonts(heading=None, body="Inter", mono="JetBrains Mono")
+
+
+def test_build_extract_response_keeps_role_categories_apart():
+    # A mono family isn't a heading/body choice, and vice versa.
+    out = build_extract_response(
+        [], {"colors": [], "voice_summary": "", "fonts": {"heading": "IBM Plex Mono", "body": "", "mono": "Lora"}}
+    )
+    assert out.fonts == BrandFonts(heading=None, body=None, mono=None)
+
+
+def test_build_extract_response_skips_colors_with_an_invalid_hex():
+    # R6: one malformed hex used to raise and lose the whole proposal (500).
+    out = build_extract_response(
+        ["#112233"],
+        {
+            "colors": [
+                {"name": "No hash", "hex": "1C3A2E", "role": "primary"},
+                {"name": "Clay", "hex": "#C8643B", "role": "accent"},
+            ],
+            "voice_summary": "",
+            "fonts": {},
+        },
+    )
+    assert out.colors == [BrandColor(name="Clay", hex="#C8643B", role="accent")]
+
+
+def test_build_extract_response_all_invalid_hexes_fall_back_to_detected():
+    out = build_extract_response(
+        ["#112233"], {"colors": [{"name": "Bad", "hex": "#12", "role": "primary"}], "voice_summary": "", "fonts": {}}
+    )
+    assert out.colors == [BrandColor(name="#112233", hex="#112233", role="primary")]
+
+
+def test_extract_tool_restricts_fonts_to_curated_families():
+    fonts = BRAND_EXTRACT_TOOL["input_schema"]["properties"]["fonts"]["properties"]
+    assert "" in fonts["heading"]["enum"]
+    assert set(fonts["heading"]["enum"]) == set(fonts["body"]["enum"])
+    assert {"Fraunces", "Inter", "Lora"} <= set(fonts["heading"]["enum"])
+    assert "JetBrains Mono" not in fonts["heading"]["enum"]
+    assert set(fonts["mono"]["enum"]) == {"", "JetBrains Mono", "IBM Plex Mono"}
 
 
 # --- Route (vision service faked) ------------------------------------------

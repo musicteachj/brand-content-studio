@@ -3,7 +3,12 @@
 // in the workspace's own colors and fonts (never Folio chrome, DESIGN §7).
 // `compact` renders the title slide only, for History thumbnails.
 import { useEffect, type ReactNode } from "react";
-import { bodyFamily, headingFamily, injectBrandFontFaces } from "@/styles/brandFonts";
+import {
+  bodyFamily,
+  DOCUMENT_DEFAULT_FAMILY,
+  headingFamily,
+  injectBrandFontFaces,
+} from "@/styles/brandFonts";
 import { cn } from "@/lib/utils";
 import type { BrandProfile, DocumentModel } from "@/types";
 import { documentColors } from "./documentColors";
@@ -42,8 +47,8 @@ interface Props {
 
 export function DeckPreview({ document: doc, brand, compact = false, className }: Props) {
   const colors = documentColors(brand);
-  const heading = headingFamily(brand.fonts);
-  const body = bodyFamily(brand.fonts);
+  const heading = headingFamily(brand.fonts, DOCUMENT_DEFAULT_FAMILY);
+  const body = bodyFamily(brand.fonts, DOCUMENT_DEFAULT_FAMILY);
 
   useEffect(() => {
     injectBrandFontFaces(brand.fonts, brand.uploaded_fonts ?? []);

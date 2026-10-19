@@ -78,6 +78,22 @@ describe("proposalToForm (Phase 4c)", () => {
     expect(out.voice_summary).toBe("");
   });
 
+  it("keeps only catalog fonts, in canonical spelling (QA-14)", () => {
+    const out = proposalToForm({
+      ...PROPOSAL,
+      fonts: { heading: "Classic serif (e.g. Freight Display)", body: "inter", mono: null },
+    });
+    expect(out.fonts).toEqual({ heading: "", body: "Inter", mono: "" });
+  });
+
+  it("keeps each role to its own font categories", () => {
+    const out = proposalToForm({
+      ...PROPOSAL,
+      fonts: { heading: "JetBrains Mono", body: "Inter", mono: "Lora" },
+    });
+    expect(out.fonts).toEqual({ heading: "", body: "Inter", mono: "" });
+  });
+
   it("produces a form patch the schema accepts", () => {
     const base = toForm(makeBrandProfile());
     const merged = { ...base, ...proposalToForm(PROPOSAL), accent_hex: "" };
@@ -96,13 +112,13 @@ describe("proposalToForm font snapping", () => {
     expect(form.fonts.body).toBe("Playfair Display");
   });
 
-  it("keeps an unknown proposed font as-is (preserved as a current option)", () => {
+  it("drops an unknown proposed font rather than applying it (DECISIONS #34)", () => {
     const form = proposalToForm({
       colors: [],
       voice_summary: null,
       fonts: { heading: "Some Custom Face", body: null, mono: null },
     });
-    expect(form.fonts.heading).toBe("Some Custom Face");
-    expect(findCatalogFamily(form.fonts.heading)).toBeNull();
+    expect(form.fonts.heading).toBe("");
+    expect(findCatalogFamily("Some Custom Face")).toBeNull();
   });
 });

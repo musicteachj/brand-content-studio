@@ -12,12 +12,14 @@ retrieved <brand_context>, so no injection surface to defend.
 """
 from __future__ import annotations
 
+from app.services.brand_fonts import CURATED_MONO_FAMILIES, CURATED_TEXT_FAMILIES
+
 _EXTRACT_SYSTEM = """You are a brand designer. You are shown a single image — a brand logo, or a page from a brand's visual guidelines — and you infer a starting brand profile by calling the provided tool.
 
 Rules:
 - Colors: you are given the exact dominant colors detected in the image. Use those hex values verbatim; do not invent new hexes. Give each a short human name and assign a role (primary / secondary / neutral / accent). Drop near-duplicates and obviously incidental colors (e.g. JPEG artifacts). Prefer 3-5 meaningful brand colors.
 - Voice summary: only describe a brand voice you can actually justify from visible text, taglines, or the design's tone. If the image is just a logo with no copy, keep it short and tentative (or empty) — do not fabricate a detailed voice.
-- Fonts: name the typefaces only if you can identify them with reasonable confidence; otherwise leave the field empty. Never guess a specific font name you are not fairly sure of.
+- Fonts: choose from the allowed families only (the tool lists them). Pick the family closest in style to the typography you see, for example a classic serif heading or a clean sans body. Leave a field empty if the image shows no text for that role.
 - This is a proposal a human will review and edit — be accurate and conservative, not imaginative."""
 
 
@@ -32,7 +34,7 @@ def build_extract_user(detected_hexes: list[str]) -> str:
             "Infer a starting brand profile from the attached image.",
             f"Exact dominant colors detected in the image (use these hex values verbatim): {detected}",
             "",
-            "Call the brand_profile tool with named, role-assigned colors, a justified voice summary, and font names only where you are confident.",
+            "Call the brand_profile tool with named, role-assigned colors, a justified voice summary, and the closest allowed font families (or empty).",
         ]
     )
 
@@ -72,9 +74,21 @@ BRAND_EXTRACT_TOOL = {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "heading": {"type": "string", "description": "Heading typeface, or empty if unsure."},
-                    "body": {"type": "string", "description": "Body typeface, or empty if unsure."},
-                    "mono": {"type": "string", "description": "Mono typeface, or empty if unsure."},
+                    "heading": {
+                        "type": "string",
+                        "enum": ["", *CURATED_TEXT_FAMILIES],
+                        "description": "Closest allowed heading family, or empty.",
+                    },
+                    "body": {
+                        "type": "string",
+                        "enum": ["", *CURATED_TEXT_FAMILIES],
+                        "description": "Closest allowed body family, or empty.",
+                    },
+                    "mono": {
+                        "type": "string",
+                        "enum": ["", *CURATED_MONO_FAMILIES],
+                        "description": "Closest allowed mono family, or empty.",
+                    },
                 },
                 "required": ["heading", "body", "mono"],
             },
