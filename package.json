@@ -20,6 +20,6 @@
     "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
-    "concurrently": "^8.2.0"
+    "concurrently": "^10.0.6"
   }
 }
