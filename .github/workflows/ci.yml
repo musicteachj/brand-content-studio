@@ -79,8 +79,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Chroma client and server versions match
-        # The chromadb pin and the chromadb/chroma image tags must move together.
-        # Dependabot only bumps the pin, so fail its PR until the tags follow.
+        # The chromadb pin and the chromadb/chroma image tags must move together,
+        # so fail if one is bumped without the others.
         working-directory: .
         run: |
           client=$(sed -n 's/^chromadb==\([^ ]*\).*/\1/p' server/requirements.txt)
@@ -128,8 +128,8 @@ jobs:
           - 8001:8000
     steps:
       - uses: actions/checkout@v4
-      # Third-party actions are pinned to a commit SHA (a tag can be moved);
-      # Dependabot's github-actions updates keep the SHA and comment current.
+      # Third-party actions are pinned to a commit SHA (a tag can be moved).
+      # When upgrading, update the SHA and the version comment together.
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:

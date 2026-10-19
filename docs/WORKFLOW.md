@@ -120,7 +120,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
 - **Squash-merge** `feat/*` → `dev` to keep `dev` history readable; use a merge commit for `dev` → `main` so release points are visible.
-- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5). No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Dependabot (`.github/dependabot.yml`) opens weekly update PRs against `dev`. Pushing the Docker image on merge to `main` comes with the deploy phase.
+- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5). No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Pushing the Docker image on merge to `main` comes with the deploy phase.
 
 ---
 
