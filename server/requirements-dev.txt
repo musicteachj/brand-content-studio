@@ -5,7 +5,7 @@
 
 # Exact pins: a new ruff/mypy release can add rules that fail CI on unchanged
 # code. Dependabot proposes upgrades as their own PRs, where new findings get fixed.
-ruff==0.15.18
-mypy==2.1.0
+ruff==0.17.1
+mypy==2.4.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
