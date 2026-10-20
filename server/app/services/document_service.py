@@ -1,14 +1,14 @@
 """Document rendering (Phase 2).
 
-One shared structured `DocumentModel` (a dict at this layer — it round-trips
+One shared structured `DocumentModel` (a dict at this layer; it round-trips
 through Mongo) is rendered **independently** into each format: python-docx for
 `.docx`, ReportLab for the PDF. There is no docx→PDF conversion and no headless
-office/browser dependency — "matching" means both formats are built from the
+office/browser dependency: "matching" means both formats are built from the
 same model with the same brand colors and fonts, so they agree by construction.
 
 Brand styling: titles/headings take the workspace's primary brand color, the
 eyebrow takes its accent, body text stays a readable dark. Fonts come from
-`brand_profile.fonts` — the .docx references them by name; the PDF embeds the
+`brand_profile.fonts`: the .docx references them by name; the PDF embeds the
 real TTF when one is available locally (see `brand_fonts`), else falls back to a
 serif/sans base font. App (Folio) fonts/colors never leak in (DESIGN §7).
 
@@ -43,11 +43,14 @@ MAX_SECTIONS = 4
 MAX_BULLETS = 6
 _LIMITS = {"title": 200, "eyebrow": 80, "lede": 600, "footer": 200, "heading": 160, "body": 1200, "bullet": 200}
 
-# Neutral document ink — the brand signal is the title/heading/accent colors +
+# Neutral document ink: the brand signal is the title/heading/accent colors +
 # the brand fonts, not the body text color.
 _INK = "#1A1D21"
 _MUTED = "#6C737A"
 _FALLBACK_PRIMARY = "#1A1D21"
+
+# Smaller PDF type scales tried in order when a one-pager runs past one page.
+_ONE_PAGER_SCALES = (0.94, 0.88, 0.82)
 
 # Track TTFs already registered with ReportLab (registering twice raises).
 _REGISTERED: set[str] = set()
@@ -62,7 +65,7 @@ def _clip(value: object, limit: int) -> str:
 
 def build_document_output(archetype: str, extracted: dict) -> dict:
     """Shape a tool-use result into the persisted document `output`. `formats` is
-    empty here — the files are built and their keys attached after the generation
+    empty here: the files are built and their keys attached after the generation
     id exists (the storage key is derived from it)."""
     sections: list[dict] = []
     for raw in (extracted.get("sections") or [])[:MAX_SECTIONS]:
@@ -151,7 +154,7 @@ def _register_pdf_font(
             pdfmetrics.registerFont(TTFont(name, src))
             _REGISTERED.add(name)
             return name
-        except Exception:  # noqa: BLE001, S110 — a bad font file must not break rendering
+        except Exception:  # noqa: BLE001, S110  # a bad font file must not break rendering
             pass
     if role == "heading":
         return "Times-Bold" if is_serif(family) else "Helvetica-Bold"
@@ -217,46 +220,70 @@ def render_pdf(
     ink = _pdf_color(colors["ink"], _INK)
     muted = _pdf_color(colors["muted"], _MUTED)
 
-    eyebrow_style = ParagraphStyle("eyebrow", fontName=body_font, fontSize=9, textColor=accent, leading=12, spaceAfter=4)
-    title_style = ParagraphStyle("title", fontName=heading_font, fontSize=26, textColor=primary, leading=30, spaceAfter=8)
-    lede_style = ParagraphStyle("lede", fontName=body_font, fontSize=13, textColor=ink, leading=18, spaceAfter=16)
-    heading_style = ParagraphStyle("heading", fontName=heading_font, fontSize=15, textColor=primary, leading=18, spaceBefore=10, spaceAfter=4)
-    body_style = ParagraphStyle("body", fontName=body_font, fontSize=11, textColor=ink, leading=16, spaceAfter=6)
-    bullet_style = ParagraphStyle("bullet", fontName=body_font, fontSize=11, textColor=ink, leading=15, leftIndent=16, spaceAfter=3)
-    footer_style = ParagraphStyle("footer", fontName=body_font, fontSize=9, textColor=muted, leading=12, spaceBefore=20)
+    def build(scale: float) -> tuple[bytes, int]:
+        def style(name: str, font: str, size: float, color: HexColor, leading: float, **space: float) -> ParagraphStyle:
+            return ParagraphStyle(
+                name,
+                fontName=font,
+                fontSize=size * scale,
+                textColor=color,
+                leading=leading * scale,
+                **{k: v * scale for k, v in space.items()},
+            )
 
-    flow: list = []
-    if document.get("eyebrow"):
-        flow.append(Paragraph(escape(document["eyebrow"].upper()), eyebrow_style))
-    if document.get("title"):
-        flow.append(Paragraph(escape(document["title"]), title_style))
-    if document.get("lede"):
-        flow.append(Paragraph(escape(document["lede"]), lede_style))
-    for section in document.get("sections") or []:
-        if section.get("heading"):
-            flow.append(Paragraph(escape(section["heading"]), heading_style))
-        if section.get("body"):
-            flow.append(Paragraph(escape(section["body"]), body_style))
-        for bullet in section.get("bullets") or []:
-            text = str(bullet).strip()
-            if text:
-                flow.append(Paragraph("•  " + escape(text), bullet_style))
-    if document.get("footer"):
-        flow.append(Paragraph(escape(document["footer"]), footer_style))
-    if not flow:
-        flow.append(Spacer(1, 1))
+        eyebrow_style = style("eyebrow", body_font, 9, accent, 12, spaceAfter=4)
+        title_style = style("title", heading_font, 26, primary, 30, spaceAfter=8)
+        lede_style = style("lede", body_font, 13, ink, 18, spaceAfter=16)
+        heading_style = style("heading", heading_font, 15, primary, 18, spaceBefore=10, spaceAfter=4)
+        body_style = style("body", body_font, 11, ink, 16, spaceAfter=6)
+        bullet_style = style("bullet", body_font, 11, ink, 15, leftIndent=16, spaceAfter=3)
+        footer_style = style("footer", body_font, 9, muted, 12, spaceBefore=20)
 
-    buf = BytesIO()
-    SimpleDocTemplate(
-        buf,
-        pagesize=LETTER,
-        topMargin=0.9 * inch,
-        bottomMargin=0.9 * inch,
-        leftMargin=1.0 * inch,
-        rightMargin=1.0 * inch,
-        title=document.get("title") or "Document",
-    ).build(flow)
-    return buf.getvalue()
+        flow: list = []
+        if document.get("eyebrow"):
+            flow.append(Paragraph(escape(document["eyebrow"].upper()), eyebrow_style))
+        if document.get("title"):
+            flow.append(Paragraph(escape(document["title"]), title_style))
+        if document.get("lede"):
+            flow.append(Paragraph(escape(document["lede"]), lede_style))
+        for section in document.get("sections") or []:
+            if section.get("heading"):
+                flow.append(Paragraph(escape(section["heading"]), heading_style))
+            if section.get("body"):
+                flow.append(Paragraph(escape(section["body"]), body_style))
+            for bullet in section.get("bullets") or []:
+                text = str(bullet).strip()
+                if text:
+                    flow.append(Paragraph("•  " + escape(text), bullet_style))
+        if document.get("footer"):
+            flow.append(Paragraph(escape(document["footer"]), footer_style))
+        if not flow:
+            flow.append(Spacer(1, 1))
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(
+            buf,
+            pagesize=LETTER,
+            topMargin=0.9 * inch,
+            bottomMargin=0.9 * inch,
+            leftMargin=1.0 * inch,
+            rightMargin=1.0 * inch,
+            title=document.get("title") or "Document",
+        )
+        doc.build(flow)
+        return buf.getvalue(), doc.page
+
+    # A one-pager is promised as a single page (QA-09): if the copy runs long, set
+    # it a step smaller until it fits, down to a still-readable floor (body ~9pt).
+    # If even that spills over, smaller type gains nothing: keep the full size.
+    full, pages = build(1.0)
+    if pages <= 1 or document.get("archetype") != DocumentArchetype.one_pager.value:
+        return full
+    for scale in _ONE_PAGER_SCALES:
+        pdf, pages = build(scale)
+        if pages <= 1:
+            return pdf
+    return full
 
 
 def _pptx_rgb(value: str, default: str) -> PptxRGBColor:
@@ -300,7 +327,7 @@ def render_pptx(document: dict, brand_profile: dict) -> bytes:
         box.text_frame.word_wrap = True
         return box.text_frame
 
-    # Title slide — title + eyebrow + lede.
+    # Title slide: title + eyebrow + lede.
     tf = new_box(2.2, 3.1)
     add_line(tf, document.get("eyebrow"), font=body_font, size=16, color=accent, bold=True, upper=True)
     add_line(tf, document.get("title") or "Untitled", font=heading_font, size=40, color=primary, bold=True, space_before=6)
@@ -316,7 +343,7 @@ def render_pptx(document: dict, brand_profile: dict) -> bytes:
             if text:
                 add_line(tf, f"•  {text}", font=body_font, size=18, color=ink, space_before=6)
 
-    # Closing slide — the footer line, centered.
+    # Closing slide: the footer line, centered.
     if document.get("footer"):
         tf = new_box(3.2, 1.3)
         para = add_line(tf, document["footer"], font=heading_font, size=24, color=primary, bold=True)

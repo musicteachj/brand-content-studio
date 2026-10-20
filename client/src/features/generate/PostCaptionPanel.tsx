@@ -1,6 +1,6 @@
 // The post caption half of the "LinkedIn Post" objective. The caption streams in
 // live (the typing effect, with aria-live), then becomes an editable textarea you
-// can tweak and copy — the copy you paste into LinkedIn alongside the card. Edits
+// can tweak and copy: the copy you paste into LinkedIn alongside the card. Edits
 // are local (paste-ready); they are not persisted back to the generation.
 import { useState } from "react";
 import { Check, Copy, Type } from "lucide-react";
@@ -35,7 +35,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
 
       {status === "idle" && (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          Your LinkedIn caption will appear here — the copy to post with the card.
+          Your LinkedIn caption will appear here: the copy to post with the card.
         </p>
       )}
 

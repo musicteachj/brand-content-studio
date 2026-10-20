@@ -20,8 +20,8 @@ export function DashboardPage() {
           Welcome back, {firstName}.
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          The scaffold is live. Ingest brand assets, then generate on-brand LinkedIn posts and cards
-          from the retrieved corpus.
+          Ingest brand assets, then generate on-brand LinkedIn posts, cards, and documents from the
+          retrieved corpus.
         </p>
       </header>
 
@@ -65,7 +65,7 @@ export function DashboardPage() {
             <StatCard
               label="Generations"
               value={String(generationCount ?? 0)}
-              hint="Posts + cards"
+              hint="Posts, cards, and documents"
             />
           </div>
 

@@ -31,7 +31,7 @@ interface Props {
   onStop: () => void;
 }
 
-/** A numbered step marker — completed steps show a check, the current step is
+/** A numbered step marker: completed steps show a check, the current step is
  *  outlined in accent. Reuses Folio's mono eyebrow style so the card flow reads as
  *  a guided sequence without a heavyweight wizard (DESIGN §4). */
 function StepHeader({
@@ -82,6 +82,8 @@ export function CardControlsPanel({
   const templateOk = template !== null;
   const briefOk = brief.trim().length >= 3;
   const canGenerate = briefOk && templateOk && !isStreaming;
+  // A ready brief with no layout: say why Generate is disabled (QA-08).
+  const needsLayout = briefOk && !templateOk && !isStreaming;
 
   return (
     <div className="flex flex-col gap-6 rounded-lg border border-border bg-surface p-5 shadow-light">
@@ -113,7 +115,7 @@ export function CardControlsPanel({
       <div>
         <StepHeader n={1} label="Template" done={templateOk} active={!templateOk} />
         <p className="mb-2.5 mt-2 text-xs text-muted-foreground">
-          Pick a layout — this is the card you’ll generate.
+          Pick a layout. This is the card you’ll generate.
         </p>
         <TemplatePicker
           brand={brand}
@@ -157,15 +159,27 @@ export function CardControlsPanel({
             Stop
           </Button>
         ) : (
-          <Button className="w-full" onClick={onGenerate} disabled={!canGenerate}>
+          <Button
+            className="w-full"
+            onClick={onGenerate}
+            disabled={!canGenerate}
+            aria-describedby={needsLayout ? "card-layout-hint" : undefined}
+          >
             <Sparkles className="h-4 w-4" aria-hidden />
             {hasGenerated ? "Regenerate card" : "Generate card"}
           </Button>
         )}
-        {!hasGenerated && !isStreaming && (
-          <p className="mt-2.5 text-center text-xs text-muted-foreground">
-            Then add an image and export — on the card to the right.
+        {needsLayout ? (
+          <p id="card-layout-hint" className="mt-2.5 text-center text-xs text-muted-foreground">
+            Pick a layout above to generate.
           </p>
+        ) : (
+          !hasGenerated &&
+          !isStreaming && (
+            <p className="mt-2.5 text-center text-xs text-muted-foreground">
+              Then add an image and export it, on the card to the right.
+            </p>
+          )
         )}
       </div>
     </div>

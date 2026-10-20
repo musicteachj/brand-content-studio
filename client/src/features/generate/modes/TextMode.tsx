@@ -67,7 +67,7 @@ function PostOutput({
             </span>
             <p className="mt-4 text-sm font-medium text-foreground">Your post will appear here</p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              Enter a brief and generate — tokens stream in live, on-brand.
+              Enter a brief and generate. Tokens stream in live, on-brand.
             </p>
           </div>
         )}

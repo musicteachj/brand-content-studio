@@ -157,7 +157,8 @@ async def ai_fill_template(
         template_fill.build_fill_user(payload.brief, placeholders),
         tool,
     )
-    return TemplateAiFillResponse(values=template_service.clamp_values(result, placeholders))
+    values = template_service.clamp_values(result, placeholders)
+    return TemplateAiFillResponse(values=template_service.scrub_ai_values(values))
 
 
 @router.post("/{template_id}/fill-from-document", response_model=TemplateAiFillResponse)
@@ -207,7 +208,8 @@ async def fill_template_from_document(
         template_fill.build_fill_user_from_content(content, placeholders),
         tool,
     )
-    return TemplateAiFillResponse(values=template_service.clamp_values(result, placeholders))
+    values = template_service.clamp_values(result, placeholders)
+    return TemplateAiFillResponse(values=template_service.scrub_ai_values(values))
 
 
 @router.post("/{template_id}/render")

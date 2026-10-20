@@ -9,7 +9,7 @@ export function DemoNotice({ message }: { message?: string }) {
       <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       <p className="text-sm text-muted-foreground">
         {message ??
-          "You're exploring as a demo — this area is read-only so the seeded Verdure workspace stays intact. Generating posts, cards, and documents still works."}
+          "You're exploring as a demo, so this area is read-only to keep the seeded Verdure workspace intact. Generating posts, cards, and documents still works."}
       </p>
     </div>
   );

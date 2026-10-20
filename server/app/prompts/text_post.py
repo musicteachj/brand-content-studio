@@ -2,7 +2,7 @@
 
 Retrieved brand chunks are wrapped in a delimited <brand_context> block and the
 system prompt instructs Claude to treat their contents as brand *material to
-emulate*, never as instructions — ingested brand docs are untrusted input
+emulate*, never as instructions: ingested brand docs are untrusted input
 (ARCHITECTURE §5, gotcha #9). The voice summary (a trusted, owner-authored
 field) goes in the system header.
 """
@@ -30,6 +30,7 @@ _SYSTEM_BASE = """You are a senior brand ghostwriter. You write LinkedIn posts t
 
 Rules:
 - Write ONE post. Return only the post text (and its hashtags). No preamble, no "Here's your post", no surrounding quotes or markdown headings.
+- Plain text only: LinkedIn shows Markdown literally, so never use bold or italic markers (**like this**, __this__, *this*). For emphasis, rely on line breaks and word choice.
 - Open with a hook that is a fact or a tension, not a question. Close with a quiet call to think or act, never a hard sell.
 - Match the brand's evidence-led style: anchor claims to specifics from the brand material. Never invent statistics, project names, or facts that are not supported by the provided brand context.
 - End with 3–5 relevant, professional hashtags on their own final line.

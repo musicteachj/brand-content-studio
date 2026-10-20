@@ -79,3 +79,23 @@ describe("CardControlsPanel presets", () => {
     expect(onApplyPreset).toHaveBeenCalledWith(PRESET);
   });
 });
+
+// QA-08: Generate stayed disabled after a brief with no layout, and never said why.
+describe("CardControlsPanel layout hint", () => {
+  const generateButton = () =>
+    [...container.querySelectorAll("button")].find((b) =>
+      /generate card/i.test(b.textContent ?? ""),
+    );
+
+  it("says to pick a layout when the brief is ready but no layout is chosen", () => {
+    mount({ brief: "Why hempcrete", template: null });
+    expect(generateButton()?.disabled).toBe(true);
+    expect(container.textContent).toContain("Pick a layout above to generate.");
+  });
+
+  it("drops the hint once a layout is chosen", () => {
+    mount({ brief: "Why hempcrete", template: "quote" });
+    expect(generateButton()?.disabled).toBe(false);
+    expect(container.textContent).not.toContain("Pick a layout above");
+  });
+});

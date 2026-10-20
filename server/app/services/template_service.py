@@ -108,6 +108,16 @@ def clamp_values(values: dict[str, str], placeholders: list[str]) -> dict[str, s
     }
 
 
+# Whole-value placeholders a model writes for "I don't know" (QA-11).
+_PLACEHOLDER_RE = re.compile(r"^\s*(<[^<>]*>|\[[^\[\]]*\]|tbd)\s*$", re.IGNORECASE)
+
+
+def scrub_ai_values(values: dict[str, str]) -> dict[str, str]:
+    """Blank AI-drafted values that are only a placeholder (`<UNKNOWN>`,
+    `[Client name]`, `TBD`), so the field renders empty instead."""
+    return {k: "" if _PLACEHOLDER_RE.match(v or "") else v for k, v in values.items()}
+
+
 def render(data: bytes, values: dict[str, str], fmt: str) -> bytes:
     assert_safe_ooxml(data)
     return _fill_docx(data, values) if fmt == "docx" else _fill_pptx(data, values)

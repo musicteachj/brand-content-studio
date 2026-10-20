@@ -16,7 +16,7 @@ export function LoginPage() {
 }
 
 /* Left: the product story. The tilted "card" hints at the hero output without
-   shouting — a quiet preview on the preview-bg surround (DESIGN.md §0). */
+   shouting: a quiet preview on the preview-bg surround (DESIGN.md §0). */
 function BrandPanel() {
   return (
     <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-preview-bg px-12 py-10 lg:flex">
@@ -25,7 +25,7 @@ function BrandPanel() {
       <div className="max-w-md animate-fade-in-up" style={{ animationDelay: "60ms" }}>
         <p className="eyebrow text-[11px]">Retrieval-augmented · on-brand</p>
         <h1 className="mt-5 text-[2.5rem] font-semibold leading-[1.08] tracking-display text-foreground">
-          Your brand’s voice, retrieved — not invented.
+          Your brand’s voice. Retrieved, not invented.
         </h1>
         <p className="mt-5 text-[15px] leading-relaxed text-muted-foreground">
           Folio ingests a brand’s guidelines and past posts, then retrieves the relevant pieces at
@@ -39,8 +39,8 @@ function BrandPanel() {
       >
         <p className="eyebrow">Verdure Materials · retrieved 6 sources</p>
         <p className="mt-3 text-[15px] leading-relaxed text-foreground">
-          Hempcrete sequesters ~110&nbsp;kg of CO₂ per cubic meter. That’s not an offset we bought —
-          it’s carbon locked into the wall for the life of the building.
+          Hempcrete sequesters ~110&nbsp;kg of CO₂ per cubic meter. That’s not an offset we bought.
+          It’s carbon locked into the wall for the life of the building.
         </p>
         <div className="mt-4 flex items-center gap-2 eyebrow">
           <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />

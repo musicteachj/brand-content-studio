@@ -22,7 +22,7 @@ const THEMES: { value: ThemePref; label: string; icon: LucideIcon }[] = [
 
 /** Quiet Settings page (Phase 1.5): appearance (theme + the optional workspace
  *  brand-color UI tint) and a read-only view of the active workspace's brand
- *  identity. Intentionally minimal — no account or destructive controls. */
+ *  identity. Intentionally minimal: no account or destructive controls. */
 export function SettingsPage() {
   const { workspace } = useActiveWorkspace();
   const theme = useSettingsStore((s) => s.theme);
@@ -54,7 +54,7 @@ export function SettingsPage() {
       </header>
 
       {isDemo && (
-        <DemoNotice message="You're exploring as a demo — workspace management, brand identity, and example cards are read-only so the seeded Verdure workspace stays intact. Theme and appearance still work, and you can still generate posts, cards, and documents." />
+        <DemoNotice message="You're exploring as a demo, so workspace management, brand identity, and example cards are read-only to keep the seeded Verdure workspace intact. Theme and appearance still work, and you can still generate posts, cards, and documents." />
       )}
 
       <Section title="Theme" hint="Light is the studio default; pick what suits you.">
@@ -90,7 +90,7 @@ export function SettingsPage() {
 
       <Section
         title="Brand color tint"
-        hint="Tint active nav and selected states with the workspace’s primary brand color. Cosmetic only — it never changes status colors."
+        hint="Tint active nav and selected states with the workspace’s primary brand color. Cosmetic only: it never changes status colors."
       >
         <div className="flex items-center gap-3">
           <Toggle
@@ -122,7 +122,7 @@ export function SettingsPage() {
       {workspace && (
         <Section
           title="Brand identity"
-          hint={`The palette, fonts, voice, and logo for ${workspace.name}. These drive generated cards — not the app chrome.`}
+          hint={`The palette, fonts, voice, and logo for ${workspace.name}. These drive generated cards, not the app chrome.`}
         >
           <BrandIdentityEditor workspace={workspace} />
         </Section>
@@ -131,7 +131,7 @@ export function SettingsPage() {
       {workspace && (
         <Section
           title="Example cards"
-          hint="Teach the studio your card style by example — uploads steer generated copy."
+          hint="Teach the studio your card style by example: uploads steer generated copy."
         >
           <ExemplarsSection workspace={workspace} />
         </Section>

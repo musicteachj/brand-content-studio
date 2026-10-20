@@ -49,7 +49,7 @@ export function DocumentPreview({
           </span>
           <p className="mt-4 text-sm font-medium text-foreground">Your document will appear here</p>
           <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-            Enter a brief and generate — it drafts live, then downloads as branded, on-brand files.
+            Enter a brief and generate. It drafts live, then downloads as branded files.
           </p>
         </div>
       )}

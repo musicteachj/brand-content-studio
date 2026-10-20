@@ -14,8 +14,16 @@ const TONES: { value: Tone; label: string }[] = [
 ];
 
 const ARCHETYPES: { value: DocumentArchetype; label: string; hint: string }[] = [
-  { value: "one-pager", label: "One-pager", hint: "A single-page brand document — .docx + PDF." },
-  { value: "short-deck", label: "Short deck", hint: "A tight title + content-slide deck — .pptx." },
+  {
+    value: "one-pager",
+    label: "One-pager",
+    hint: "A single-page brand document, as .docx and PDF.",
+  },
+  {
+    value: "short-deck",
+    label: "Short deck",
+    hint: "A tight deck of title and content slides, as .pptx.",
+  },
 ];
 
 interface Props {
