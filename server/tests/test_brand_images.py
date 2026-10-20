@@ -197,6 +197,60 @@ async def test_delete_brand_image_pulls_and_removes_bytes(bi_client):
         await get_storage().read(img["storage_key"])
 
 
+# A card picked from the library stores the brand image's own storage_key (the
+# picker doesn't copy the file), so deleting the bytes broke that card's picture.
+def _card_output(key: str) -> dict:
+    return {"image": {"source": "upload", "url": "/u", "storage_key": key}}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("gen_type", "output"),
+    [("card", _card_output), ("post_pack", lambda key: {"card": _card_output(key)})],
+)
+async def test_delete_brand_image_keeps_bytes_a_card_still_uses(
+    bi_client, test_db, gen_type, output
+):
+    add = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
+    img = add.json()["brand_profile"]["brand_images"][0]
+    await test_db.generations.insert_one(
+        {"workspace_id": WS_OID, "type": gen_type, "output": output(img["storage_key"])}
+    )
+    resp = await bi_client.delete(f"{_url()}/{img['id']}")
+    assert resp.status_code == 200
+    assert resp.json()["brand_profile"]["brand_images"] == []  # gone from the library
+    assert await get_storage().read(img["storage_key"]) == PNG  # the card keeps its picture
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "output",
+    [{"image": None}, _card_output("workspaces/other/images/x/photo.png"), {"post_text": "Hi"}],
+)
+async def test_delete_brand_image_removes_bytes_no_card_shows(bi_client, test_db, output):
+    # A card that cleared or swapped its picture (or a text post) doesn't keep the file.
+    add = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
+    img = add.json()["brand_profile"]["brand_images"][0]
+    await test_db.generations.insert_one({"workspace_id": WS_OID, "type": "card", "output": output})
+    resp = await bi_client.delete(f"{_url()}/{img['id']}")
+    assert resp.status_code == 200
+    with pytest.raises(FileNotFoundError):
+        await get_storage().read(img["storage_key"])
+
+
+@pytest.mark.asyncio
+async def test_delete_brand_image_ignores_other_workspaces_cards(bi_client, test_db):
+    add = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
+    img = add.json()["brand_profile"]["brand_images"][0]
+    await test_db.generations.insert_one(
+        {"workspace_id": ObjectId(), "type": "card", "output": _card_output(img["storage_key"])}
+    )
+    resp = await bi_client.delete(f"{_url()}/{img['id']}")
+    assert resp.status_code == 200
+    with pytest.raises(FileNotFoundError):
+        await get_storage().read(img["storage_key"])
+
+
 _ONE_IMAGE = {"id": "img1", "storage_key": "k1", "url": "/u", "name": "old.png"}
 
 
