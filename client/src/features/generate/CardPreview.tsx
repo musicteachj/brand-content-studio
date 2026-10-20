@@ -175,7 +175,7 @@ export function CardPreview({
         >
           {status === "idle" && <IdlePlaceholder />}
           {status === "error" && (
-            <div className="flex aspect-[4/5] items-center justify-center bg-surface p-8 text-center">
+            <div className="flex aspect-4/5 items-center justify-center bg-surface p-8 text-center">
               <p role="alert" className="text-sm text-destructive">
                 {error ?? "Generation failed."}
               </p>
@@ -293,7 +293,7 @@ export function CardPreview({
 
 function IdlePlaceholder() {
   return (
-    <div className="flex aspect-[4/5] flex-col items-center justify-center bg-surface p-8 text-center">
+    <div className="flex aspect-4/5 flex-col items-center justify-center bg-surface p-8 text-center">
       <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-variant text-muted-foreground">
         <ImageIcon className="h-5 w-5" aria-hidden />
       </span>

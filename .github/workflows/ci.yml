@@ -239,12 +239,8 @@ jobs:
         run: npm audit --omit=dev
       - name: Root dev scripts
         run: npm audit
-      - name: Client dev tooling (report-only)
-        # The remaining advisories here sit in the dev server, test runner, and
-        # Tailwind's build-time deps; their fixes need major upgrades (vite 8,
-        # vitest 5, tailwindcss 4). Surface them as a warning until then.
+      - name: Client dev tooling
+        # Blocking since Vite 8, Vitest 5, and Tailwind 4 cleared the last
+        # dev-tool advisories (they were report-only until then).
         working-directory: client
-        run: |
-          if ! npm audit; then
-            echo "::warning title=Client dev-tooling advisories::npm audit found advisories in client devDependencies (not shipped). Fixes need major upgrades; see the log above."
-          fi
+        run: npm audit

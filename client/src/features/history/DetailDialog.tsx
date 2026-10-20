@@ -92,7 +92,7 @@ export function DetailDialog({
             </div>
             <Dialog.Close
               aria-label="Close"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="h-4 w-4" aria-hidden />
             </Dialog.Close>

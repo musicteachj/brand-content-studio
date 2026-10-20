@@ -42,7 +42,7 @@ export function TemplatePicker({ brand, value, onChange, disabled, accentHex }: 
             onClick={() => onChange(t.id)}
             {...radioProps(index)}
             className={cn(
-              "flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+              "flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
               selected
                 ? "border-2 border-accent shadow-light"
                 : "border border-border hover:shadow-light",
@@ -74,7 +74,7 @@ function Thumb({
   if (template === "photo-led") {
     return (
       <div
-        className="relative aspect-[4/5] w-full overflow-hidden rounded"
+        className="relative aspect-4/5 w-full overflow-hidden rounded"
         style={{ backgroundColor: c.ink }}
       >
         <div
@@ -91,7 +91,7 @@ function Thumb({
   if (template === "statement") {
     return (
       <div
-        className="flex aspect-[4/5] w-full flex-col justify-center gap-1.5 rounded p-1.5"
+        className="flex aspect-4/5 w-full flex-col justify-center gap-1.5 rounded p-1.5"
         style={{ backgroundColor: c.ink }}
       >
         {line("28%", c.accent, 3)}
@@ -103,7 +103,7 @@ function Thumb({
   }
   return (
     <div
-      className="flex aspect-[4/5] w-full flex-col justify-center gap-1.5 rounded p-1.5"
+      className="flex aspect-4/5 w-full flex-col justify-center gap-1.5 rounded p-1.5"
       style={{ backgroundColor: c.paper }}
     >
       <span

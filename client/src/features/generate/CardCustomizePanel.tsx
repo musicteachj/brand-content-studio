@@ -88,7 +88,7 @@ export function CardCustomizePanel({
                 onClick={() => onAccent(color.hex)}
                 {...accentRadioProps(index)}
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full border transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex h-9 w-9 items-center justify-center rounded-full border transition-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                   selected
                     ? "border-2 border-foreground shadow-light"
                     : "border-border hover:shadow-light",

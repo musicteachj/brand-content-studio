@@ -27,11 +27,11 @@ export function HistoryCard({
   const doc = documentOutput(gen);
   const isPost = gen.type === "post_pack";
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium">
+    <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition hover:-translate-y-0.5 hover:shadow-medium">
       <button
         type="button"
         onClick={(e) => onOpen(e.currentTarget)}
-        className="flex flex-1 flex-col rounded-t-lg p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex flex-1 flex-col rounded-t-lg p-4 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex items-center gap-2">
           <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 eyebrow text-3xs">

@@ -68,7 +68,7 @@ export function TemplatesPage() {
           <h2
             ref={listHeadingRef}
             tabIndex={-1}
-            className="text-sm font-semibold text-foreground focus-visible:outline-none"
+            className="text-sm font-semibold text-foreground focus-visible:outline-hidden"
           >
             Your templates
           </h2>

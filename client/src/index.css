@@ -1,10 +1,121 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Keep v3's hover: v4 only applies `hover:` on hover-capable devices, which would
+   hide hover-revealed controls (a brand image's Remove button) on touch screens. */
+@custom-variant hover (&:hover);
+
+/* `inline`: utilities use `hsl(var(--token))` directly, so the color is resolved on
+   each element (as in v3), not once at :root; an override on a sub-tree still works. */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-surface: hsl(var(--surface));
+  --color-surface-variant: hsl(var(--surface-variant));
+
+  --color-card: hsl(var(--surface));
+  --color-card-foreground: hsl(var(--foreground));
+
+  --color-muted: hsl(var(--surface-variant));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-strong: hsl(var(--accent-strong));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-primary: hsl(var(--accent));
+  --color-primary-foreground: hsl(var(--accent-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--border));
+  --color-ring: hsl(var(--ring));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-preview-bg: hsl(var(--preview-bg));
+
+  --color-popover: hsl(var(--surface));
+  --color-popover-foreground: hsl(var(--foreground));
+
+  --font-sans: Plus Jakarta Sans, system-ui, sans-serif;
+  --font-display: Plus Jakarta Sans, system-ui, sans-serif;
+  --font-mono: DM Mono, ui-monospace, monospace;
+
+  --text-2xs: 0.625rem;
+  --text-3xs: 0.5625rem;
+
+  --tracking-eyebrow: 0.12em;
+  --tracking-heading: -0.01em;
+  --tracking-display: -0.015em;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-light: 0 1px 2px rgb(26 29 33 / 0.04), 0 2px 6px rgb(26 29 33 / 0.05);
+  --shadow-medium: 0 4px 12px rgb(26 29 33 / 0.08);
+  --shadow-heavy: 0 12px 32px rgb(26 29 33 / 0.12);
+  --shadow-accent: 0 8px 24px rgb(194 24 91 / 0.22);
+  --shadow-preview: 0 8px 32px rgb(26 29 33 / 0.18);
+
+  --z-index-header: 10;
+  --z-index-dropdown: 20;
+  --z-index-drawer: 40;
+  --z-index-picker: 60;
+  --z-index-modal: 100;
+  --z-index-toast: 1000;
+
+  --animate-fade-in-up: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right: slide-in-right 0.25s ease-out both;
+  --animate-fade-in: fade-in 0.2s ease-out both;
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@utility eyebrow {
+  /*
+   * The one eyebrow style (DESIGN.md §2): DM Mono, uppercase, 0.12em tracking,
+   * muted: used for category labels, metadata, counts, and technical
+   * indicators. Bakes the canonical 10px size; page-header eyebrows override
+   * with `text-[11px]`, tiny badges with `text-3xs`.
+   */
+  @apply font-mono text-2xs uppercase tracking-eyebrow text-muted-foreground;
+}
 
 /*
- * Folio tokens — docs/DESIGN.md is the (living) source of truth.
- * HSL triplets consumed by tailwind.config.ts via hsl(var(--token)).
+ * Folio tokens: docs/DESIGN.md is the (living) source of truth.
+ * HSL triplets consumed by the @theme block above via hsl(var(--token)).
  * Light is the primary experience; dark is warm-charcoal, never pure black.
  */
 @layer base {
@@ -13,8 +124,8 @@
     --surface: 0 0% 100%; /* #FFFFFF */
     --surface-variant: 210 17% 95%; /* #F1F3F5 */
     --foreground: 214 12% 12%; /* #1A1D21 */
-    --muted-foreground: 210 7% 40%; /* #5F666D — AA on surface-variant (was #6C737A, 4.32:1) */
-    --accent: 336 78% 43%; /* #C2185B magenta — RESERVED for actions */
+    --muted-foreground: 210 7% 40%; /* #5F666D, AA on surface-variant (was #6C737A, 4.32:1) */
+    --accent: 336 78% 43%; /* #C2185B magenta, RESERVED for actions */
     --accent-strong: 337 80% 35%; /* #9E1248 */
     --accent-foreground: 0 0% 100%;
     --border: 210 12% 91%; /* #E4E7EA hairline */
@@ -39,13 +150,25 @@
     --ring: 327 82% 52%;
     --success: 142 69% 58%; /* #4ADE80 */
     --warning: 38 92% 50%; /* #F59E0B */
-    --destructive: 0 91% 71%; /* #F87171 — a foreground tint; pair with dark ink as a fill */
-    --destructive-foreground: 0 60% 12%; /* #311313 — 6.6:1 on --destructive */
+    --destructive: 0 91% 71%; /* #F87171: a foreground tint; pair with dark ink as a fill */
+    --destructive-foreground: 0 60% 12%; /* #311313: 6.6:1 on --destructive */
     --preview-bg: 200 8% 7%; /* #111314 */
   }
 
-  * {
-    @apply border-border;
+  /* v4's default border color is `currentcolor`; every border uses the theme's
+     token instead (pseudo-elements and the file input's button too). */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: hsl(var(--border));
+  }
+
+  /* v4 dropped v3's pointer cursor on buttons. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 
   body {
@@ -88,17 +211,5 @@
   .card-edit-field:empty::before {
     content: attr(data-placeholder);
     opacity: 0.4;
-  }
-}
-
-@layer components {
-  /*
-   * The one eyebrow style (DESIGN.md §2): DM Mono, uppercase, 0.12em tracking,
-   * muted — used for category labels, metadata, counts, and technical
-   * indicators. Bakes the canonical 10px size; page-header eyebrows override
-   * with `text-[11px]`, tiny badges with `text-3xs`.
-   */
-  .eyebrow {
-    @apply font-mono text-2xs uppercase tracking-eyebrow text-muted-foreground;
   }
 }

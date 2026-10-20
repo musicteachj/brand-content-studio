@@ -38,7 +38,7 @@ The app exists to produce beautiful branded content. Every UI decision should se
 
 ## 1. Design tokens (CSS variables → consumed by Tailwind)
 
-Define as HSL/HEX CSS vars on `:root` and `.dark`; map into `tailwind.config.ts` `theme.extend.colors`.
+Define as HSL/HEX CSS vars on `:root` and `.dark`; map into Tailwind through the `@theme` block in `client/src/index.css` (`--color-*: hsl(var(--token))`; Tailwind 4 has no `tailwind.config.ts`).
 **No component may hardcode a hex.**
 
 "Folio" tokens (light = primary experience; dark = warm-charcoal, not pure black). Verify all

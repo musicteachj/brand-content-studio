@@ -24,7 +24,7 @@ export function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-surface-variant focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Switch workspace"
       >
         <span className="flex flex-col leading-none">

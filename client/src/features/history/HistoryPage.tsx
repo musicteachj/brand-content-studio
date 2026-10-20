@@ -44,7 +44,7 @@ export function HistoryPage() {
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="mt-2 text-2xl font-semibold tracking-heading text-foreground focus-visible:outline-none"
+            className="mt-2 text-2xl font-semibold tracking-heading text-foreground focus-visible:outline-hidden"
           >
             Generations
           </h1>
