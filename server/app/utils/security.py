@@ -31,12 +31,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(
+        to_encode, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm
+    )
 
 
 def decode_access_token(token: str) -> dict | None:
     try:
         # algorithms pinned → blocks alg=none / HS↔RS confusion; exp verified by default.
-        return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        return jwt.decode(
+            token, settings.jwt_secret_key.get_secret_value(), algorithms=[settings.jwt_algorithm]
+        )
     except InvalidTokenError:
         return None

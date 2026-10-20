@@ -93,7 +93,7 @@ class BrandExtractService:
     `GenerationService` convention."""
 
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
     async def propose(self, data: bytes, media_type: str) -> BrandExtractResponse:
         detected = extract_palette(data)

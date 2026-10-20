@@ -33,7 +33,7 @@ class UnsplashError(RuntimeError):
 
 
 def _require_key() -> str:
-    key = settings.unsplash_access_key
+    key = settings.unsplash_access_key.get_secret_value()
     if not key:
         raise UnsplashError(
             "Unsplash is not configured. Set UNSPLASH_ACCESS_KEY in server/.env."

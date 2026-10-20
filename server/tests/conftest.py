@@ -62,7 +62,9 @@ async def test_db():
 
     from app.config import settings
 
-    client = AsyncIOMotorClient(settings.mongodb_url, serverSelectionTimeoutMS=1500)
+    client = AsyncIOMotorClient(
+        settings.mongodb_url.get_secret_value(), serverSelectionTimeoutMS=1500
+    )
     try:
         await client.admin.command("ping")
     except Exception:

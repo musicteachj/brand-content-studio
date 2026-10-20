@@ -58,10 +58,24 @@ _CSP_HEADER = {
     "report-only": "Content-Security-Policy-Report-Only",
 }
 
-# FastAPI's own API docs pages load Swagger UI / ReDoc from jsDelivr and start
-# them with an inline script; the SPA policy would leave them blank. They're the
-# framework's trusted pages, so they're the one exemption.
-_CSP_EXEMPT_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc"}
+def api_docs_urls(environment: str) -> dict[str, str | None]:
+    """FastAPI's Swagger UI, ReDoc, and OpenAPI schema are for local development.
+    In production they'd hand anyone probing the public demo a map of every
+    route, and nothing in the app uses them."""
+    if environment == "production":
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+
+
+def csp_exempt_paths(app: FastAPI) -> frozenset[str]:
+    """FastAPI's own docs pages load Swagger UI / ReDoc from jsDelivr and start
+    them with an inline script, so the SPA policy would leave them blank. They're
+    the one exemption, read from the app itself, so it only exists where the docs
+    do: in production `/docs` is just a client route serving the SPA, under its CSP."""
+    paths = {app.docs_url, app.redoc_url}
+    if app.docs_url:
+        paths.add(app.swagger_ui_oauth2_redirect_url)
+    return frozenset(p for p in paths if p)
 
 
 class SecurityHeadersMiddleware:
@@ -76,8 +90,9 @@ class SecurityHeadersMiddleware:
     change.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, csp_exempt: frozenset[str] = frozenset()) -> None:
         self.app = app
+        self.csp_exempt = csp_exempt
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -91,7 +106,7 @@ class SecurityHeadersMiddleware:
                 headers.setdefault("X-Frame-Options", "DENY")
                 headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
                 csp_header = _CSP_HEADER.get(settings.csp_mode)
-                if csp_header and scope["path"] not in _CSP_EXEMPT_PATHS:
+                if csp_header and scope["path"] not in self.csp_exempt:
                     headers.setdefault(csp_header, CONTENT_SECURITY_POLICY)
                 if settings.environment == "production":
                     headers.setdefault(
@@ -111,11 +126,15 @@ async def lifespan(app: FastAPI):
     await close_mongo_connection()
 
 
+_docs = api_docs_urls(settings.environment)
 app = FastAPI(
     title="Brand Content Studio API",
     description="RAG-powered on-brand LinkedIn content generation.",
     version="0.0.0",
     lifespan=lifespan,
+    docs_url=_docs["docs_url"],
+    redoc_url=_docs["redoc_url"],
+    openapi_url=_docs["openapi_url"],
 )
 
 # Rate limiting (SEC-02): per-route @limiter.limit decorators read the limiter off
@@ -133,7 +152,7 @@ app.add_middleware(
 )
 
 
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SecurityHeadersMiddleware, csp_exempt=csp_exempt_paths(app))
 
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
