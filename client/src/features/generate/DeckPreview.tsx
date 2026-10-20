@@ -26,7 +26,7 @@ function DeckSlide({
 }) {
   return (
     <div
-      className="aspect-[16/9] w-full overflow-hidden rounded-md bg-white ring-1 ring-border"
+      className="aspect-video w-full overflow-hidden rounded-md bg-white ring-1 ring-border"
       style={{ fontFamily: bodyStack, color: ink }}
     >
       <div

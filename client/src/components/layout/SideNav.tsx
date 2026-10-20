@@ -96,7 +96,7 @@ export function SideNav() {
               type="button"
               onClick={logout}
               aria-label="Sign out"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             >
               <LogOut className="h-[18px] w-[18px]" aria-hidden />
             </button>
@@ -108,7 +108,7 @@ export function SideNav() {
           onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
-            "mt-3 flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "mt-3 flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
             collapsed && "justify-center",
           )}
         >

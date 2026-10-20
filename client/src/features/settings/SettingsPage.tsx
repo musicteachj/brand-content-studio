@@ -74,7 +74,7 @@ export function SettingsPage() {
                 onClick={() => setTheme(value)}
                 {...themeRadioProps(index)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                   active
                     ? "bg-surface-variant text-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -207,7 +207,7 @@ function Toggle({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
         checked ? "bg-accent" : "bg-surface-variant",
       )}
     >

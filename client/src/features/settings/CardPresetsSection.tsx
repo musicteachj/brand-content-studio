@@ -95,7 +95,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
               onClick={() => setAccentHex(null)}
               {...accentRadioProps(0)}
               className={cn(
-                "h-7 rounded-full border px-3 text-xs transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "h-7 rounded-full border px-3 text-xs transition-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                 accentHex === null
                   ? "border-2 border-foreground"
                   : "border-border hover:shadow-light",
@@ -116,7 +116,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
                   onClick={() => setAccentHex(color.hex)}
                   {...accentRadioProps(i + 1)}
                   className={cn(
-                    "h-7 w-7 rounded-full border transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "h-7 w-7 rounded-full border transition-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                     selected
                       ? "border-2 border-foreground shadow-light"
                       : "border-border hover:shadow-light",

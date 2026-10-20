@@ -77,7 +77,7 @@ export function AssetsPage() {
         <h2
           ref={listHeadingRef}
           tabIndex={-1}
-          className="mb-3 text-sm font-semibold text-foreground focus-visible:outline-none"
+          className="mb-3 text-sm font-semibold text-foreground focus-visible:outline-hidden"
         >
           Assets{" "}
           {!isLoading ? <span className="text-muted-foreground">({assets.length})</span> : null}
@@ -159,7 +159,7 @@ function UploadCard({ workspaceId }: { workspaceId: string | null }) {
             type="file"
             accept={ACCEPT}
             onChange={(e) => pick(e.target.files?.[0] ?? null)}
-            className="block w-full cursor-pointer rounded-sm border border-border bg-surface text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:border-0 file:border-r file:border-border file:bg-surface-variant file:px-3.5 file:py-2.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="block w-full cursor-pointer rounded-sm border border-border bg-surface text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:border-0 file:border-r file:border-border file:bg-surface-variant file:px-3.5 file:py-2.5 file:text-sm file:font-medium file:text-foreground hover:file:bg-border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           />
           <p className="mt-1.5 text-xs text-muted-foreground">PDF, Markdown, or text · max 10 MB</p>
         </div>
@@ -248,7 +248,7 @@ function AssetRow({
             <button
               type="button"
               aria-label={`Delete ${asset.filename}`}
-              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
             </button>

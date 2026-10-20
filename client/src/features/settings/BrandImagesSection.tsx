@@ -133,7 +133,7 @@ function ImageTile({
             onClick={onRemove}
             loading={removing}
             aria-label={`Remove ${image.name ?? "image"}`}
-            className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:text-destructive"
+            className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden />
           </Button>
@@ -150,7 +150,7 @@ function ImageTile({
             if (v && v !== image.name) onRename(v);
           }}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-          className="w-full rounded-sm border border-transparent bg-transparent px-1 text-[11px] text-muted-foreground hover:border-border focus:border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="w-full rounded-sm border border-transparent bg-transparent px-1 text-[11px] text-muted-foreground hover:border-border focus:border-border focus:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         />
       )}
     </li>

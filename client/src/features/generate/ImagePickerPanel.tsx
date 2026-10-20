@@ -107,7 +107,7 @@ export function ImagePickerPanel({
             </Dialog.Title>
             <Dialog.Close
               aria-label="Close"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X className="h-4 w-4" aria-hidden />
             </Dialog.Close>
@@ -215,7 +215,7 @@ export function ImagePickerPanel({
               </p>
             )}
             {query && search.data && search.data.results.length > 0 && (
-              <div className="columns-2 gap-3 [&>*]:mb-3">
+              <div className="columns-2 gap-3 *:mb-3">
                 {search.data.results.map((photo) => (
                   <PhotoTile
                     key={photo.id}
@@ -248,7 +248,7 @@ function PhotoTile({
         type="button"
         onClick={onSelect}
         className={cn(
-          "relative block w-full overflow-hidden rounded-lg border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "relative block w-full overflow-hidden rounded-lg border focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
           selected
             ? "border-accent ring-2 ring-accent"
             : "border-border hover:border-muted-foreground",
@@ -313,7 +313,7 @@ function BrandImageTile({
       onClick={onSelect}
       aria-label={`Use ${image.name ?? "brand image"}`}
       className={cn(
-        "relative block aspect-square w-full overflow-hidden rounded-lg border bg-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative block aspect-square w-full overflow-hidden rounded-lg border bg-surface-variant focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
         selected
           ? "border-accent ring-2 ring-accent"
           : "border-border hover:border-muted-foreground",
@@ -335,7 +335,7 @@ function BrandImageTile({
 
 function Skeleton() {
   return (
-    <div className="columns-2 gap-3 [&>*]:mb-3">
+    <div className="columns-2 gap-3 *:mb-3">
       {[3 / 4, 4 / 5, 5 / 6, 3 / 4, 4 / 5, 5 / 6].map((ar, i) => (
         <div
           key={i}
