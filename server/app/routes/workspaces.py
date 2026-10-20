@@ -32,7 +32,7 @@ from app.services.storage_service import build_font_key, build_image_key, get_st
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
 from app.services.workspace_service import WorkspaceWriteConflict
 from app.utils.dependencies import (
-    enforce_demo_generation_quota,
+    enforce_demo_ai_quota,
     get_current_user,
     get_workspace_or_404,
     require_not_demo,
@@ -141,7 +141,7 @@ async def extract_brand(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: BrandExtractService = Depends(BrandExtractService),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
 ):
     """Propose a brand profile (palette + voice + fonts) from an uploaded image.
 

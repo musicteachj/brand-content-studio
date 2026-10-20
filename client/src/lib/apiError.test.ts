@@ -40,10 +40,10 @@ describe("apiErrorMessage", () => {
     ).toMatch(/Too many requests/);
     expect(
       apiErrorMessage(
-        axiosError(429, { detail: "The demo's daily generation limit has been reached." }),
+        axiosError(429, { detail: "The demo's daily limit of AI actions has been reached." }),
         "x",
       ),
-    ).toBe("The demo's daily generation limit has been reached.");
+    ).toBe("The demo's daily limit of AI actions has been reached.");
   });
 });
 

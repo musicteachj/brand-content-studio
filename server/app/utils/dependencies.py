@@ -7,8 +7,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
 from app.database import get_database
-from app.models.common import utcnow
 from app.models.user import UserInDB
+from app.services import usage_service
 from app.services.auth_service import get_user_by_id
 from app.utils.security import decode_access_token
 
@@ -84,21 +84,20 @@ def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> User
     return current_user
 
 
-async def enforce_demo_generation_quota(
+async def enforce_demo_ai_quota(
     current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ) -> None:
-    """Cap the shared demo account's paid generations per UTC day (SEC-02). Per-IP
+    """Cap the shared demo account's paid model calls per UTC day (SEC-02). Per-IP
     rate limits don't bound aggregate demo spend across many visitors; this does.
-    Non-demo users are unaffected."""
+    Every paid route consumes one unit on admission, whether or not it saves
+    anything (known-gaps plan, step 1). Non-demo users are unaffected."""
     if not current_user.is_demo:
         return
-    start = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    used = await db.generations.count_documents(
-        {"owner_id": ObjectId(current_user.id), "created_at": {"$gte": start}}
-    )
-    if used >= settings.demo_daily_generation_limit:
+    if not await usage_service.consume_demo_ai_action(
+        db, current_user.id, settings.demo_daily_generation_limit
+    ):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="The demo's daily generation limit has been reached. Try again tomorrow.",
+            detail="The demo's daily limit of AI actions has been reached. Try again tomorrow.",
         )

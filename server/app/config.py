@@ -28,8 +28,10 @@ class Settings(BaseSettings):
     demo_email: str = "demo@folio.studio"
     demo_password: str = "demo-folio-2026"  # noqa: S105 — public demo credential, not a secret
     demo_full_name: str = "Demo User"
-    # Aggregate cap on the shared demo account's paid generations per UTC day
-    # (per-IP rate limits don't bound total demo spend across many visitors).
+    # Aggregate cap on the shared demo account's paid AI actions per UTC day: every
+    # paid model route (generations, brand extract, template AI fill, fill from a
+    # document) consumes one. Per-IP rate limits don't bound total demo spend
+    # across many visitors. The name predates the non-saving routes being counted.
     demo_daily_generation_limit: int = 50
 
     # Per-IP rate limits (slowapi syntax) — env-tunable (SEC-02).

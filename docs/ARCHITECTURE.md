@@ -35,7 +35,7 @@ server/app/
   spa.py                                 # production only: serve the built client (mount_spa)
   routes/    auth · workspaces · assets · templates · generate · documents · generations · images · health
   services/  auth · workspace · asset · ingestion · retrieval · ai (Claude client) · generations (Mongo persistence) ·
-             document · template · content_extraction · brand_extract · brand_fonts · upload · unsplash · storage
+             document · template · content_extraction · brand_extract · brand_fonts · upload · unsplash · storage · usage (demo AI-call quota)
   rag/       vector_store(Protocol + factory) · chroma_store · qdrant_store · embeddings · chunking · loaders
   models/    common · user · workspace · asset · generation · template · image
   prompts/   text_post · image_card · post_pack · document · template_fill · brand_extract · exemplars · context

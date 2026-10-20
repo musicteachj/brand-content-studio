@@ -1,6 +1,6 @@
 # Known gaps plan (October 2026)
 
-> **Status: planned (2026-10-20).** Follow-up to the October QA pass (`docs/QA-2026-10.md`, on branch `qa/2026-10-bug-bash`). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
+> **Status: step 0 shipped (PR #66); step 1 built; step 2 planned (2026-10-20).** Follow-up to the October QA pass (`docs/QA-2026-10.md`, on branch `qa/2026-10-bug-bash`). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
 
 Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step 2 depends on step 0 (a CSP can only be checked against the production build). Every step follows the usual loop: tests first, full gate, live check in the browser, `/code-review` and `/security-review`, and the owner's go-ahead before each commit, push, and PR.
 
@@ -31,6 +31,8 @@ Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step
 **Live:** build and run the image, then sign in as demo and load every page in Playwright.
 
 ## Step 1: one AI-call counter for the demo quota
+
+> **Status: built (2026-10-20), DECISIONS #35.** As planned, with one addition: when the upsert hits a duplicate key, a plain conditional update decides, so a first-of-the-day race between two requests isn't refused.
 
 **Gap.** `enforce_demo_generation_quota` counts the demo account's saved generations for the UTC day (cap `demo_daily_generation_limit`, 50). Brand extract, template "Draft with AI", and fill-from-document make paid model calls but save nothing, so they are bounded only by the per-IP rate limit. Many visitors can spend without limit on those three routes.
 

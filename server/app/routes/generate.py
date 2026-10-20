@@ -33,7 +33,7 @@ from app.services.ai_service import (
     parse_post,
 )
 from app.utils.dependencies import (
-    enforce_demo_generation_quota,
+    enforce_demo_ai_quota,
     ensure_ready_corpus,
     get_workspace_or_404,
 )
@@ -52,7 +52,7 @@ async def generate_text(
     payload: TextGenerateRequest,
     service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     ensure_ready_corpus(workspace)
@@ -99,7 +99,7 @@ async def generate_card(
     payload: CardGenerateRequest,
     service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream card copy for the live typing effect, then resolve the structured
@@ -166,7 +166,7 @@ async def generate_post(
     payload: PostPackGenerateRequest,
     service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """The "LinkedIn Post" objective (Phase 3): stream the post caption for the

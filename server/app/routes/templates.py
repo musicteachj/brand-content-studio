@@ -36,7 +36,7 @@ from app.services.storage_service import build_template_key, get_storage, safe_f
 from app.services.upload_service import SOURCE_POLICY, TEMPLATE_POLICY, read_upload
 from app.utils.archives import UnsafeArchive
 from app.utils.dependencies import (
-    enforce_demo_generation_quota,
+    enforce_demo_ai_quota,
     get_workspace_or_404,
     require_not_demo,
 )
@@ -138,7 +138,7 @@ async def ai_fill_template(
     payload: TemplateAiFillRequest,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft a value for each placeholder from a brief (optional path). Generative,
@@ -167,7 +167,7 @@ async def fill_template_from_document(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft each placeholder by mapping an uploaded document's content onto the
