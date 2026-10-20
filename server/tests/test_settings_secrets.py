@@ -85,8 +85,11 @@ def test_production_rejects_a_short_jwt_secret():
         _settings(environment="production", jwt_secret_key="short")
 
 
-def test_production_accepts_a_long_jwt_secret_and_dev_accepts_the_default():
+def test_production_accepts_a_long_jwt_secret_and_dev_accepts_the_default(monkeypatch):
     assert _settings(environment="production").environment == "production"
+    # _env_file=None skips .env, but the process environment still applies (CI sets
+    # JWT_SECRET_KEY), so clear it to see the shipped default.
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
     assert Settings(_env_file=None, environment="development").jwt_secret_key.get_secret_value() == DEFAULT_JWT_SECRET
 
 
