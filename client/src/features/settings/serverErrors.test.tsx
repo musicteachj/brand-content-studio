@@ -11,6 +11,9 @@ import { BrandFontsSection } from "./BrandFontsSection";
 
 setupMswServer();
 
+// Typing, the upload, and the MSW round trip can take over findByRole's 1 s
+// default on a slow CI runner.
+
 // QA-03 / QA-12 / QA-15: the server says exactly what's wrong with an upload; the
 // page used to replace it with a generic guess, and didn't announce it.
 const WORKSPACE = {
@@ -43,7 +46,7 @@ describe("upload errors show the server's reason", () => {
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     await userEvent.upload(input, new File(["x"], "sohne.ttf", { type: "font/ttf" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert", {}, { timeout: 5000 })).toHaveTextContent(
       "Font name may use letters, numbers, spaces, and . _ - only.",
     );
   });
@@ -55,6 +58,8 @@ describe("upload errors show the server's reason", () => {
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     await userEvent.upload(input, new File(["x"], "acme.ttf", { type: "font/ttf" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Upload a \.ttf under 5 MB/);
+    expect(await screen.findByRole("alert", {}, { timeout: 5000 })).toHaveTextContent(
+      /Upload a \.ttf under 5 MB/,
+    );
   });
 });
