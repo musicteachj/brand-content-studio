@@ -59,7 +59,11 @@ function AuthPanel() {
   // useAuthActions drives the demo + password flows.
   const { loginDemo, loginPassword, pending, error } = useAuthActions();
 
+  // One sign-in at a time, so two flows can't race to set the session.
+  const busy = pending !== null;
+
   async function onDemo() {
+    if (busy) return;
     try {
       await loginDemo();
       navigate("/", { replace: true });
@@ -70,6 +74,7 @@ function AuthPanel() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (busy) return;
     try {
       await loginPassword(email, password);
       navigate("/", { replace: true });
@@ -92,7 +97,13 @@ function AuthPanel() {
           Explore the studio with a ready-made demo workspace, or sign in.
         </p>
 
-        <Button size="lg" className="mt-7 w-full" loading={pending === "demo"} onClick={onDemo}>
+        <Button
+          size="lg"
+          className="mt-7 w-full"
+          loading={pending === "demo"}
+          disabled={busy}
+          onClick={onDemo}
+        >
           Explore as demo
           {pending !== "demo" && <ArrowRight className="h-4 w-4" aria-hidden />}
         </Button>
@@ -146,6 +157,7 @@ function AuthPanel() {
             variant="secondary"
             className="mt-1 w-full"
             loading={pending === "password"}
+            disabled={busy}
           >
             Sign in
           </Button>

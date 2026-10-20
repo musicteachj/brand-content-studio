@@ -5,25 +5,20 @@ import { useAuthStore, type AuthUser } from "@/stores/auth";
 
 type Pending = "demo" | "password" | null;
 
-/** Demo + password sign-in. Token is set before /auth/me so the interceptor attaches it. */
+/** Demo + password sign-in. The session is stored only once /auth/me returns the user. */
 export function useAuthActions() {
-  const setToken = useAuthStore((s) => s.setToken);
-  const setUser = useAuthStore((s) => s.setUser);
+  const setSession = useAuthStore((s) => s.setSession);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function finish(token: string) {
-    // Token must be set first so the interceptor authenticates /auth/me. If that
-    // call fails, roll back so we never persist a half-authenticated state
-    // (isAuthenticated=true with user=null) that would survive a reload.
-    setToken(token);
-    try {
-      const me = await api.get<AuthUser>("/auth/me");
-      setUser(me.data);
-    } catch (err) {
-      useAuthStore.getState().logout();
-      throw err;
-    }
+    // Nothing is stored until the user is loaded: a reload mid-request must not
+    // find a session with no user, which would show a demo visitor owner
+    // controls (QA-02). The store has no token yet, so pass it explicitly.
+    const me = await api.get<AuthUser>("/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setSession(token, me.data);
   }
 
   async function loginDemo() {
