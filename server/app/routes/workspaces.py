@@ -26,7 +26,7 @@ from app.models.workspace import (
     WorkspaceUpdate,
 )
 from app.rag.vector_store import get_vector_store
-from app.services import workspace_service
+from app.services import generations_service, workspace_service
 from app.services.brand_extract_service import BrandExtractService
 from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
@@ -269,16 +269,18 @@ async def delete_brand_image(
     current_user: UserInDB = Depends(require_not_demo),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """Remove a brand image from the library and delete its stored bytes. A card
-    that picked this image points at the same stored file, so it loses its picture
-    (known issue; the Settings confirm dialog warns about it)."""
+    """Remove a brand image from the library and delete its stored bytes, unless a
+    card still shows it: a card picked from the library points at the same stored
+    file, so deleting it would break that card's picture. The file is then kept."""
     result = await workspace_service.remove_workspace_image(
         db, str(workspace["_id"]), current_user.id, image_id
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
     updated, old_key = result
-    if old_key:
+    if old_key and not await generations_service.image_key_in_use(
+        db, workspace["_id"], old_key
+    ):
         await get_storage().delete(old_key)
     return updated
 

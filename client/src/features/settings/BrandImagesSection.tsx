@@ -143,7 +143,7 @@ function ImageTile({
               </Button>
             }
             title={image.name ? `Remove “${image.name}”?` : "Remove this image?"}
-            description="This removes it from your brand images. Cards that use it as their picture will lose it. This can’t be undone."
+            description="This removes it from your brand images. Cards that already use it keep their picture. This can’t be undone."
             confirmLabel="Remove image"
             onConfirm={onRemove}
             errorFallback="Couldn’t remove this image. Try again."

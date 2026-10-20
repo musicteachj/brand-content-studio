@@ -114,6 +114,26 @@ async def _set_and_return(db: AsyncIOMotorDatabase, query: dict, update: dict) -
     )
 
 
+async def image_key_in_use(
+    db: AsyncIOMotorDatabase, workspace_oid: ObjectId, storage_key: str
+) -> bool:
+    """Whether any generation in the workspace still shows this stored image: a
+    card's `output.image` or a post_pack's nested `output.card.image`. A card
+    picked from the brand-image library keeps the library image's own key."""
+    doc = await db.generations.find_one(
+        {
+            "workspace_id": workspace_oid,
+            "type": {"$in": ["card", "post_pack"]},  # uses the (workspace_id, type) index
+            "$or": [
+                {"output.image.storage_key": storage_key},
+                {"output.card.image.storage_key": storage_key},
+            ],
+        },
+        projection={"_id": 1},
+    )
+    return doc is not None
+
+
 async def get_generation(
     db: AsyncIOMotorDatabase, workspace_oid: ObjectId, generation_id: str
 ) -> dict | None:
