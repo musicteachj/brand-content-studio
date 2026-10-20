@@ -267,8 +267,8 @@ async def test_ai_fill_returns_values(tpl_client):
 
 @pytest.mark.asyncio
 async def test_ai_fill_demo_over_quota_is_429(tpl_client, monkeypatch):
-    """The demo daily quota now guards the paid AI template routes too (SEC-02, B2b);
-    limit 0 means any demo request is over the cap."""
+    """The demo's daily AI-call quota guards the paid AI template routes too (SEC-02,
+    known-gaps step 1); limit 0 means any demo request is over the cap."""
     t = await _upload(tpl_client)
     monkeypatch.setattr(settings, "demo_daily_generation_limit", 0)
     app.dependency_overrides[get_current_user] = lambda: _user(is_demo=True)

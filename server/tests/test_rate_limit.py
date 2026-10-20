@@ -1,18 +1,13 @@
-"""SEC-02: per-IP rate limiting on auth/generation, and the demo daily quota.
+"""SEC-02: per-IP rate limiting on auth/generation.
 
 The limiter is disabled globally for the suite (conftest); these tests re-enable
 it around themselves.
 """
 import pytest
-from bson import ObjectId
-from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
-from app.config import settings
 from app.database import get_database
 from app.main import app
-from app.models.user import UserInDB
-from app.utils.dependencies import enforce_demo_generation_quota
 from app.utils.ratelimit import AUTH_RATE_LIMIT, limiter
 
 
@@ -49,28 +44,5 @@ async def test_auth_endpoint_is_rate_limited(enabled_limiter):
     assert set(statuses[:-1]) == {404}  # the rest reach the handler (no demo user seeded)
 
 
-@pytest.mark.asyncio
-async def test_demo_generation_quota_blocks_at_limit(monkeypatch):
-    monkeypatch.setattr(settings, "demo_daily_generation_limit", 3)
-
-    class _Gens:
-        async def count_documents(self, _query):
-            return 3  # already at the cap
-
-    class _DB:
-        generations = _Gens()
-
-    demo = UserInDB(id=str(ObjectId()), email="d@x.com", hashed_password="x", full_name="D", is_demo=True)
-    with pytest.raises(HTTPException) as exc:
-        await enforce_demo_generation_quota(current_user=demo, db=_DB())
-    assert exc.value.status_code == 429
-
-
-@pytest.mark.asyncio
-async def test_non_demo_user_bypasses_quota_without_a_db_hit():
-    class _DB:
-        generations = None  # would AttributeError if the quota touched it
-
-    user = UserInDB(id=str(ObjectId()), email="u@x.com", hashed_password="x", full_name="U", is_demo=False)
-    # Returns without raising and without querying the db.
-    assert await enforce_demo_generation_quota(current_user=user, db=_DB()) is None
+# The demo daily quota itself (a per-account AI-call counter) is covered in
+# test_demo_ai_quota.py.

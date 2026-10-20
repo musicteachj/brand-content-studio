@@ -3,7 +3,7 @@
 > MongoDB collections + vector-store schema for Brand Content Studio. Follows [DECISIONS.md](./DECISIONS.md).
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [PLAN.md](./PLAN.md)
 
-Database: `brand_content` (dev: `brand_content_dev`). Five collections (`users`, `workspaces`, `assets`, `generations`, `templates`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
+Database: `brand_content` (dev: `brand_content_dev`). Six collections (`users`, `workspaces`, `assets`, `generations`, `templates`, `usage`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
 
 ---
 
@@ -142,7 +142,7 @@ Copy the EMS user model. Seed exactly one demo user.
 
 `retrieval_meta` is **snapshotted onto the generation** so the debug panel and history re-open keep working even if assets are later deleted or re-ingested (vector ids may go stale; the snapshot preview survives).
 
-**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (history type filter); `(owner_id, created_at desc)` (backs the shared demo account's daily-quota count, SEC-02).
+**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (history type filter). (An `(owner_id, created_at desc)` index used to back the demo quota count; `ensure_indexes` no longer creates it, since the quota moved to `usage`. An existing one is harmless.)
 
 ---
 
@@ -161,6 +161,22 @@ Uploaded branded `.docx`/`.pptx` templates (Phase 5). The template's own styling
 | `created_at` | datetime | |
 
 **Indexes:** `workspace_id`.
+
+---
+
+## `usage`
+
+The shared demo account's daily AI-call counter (SEC-02; DECISIONS #35). One document per account per UTC day. Every paid model route consumes one unit when the request is admitted (before body validation, so a request that then fails still counts), through one conditional upsert, so concurrent requests can't overshoot `demo_daily_generation_limit`. Non-demo accounts never get a document.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | str | `"<user_id>:<YYYY-MM-DD>"` (UTC day) |
+| `user_id` | ObjectId | → `users._id` |
+| `day` | str | `YYYY-MM-DD` |
+| `count` | int | AI actions admitted that day, never above the limit |
+| `expires_at` | datetime | start of the day + 2 days |
+
+**Indexes:** TTL on `expires_at` (`expireAfterSeconds: 0`), so old days drop out.
 
 ---
 

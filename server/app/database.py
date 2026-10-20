@@ -1,7 +1,9 @@
 """MongoDB connection + index management (Motor)."""
+import contextlib
 import logging
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from pymongo.errors import OperationFailure
 
 from app.config import settings
 
@@ -43,7 +45,11 @@ async def ensure_indexes() -> None:
     await database.assets.create_index([("workspace_id", 1), ("ingestion_status", 1)])
     await database.generations.create_index([("workspace_id", 1), ("created_at", -1)])
     await database.generations.create_index([("workspace_id", 1), ("type", 1)])
-    # Backs the per-account daily demo quota count (enforce_demo_generation_quota).
-    await database.generations.create_index([("owner_id", 1), ("created_at", -1)])
+    # The demo's daily AI-call counter (usage_service): drop each day's document
+    # once it's past `expires_at`.
+    await database.usage.create_index("expires_at", expireAfterSeconds=0)
+    # Only the old quota count used this; drop it where it still exists.
+    with contextlib.suppress(OperationFailure):
+        await database.generations.drop_index("owner_id_1_created_at_-1")
     await database.templates.create_index("workspace_id")
     logging.info("Mongo indexes ensured")

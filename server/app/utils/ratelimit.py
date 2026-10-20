@@ -15,6 +15,6 @@ limiter = Limiter(key_func=get_remote_address)
 # credential stuffing + demo-token farming. Generate + the other paid AI routes
 # (brand-extract, template ai-fill/fill-from-document): Anthropic/OpenAI calls.
 # Aggregate demo spend is additionally coupled to the per-account daily quota
-# (enforce_demo_generation_quota).
+# (enforce_demo_ai_quota).
 AUTH_RATE_LIMIT = settings.rate_limit_auth
 GENERATE_RATE_LIMIT = settings.rate_limit_generate

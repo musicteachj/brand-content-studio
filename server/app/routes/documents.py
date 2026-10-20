@@ -28,7 +28,7 @@ from app.services import document_service, generations_service, retrieval_servic
 from app.services.ai_service import GenerationService
 from app.services.storage_service import build_document_key, get_storage, safe_filename
 from app.utils.dependencies import (
-    enforce_demo_generation_quota,
+    enforce_demo_ai_quota,
     ensure_ready_corpus,
     get_workspace_or_404,
 )
@@ -54,7 +54,7 @@ async def generate_document(
     payload: DocumentGenerateRequest,
     service: GenerationService = Depends(GenerationService),
     workspace: dict = Depends(get_workspace_or_404),
-    _quota: None = Depends(enforce_demo_generation_quota),
+    _quota: None = Depends(enforce_demo_ai_quota),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream the document draft for the live preview, then resolve the structured

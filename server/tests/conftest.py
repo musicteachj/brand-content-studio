@@ -70,12 +70,12 @@ async def test_db():
         pytest.skip("MongoDB not reachable (start docker-compose) — skipping integration test")
 
     db = client[TEST_DB_NAME]
-    for coll in ("users", "workspaces", "assets", "generations", "templates"):
+    for coll in ("users", "workspaces", "assets", "generations", "templates", "usage"):
         await db[coll].delete_many({})
     try:
         yield db
     finally:
-        for coll in ("users", "workspaces", "assets", "generations", "templates"):
+        for coll in ("users", "workspaces", "assets", "generations", "templates", "usage"):
             await db[coll].delete_many({})
         client.close()
 
