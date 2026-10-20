@@ -143,7 +143,7 @@ export function CardPreview({
     attribution,
   };
 
-  // Render the locked Satori SVG once the copy is finalized — this is what the
+  // Render the locked Satori SVG once the copy is finalized; this is what the
   // PNG export rasterizes, so what you see is what you export. Paused while
   // editing text (the editable DOM card is shown instead), so Satori doesn't
   // re-rasterize on every keystroke.
@@ -195,7 +195,7 @@ export function CardPreview({
           ) : lockedReady && svg ? (
             <img src={svgToDataUrl(svg)} alt="Card preview" className="block w-full" />
           ) : lockedReady ? (
-            // Satori still rendering (or font load) — show the DOM card meanwhile.
+            // Satori still rendering (or font load): show the DOM card meanwhile.
             <ScaledCardBox>{buildCardElement(elementProps)}</ScaledCardBox>
           ) : null}
         </div>
@@ -299,7 +299,7 @@ function IdlePlaceholder() {
       </span>
       <p className="mt-4 text-sm font-medium text-foreground">Your card will appear here</p>
       <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-        Pick a template and generate — copy streams in live, in your brand’s type and color.
+        Pick a template and generate. Copy streams in live, in your brand’s type and color.
       </p>
     </div>
   );

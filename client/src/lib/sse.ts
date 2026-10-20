@@ -2,11 +2,11 @@
 // EventSource) so we can send a POST body and the JWT auth header
 // (ARCHITECTURE gotcha #3). Decodes the EMS frame shape: `data: {json}\n\n`
 // terminated by `data: [DONE]`. Text and card generation share this reader and
-// frame shape (gotcha #3) — only the terminal `meta` payload differs.
+// frame shape (gotcha #3); only the terminal `meta` payload differs.
 import { useAuthStore } from "@/stores/auth";
 import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
-/** Abort the read if no frame arrives within this window — a stalled stream
+/** Abort the read if no frame arrives within this window: a stalled stream
  *  (proxy hang, dropped connection) should surface an error, not spin forever. */
 export const STREAM_INACTIVITY_MS = 30000;
 
@@ -62,7 +62,7 @@ async function openStream(
     });
   } catch (err) {
     if ((err as Error).name === "AbortError") return null;
-    onError("Network error — is the server running?");
+    onError("Network error. Is the server running?");
     return null;
   }
 
@@ -110,7 +110,7 @@ export async function readFrames<Meta>(
       }
       if (result === "timeout") {
         await reader.cancel();
-        handlers.onError("The stream stalled — try again.");
+        handlers.onError("The stream stalled. Try again.");
         return;
       }
       const { done, value } = result;

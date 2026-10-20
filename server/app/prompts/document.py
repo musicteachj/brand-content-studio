@@ -1,9 +1,9 @@
 """Prompt construction for document generation (Phase 2).
 
 Two phases, exactly mirroring the image-card flow (ARCHITECTURE §5, gotcha #8):
-  1. STREAM — `build_copy_system` / `build_copy_user` produce a prompt that streams
+  1. STREAM: `build_copy_system` / `build_copy_user` produce a prompt that streams
      the document as natural prose for the live "drafting" preview.
-  2. EXTRACT — `build_fields_system` / `build_fields_user` + `DOC_SECTIONS_TOOL`
+  2. EXTRACT: `build_fields_system` / `build_fields_user` + `DOC_SECTIONS_TOOL`
      take that finished draft and return the typed `DocumentModel`
      (title/eyebrow/lede/sections/footer) via a forced, strict tool-use call.
      The structure is never parsed out of the stream.
@@ -24,10 +24,11 @@ from app.rag.vector_store import RetrievedChunk
 _ARCHETYPE_GUIDANCE = {
     DocumentArchetype.one_pager: (
         "ONE-PAGER: a single-page brand document. A short eyebrow/kicker, a strong "
-        "title, a one- or two-sentence lede that frames the piece, then 2-4 short "
+        "title, a one- or two-sentence lede that frames the piece, then 2-3 short "
         "sections (each a heading + a tight paragraph, optionally a few bullet "
         "points), and a brief closing footer line (e.g. a tagline or contact). It "
-        "must read as a finished leave-behind, not an outline."
+        "must fit on one printed page: about 300 words in all, never more than 350. "
+        "It must read as a finished leave-behind, not an outline."
     ),
     DocumentArchetype.short_deck: (
         "SHORT DECK: a tight presentation. The title + eyebrow + lede become the "
@@ -91,7 +92,7 @@ def build_copy_user(
     return "\n".join(parts)
 
 
-# Forced, strict tool — the typed schema is cleaner than parsing the prose
+# Forced, strict tool: the typed schema is cleaner than parsing the prose
 # (gotcha #8). Every level sets additionalProperties:false and lists all keys in
 # `required`, as strict tool-use requires. Lengths/counts are clamped again
 # server-side in `build_document_output` (defense in depth).

@@ -67,4 +67,18 @@ describe("DashboardPage first-run", () => {
     expect(container.textContent).toContain("Brand assets");
     expect(container.textContent).not.toContain("Create your first workspace");
   });
+
+  // QA-01: the Phase 0 "scaffold is live" line and a stat hint that undercounted.
+  it("uses current copy for the subtitle and the Generations stat", () => {
+    useActiveWorkspaceMock.mockReturnValue({
+      workspace: { asset_count: 2, ready_chunk_count: 5 },
+      workspaceId: "a",
+      isError: false,
+      hasNone: false,
+    });
+    mount();
+    expect(container.textContent).not.toMatch(/scaffold/i);
+    expect(container.textContent).toContain("LinkedIn posts, cards, and documents");
+    expect(container.textContent).toContain("Posts, cards, and documents");
+  });
 });

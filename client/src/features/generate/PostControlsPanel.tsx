@@ -57,7 +57,7 @@ export function PostControlsPanel({
           placeholder="e.g. Why specifying low-carbon materials early cuts the most embodied carbon."
         />
         <p className="mt-1.5 text-xs text-muted-foreground">
-          You’ll get a full post caption <strong>and</strong> a matching card — both on-brand, from
+          You’ll get a full post caption <strong>and</strong> a matching card, both on-brand, from
           one brief.
         </p>
       </div>

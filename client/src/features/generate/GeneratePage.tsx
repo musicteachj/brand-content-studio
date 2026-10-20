@@ -19,7 +19,7 @@ const MODES: { value: Mode; label: string; icon: typeof Type }[] = [
 ];
 
 const MODE_TITLE: Record<Mode, string> = {
-  post: "LinkedIn post — caption + card",
+  post: "LinkedIn post: caption + card",
   text: "LinkedIn text post",
   card: "Brand image card",
   document: "Branded document",
