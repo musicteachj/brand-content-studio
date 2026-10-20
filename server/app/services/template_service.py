@@ -1,6 +1,6 @@
 """On-brand document templates (Phase 5). Discover the `{{placeholder}}` tags in
 an uploaded .docx/.pptx, fill them with values (the user's own text or an AI
-draft), and render — swapping ONLY text, never the template's styling. docx via
+draft), and render, swapping ONLY text, never the template's styling. docx via
 docxtpl (Jinja2-for-Word); pptx via paragraph-level run replacement (PowerPoint
 splits a tag across runs, so we substitute on the joined paragraph text)."""
 from __future__ import annotations
@@ -29,7 +29,7 @@ class TemplateHasLogic(ValueError):
     loop-bomb surface entirely, rather than relying on the Jinja sandbox alone."""
 
 
-_LOGIC_MSG = "Templates may use {{placeholders}} only — not {% %} logic or {# #} comments."
+_LOGIC_MSG = "Templates may use {{placeholders}} only, not {% %} logic or {# #} comments."
 
 
 def _assert_no_logic(text: str) -> None:
@@ -84,7 +84,7 @@ def discover_placeholders(data: bytes, fmt: str) -> list[str]:
 
 
 def _text_frames(shapes):  # type: ignore[no-untyped-def]
-    """Yield every text frame in a shape tree — text boxes/placeholders + table cells."""
+    """Yield every text frame in a shape tree: text boxes/placeholders + table cells."""
     for shape in shapes:
         if shape.has_text_frame:
             yield shape.text_frame

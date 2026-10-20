@@ -332,3 +332,33 @@ async def test_upload_demo_blocked(test_db, tmp_path, monkeypatch):
     app.dependency_overrides.clear()
     get_storage.cache_clear()
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_explains_an_empty_source(tpl_client):
+    # Our own refusals are written for users and pass through verbatim.
+    t = await _upload(tpl_client)
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id']}/fill-from-document",
+        files={"file": ("notes.md", b"   \n  ", "text/markdown")},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "No extractable text found in the document."
+
+
+@pytest.mark.asyncio
+async def test_fill_from_document_hides_parser_internals(tpl_client):
+    # A .pptx renamed to .docx makes python-docx raise a ValueError whose text is
+    # library internals ("file '<stream>' is not a Word file, content type is
+    # ..."). The client now shows the server's detail, so it must be ours.
+    t = await _upload(tpl_client)
+    pptx = _pptx_bytes("Hello")
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id']}/fill-from-document",
+        files={"file": ("draft.docx", pptx, DOCX_CT)},
+    )
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert "content type" not in detail and "stream" not in detail
+    assert detail.startswith("Couldn't read that document.")
+

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2, Upload, X } from "lucide-react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { apiErrorMessage } from "@/lib/apiError";
 import { optionsForRole } from "@/styles/fontCatalog";
 import { useDeleteLogo, useUpdateWorkspace, useUploadLogo } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,8 @@ export function BrandIdentityForm({
     try {
       await update.mutateAsync({ brand_profile });
       onDone();
-    } catch {
-      setSaveError("Couldn’t save. Try again.");
+    } catch (err) {
+      setSaveError(apiErrorMessage(err, "Couldn’t save. Try again."));
     }
   }
 
@@ -72,12 +73,12 @@ export function BrandIdentityForm({
     setLogoError(null);
     try {
       await uploadLogo.mutateAsync(file);
-    } catch {
-      setLogoError("Upload failed. Use a JPG, PNG, or WebP under 8 MB.");
+    } catch (err) {
+      setLogoError(apiErrorMessage(err, "Upload failed. Use a JPG, PNG, or WebP under 8 MB."));
     }
   }
 
-  /** Apply an extract proposal into the form for review — replaces palette + fonts
+  /** Apply an extract proposal into the form for review: replaces palette + fonts
    *  + voice. Nothing is saved until the user clicks Save changes. */
   function applyProposal(proposal: BrandExtract) {
     const patch = proposalToForm(proposal);
@@ -264,7 +265,7 @@ export function BrandIdentityForm({
         <Textarea
           id="voice"
           rows={3}
-          placeholder="How the brand sounds — tone, vocabulary, what to avoid."
+          placeholder="How the brand sounds: tone, vocabulary, what to avoid."
           {...register("voice_summary")}
         />
       </div>

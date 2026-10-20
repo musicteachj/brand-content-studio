@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AxiosError } from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Trash2, UploadCloud } from "lucide-react";
 import { useAssets, useDeleteAsset, useReingestAsset, useUploadAsset } from "@/api/assets";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { StatusPill } from "@/features/assets/StatusPill";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { Asset, AssetKind } from "@/types";
 
@@ -59,13 +59,13 @@ export function AssetsPage() {
           Brand corpus
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Upload brand documents — voice guides, past posts, pillars. Each is parsed, chunked, and
+          Upload brand documents: voice guides, past posts, pillars. Each is parsed, chunked, and
           embedded into this workspace's retrievable corpus.
         </p>
       </header>
 
       {isDemo ? (
-        <DemoNotice message="You're exploring as a demo — the seeded Verdure corpus is read-only. Uploads and deletes are disabled so the demo stays intact. Everything else (generating posts, inspecting retrieval) works." />
+        <DemoNotice message="You're exploring as a demo, so the seeded Verdure corpus is read-only. Uploads and deletes are disabled so the demo stays intact. Everything else (generating posts, inspecting retrieval) works." />
       ) : (
         <UploadCard workspaceId={workspaceId} />
       )}
@@ -136,11 +136,7 @@ function UploadCard({ workspaceId }: { workspaceId: string | null }) {
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (err) {
-      const detail =
-        err instanceof AxiosError && typeof err.response?.data?.detail === "string"
-          ? err.response.data.detail
-          : "Upload failed.";
-      setError(detail);
+      setError(apiErrorMessage(err, "Upload failed."));
     }
   }
 

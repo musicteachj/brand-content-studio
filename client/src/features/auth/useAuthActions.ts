@@ -1,17 +1,9 @@
 import { useState } from "react";
-import { AxiosError } from "axios";
 import { api } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore, type AuthUser } from "@/stores/auth";
 
 type Pending = "demo" | "password" | null;
-
-function message(err: unknown, fallback: string): string {
-  if (err instanceof AxiosError) {
-    const detail = err.response?.data?.detail;
-    if (typeof detail === "string") return detail;
-  }
-  return fallback;
-}
 
 /** Demo + password sign-in. Token is set before /auth/me so the interceptor attaches it. */
 export function useAuthActions() {
@@ -41,7 +33,7 @@ export function useAuthActions() {
       const res = await api.post<{ access_token: string }>("/auth/demo-login");
       await finish(res.data.access_token);
     } catch (err) {
-      setError(message(err, "Demo sign-in failed. Is the server running and seeded?"));
+      setError(apiErrorMessage(err, "Demo sign-in failed. Is the server running and seeded?"));
       throw err;
     } finally {
       setPending(null);
@@ -55,7 +47,7 @@ export function useAuthActions() {
       const res = await api.post<{ access_token: string }>("/auth/login", { email, password });
       await finish(res.data.access_token);
     } catch (err) {
-      setError(message(err, "Incorrect email or password."));
+      setError(apiErrorMessage(err, "Incorrect email or password."));
       throw err;
     } finally {
       setPending(null);

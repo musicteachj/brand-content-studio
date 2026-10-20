@@ -3,6 +3,7 @@ import { ImageOff, Sparkles, Trash2, Upload } from "lucide-react";
 import { fetchImageDataUrl } from "@/api/images";
 import { useAddExemplar, useRemoveExemplar } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { BrandExemplar, Workspace } from "@/types";
 import { canAddExemplar, MAX_EXEMPLARS } from "./exemplars";
@@ -26,8 +27,8 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
     setError(null);
     try {
       await add.mutateAsync(file);
-    } catch {
-      setError("Couldn’t add that card. Use a JPG, PNG, or WebP under 8 MB.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn’t add that card. Use a JPG, PNG, or WebP under 8 MB."));
     }
   }
 
@@ -58,7 +59,7 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Upload past on-brand cards — each is analyzed once to steer new copy toward your style.
+        Upload past on-brand cards. Each is analyzed once to steer new copy toward your style.
       </p>
       {add.isPending && (
         <span className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -66,7 +67,11 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
           Reading the card…
         </span>
       )}
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
       {exemplars.length === 0 ? (
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <ImageOff className="h-4 w-4" aria-hidden />

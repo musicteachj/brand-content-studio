@@ -6,6 +6,7 @@ import { useDeleteWorkspace, useUpdateWorkspace, useWorkspaces } from "@/api/wor
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
+import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 import { useWorkspaceStore } from "@/stores/workspace";
@@ -79,8 +80,8 @@ function WorkspaceRow({
     try {
       await update.mutateAsync({ name: trimmed });
       setEditing(false);
-    } catch {
-      setError("Couldn’t rename. Try again.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn’t rename. Try again."));
     }
   }
 
@@ -89,8 +90,8 @@ function WorkspaceRow({
       await del.mutateAsync(ws.id);
       if (isActive) setActive(null); // resolver falls back to the first workspace
       setConfirmOpen(false);
-    } catch {
-      setError("Couldn’t delete. Try again.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn’t delete. Try again."));
     }
   }
 
@@ -181,7 +182,11 @@ function WorkspaceRow({
           </div>
         </>
       )}
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
 
       <Dialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
         <Dialog.Portal>

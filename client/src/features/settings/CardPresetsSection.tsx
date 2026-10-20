@@ -4,6 +4,7 @@ import { useAddCardPreset, useRemoveCardPreset } from "@/api/workspaces";
 import { TemplatePicker } from "@/features/generate/TemplatePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import { useRovingRadio } from "@/lib/useRovingRadio";
 import { useAuthStore } from "@/stores/auth";
@@ -50,8 +51,10 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
       await add.mutateAsync({ name: name.trim(), template_id: template, accent_hex: accentHex });
       setName("");
       setAccentHex(null);
-    } catch {
-      setError("Couldn’t save that preset. Use a unique name (max 8 presets).");
+    } catch (err) {
+      setError(
+        apiErrorMessage(err, "Couldn’t save that preset. Use a unique name (max 8 presets)."),
+      );
     }
   }
 
@@ -61,7 +64,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
         Card presets · {presets.length} of {MAX_PRESETS}
       </span>
       <p className="text-sm text-muted-foreground">
-        Save a named look — a layout plus an accent — to apply in one click when generating a card.
+        Save a named look (a layout plus an accent) to apply in one click when generating a card.
       </p>
 
       {!isDemo && !atCap && (
@@ -123,7 +126,11 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
               );
             })}
           </div>
-          {error && <span className="text-xs text-destructive">{error}</span>}
+          {error && (
+            <span role="alert" className="text-xs text-destructive">
+              {error}
+            </span>
+          )}
           <Button
             type="button"
             size="sm"
@@ -139,7 +146,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
       )}
       {atCap && !isDemo && (
         <span className="text-xs text-muted-foreground">
-          You’ve reached the {MAX_PRESETS}-preset limit — delete one to add another.
+          You’ve reached the {MAX_PRESETS}-preset limit. Delete one to add another.
         </span>
       )}
 

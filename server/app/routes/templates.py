@@ -1,12 +1,13 @@
 """Template routes (Phase 5). Upload/list/delete branded .docx/.pptx templates,
 optionally AI-draft their placeholder values, and render the filled file. Renders
-are returned for immediate download — not persisted. The template's styling is
+are returned for immediate download, not persisted. The template's styling is
 authoritative; we only swap `{{placeholder}}` text.
 
-NOTE: no `from __future__ import annotations` — the AI routes use slowapi's
+NOTE: no `from __future__ import annotations`: the AI routes use slowapi's
 @limiter.limit, whose wrapper + ForwardRef annotations would 422 request bodies
 (see generate.py)."""
 import asyncio
+import logging
 import os
 
 from bson import ObjectId
@@ -26,7 +27,11 @@ from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
 from app.services.ai_service import GenerationService
-from app.services.content_extraction import extract_document_text
+from app.services.content_extraction import (
+    NoExtractableTextError,
+    UnsupportedSourceError,
+    extract_document_text,
+)
 from app.services.storage_service import build_template_key, get_storage, safe_filename
 from app.services.upload_service import SOURCE_POLICY, TEMPLATE_POLICY, read_upload
 from app.utils.archives import UnsafeArchive
@@ -36,6 +41,8 @@ from app.utils.dependencies import (
     require_not_demo,
 )
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -68,16 +75,16 @@ async def upload_template(
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Reading this template timed out — try a smaller or simpler file.",
+            detail="Reading this template timed out. Try a smaller or simpler file.",
         ) from None
     except template_service.TemplateHasLogic as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
-    except Exception:  # noqa: BLE001 — a corrupt file must not 500
+    except Exception:  # noqa: BLE001 (a corrupt file must not 500)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Couldn't read this template — is it a valid .docx/.pptx?",
+            detail="Couldn't read this template. Is it a valid .docx or .pptx?",
         ) from None
     if len(placeholders) > template_service.MAX_PLACEHOLDERS:
         raise HTTPException(
@@ -181,11 +188,18 @@ async def fill_template_from_document(
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Parsing the document timed out — try a smaller or simpler file.",
+            detail="Parsing the document timed out. Try a smaller or simpler file.",
         ) from None
-    except ValueError as exc:
+    except (NoExtractableTextError, UnsupportedSourceError, UnsafeArchive) as exc:
+        # Our own refusals, written for users; the client shows them verbatim.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 (a parser's own error text is internals)
+        logger.info("fill-from-document: unreadable source %r: %s", filename, exc)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Couldn't read that document. Is it a valid .docx, .pptx, .pdf, .txt, or .md file?",
         ) from exc
     tool = template_fill.build_fill_tool(placeholders)
     result = await service.fill_template_values(
@@ -231,7 +245,7 @@ async def render_template(
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Rendering this template timed out — try a smaller or simpler file.",
+            detail="Rendering this template timed out. Try a smaller or simpler file.",
         ) from None
     except template_service.TemplateHasLogic as exc:
         raise HTTPException(

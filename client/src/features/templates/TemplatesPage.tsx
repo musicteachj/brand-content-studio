@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { Template } from "@/types";
 import { emptyValues, mergeFilled } from "./templateForm";
@@ -35,8 +36,10 @@ export function TemplatesPage() {
     setError(null);
     try {
       await upload.mutateAsync(file);
-    } catch {
-      setError("Couldn’t upload — use a .docx or .pptx under 10 MB.");
+    } catch (err) {
+      setError(
+        apiErrorMessage(err, "Couldn’t upload that template. Use a .docx or .pptx under 10 MB."),
+      );
     }
   }
 
@@ -48,13 +51,13 @@ export function TemplatesPage() {
           On-brand templates
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Upload a branded .docx or .pptx with {"{{placeholders}}"} — fill it with your own text (or
+          Upload a branded .docx or .pptx with {"{{placeholders}}"}, fill it with your own text (or
           an AI draft) and download a file in your template’s exact styling.
         </p>
       </header>
 
       {isDemo && (
-        <DemoNotice message="You're exploring as a demo — uploading and deleting templates is disabled so the seeded workspace stays intact." />
+        <DemoNotice message="You're exploring as a demo, so uploading and deleting templates is disabled so the seeded workspace stays intact." />
       )}
 
       <section className="flex flex-col gap-3">
@@ -79,7 +82,11 @@ export function TemplatesPage() {
             Upload template
           </Button>
         </div>
-        {error && <span className="text-xs text-destructive">{error}</span>}
+        {error && (
+          <span role="alert" className="text-xs text-destructive">
+            {error}
+          </span>
+        )}
         {(templates ?? []).length === 0 ? (
           <div className="rounded-lg border border-dashed border-border bg-surface p-8 text-center text-sm text-muted-foreground">
             No templates yet. Upload a branded .docx or .pptx to start.
@@ -158,8 +165,13 @@ function FillPanel({
     try {
       const filled = await fillTemplateFromDocument(workspaceId, template.id, file);
       setValues(mergeFilled(template.placeholders, filled));
-    } catch {
-      setError("Couldn’t read that document. Use a .docx, .pptx, .pdf, .txt, or .md under 10 MB.");
+    } catch (err) {
+      setError(
+        apiErrorMessage(
+          err,
+          "Couldn’t read that document. Use a .docx, .pptx, .pdf, .txt, or .md under 10 MB.",
+        ),
+      );
     } finally {
       setFillingFromDoc(false);
     }
@@ -171,8 +183,8 @@ function FillPanel({
     try {
       const filled = await aiFill.mutateAsync({ templateId: template.id, brief });
       setValues(mergeFilled(template.placeholders, filled));
-    } catch {
-      setError("AI draft failed — fill the fields yourself or try again.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "AI draft failed. Fill the fields yourself or try again."));
     }
   }
 
@@ -182,8 +194,8 @@ function FillPanel({
     setError(null);
     try {
       await renderTemplate(workspaceId, template, values);
-    } catch {
-      setError("Couldn’t render the file. Try again.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn’t render the file. Try again."));
     } finally {
       setDownloading(false);
     }
@@ -200,7 +212,7 @@ function FillPanel({
 
       {template.placeholders.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          This template has no {"{{placeholders}}"} — downloading returns it unchanged.
+          This template has no {"{{placeholders}}"}, so downloading returns it unchanged.
         </p>
       ) : (
         <>
@@ -262,7 +274,11 @@ function FillPanel({
         </>
       )}
 
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
       <div>
         <Button onClick={download} loading={downloading}>
           Download {template.format.toUpperCase()}

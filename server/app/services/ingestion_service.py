@@ -1,6 +1,6 @@
 """Ingestion pipeline: parse → chunk → embed → upsert → mark ready.
 
-Runs as a FastAPI BackgroundTask (DECISIONS — no task queue at portfolio
+Runs as a FastAPI BackgroundTask (DECISIONS: no task queue at portfolio
 scale). The chunk-building step (`build_chunks`) is a pure function so it can be
 unit-tested deterministically without a vector store or network."""
 from __future__ import annotations
@@ -13,7 +13,7 @@ from bson import ObjectId
 from app.database import get_database
 from app.limits import MAX_CHUNKS, PARSE_TIMEOUT_S
 from app.rag.chunking import chunk_text, split_posts
-from app.rag.loaders import Section, load_sections
+from app.rag.loaders import FileTooComplexError, Section, UnsupportedFileError, load_sections
 from app.rag.vector_store import Chunk, get_vector_store
 from app.services import asset_service
 from app.services.storage_service import get_storage
@@ -84,7 +84,7 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
             )
         except asyncio.TimeoutError:
             await asset_service.mark_error(
-                db, asset_oid, "Parsing timed out — try a smaller or simpler file."
+                db, asset_oid, "Parsing timed out. Try a smaller or simpler file."
             )
             return
         chunks = build_chunks(
@@ -101,21 +101,26 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
             await asset_service.mark_error(
                 db,
                 asset_oid,
-                f"Document too large ({len(chunks)} sections > {MAX_CHUNKS}) — split it into smaller files.",
+                f"Document too large ({len(chunks)} sections > {MAX_CHUNKS}). Split it into smaller files.",
             )
             return
         count = await get_vector_store().upsert_chunks(workspace_namespace, chunks)
         marked = await asset_service.mark_ready(db, asset_oid, count)
         if marked is None:
-            # Asset was deleted while we were ingesting — drop the orphan vectors
+            # Asset was deleted while we were ingesting; drop the orphan vectors
             # so they can't leak into retrieval with no backing asset record.
             await get_vector_store().delete_asset(workspace_namespace, asset_id)
             logger.info("asset %s deleted mid-ingest; dropped %d orphan chunks", asset_id, count)
             return
         logger.info("ingested asset %s → %d chunks", asset_id, count)
-    except Exception as exc:  # noqa: BLE001 — surface any failure as asset error state
-        # The error string is served back to the client via the asset API, so it
-        # must be redacted (client_error logs the real traceback server-side).
+    except (UnsupportedFileError, FileTooComplexError) as exc:
+        # The loader's own refusals are written for users ("PDF has 81 pages; the
+        # limit is 80.") and are fixable by them, so show them as-is (QA-03).
+        await asset_service.mark_error(db, asset_oid, str(exc))
+    except Exception as exc:  # noqa: BLE001 (surface any failure as asset error state)
+        # Anything else is unexpected and its text may carry internals, so the
+        # string served back via the asset API is redacted (client_error logs the
+        # real traceback server-side).
         await asset_service.mark_error(
             db, asset_oid, client_error(exc, context=f"ingestion of asset {asset_id}")
         )

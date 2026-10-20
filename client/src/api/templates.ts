@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { downloadBlob } from "@/features/generate/useCardExport";
 import { api } from "@/lib/api";
 import type { Template } from "@/types";
+import { withJsonErrorBody } from "@/lib/apiError";
 
 export function useTemplates(workspaceId: string | null) {
   return useQuery({
@@ -67,10 +68,12 @@ export async function renderTemplate(
   template: Template,
   values: Record<string, string>,
 ): Promise<void> {
-  const resp = await api.post(
-    `/workspaces/${workspaceId}/templates/${template.id}/render`,
-    { values },
-    { responseType: "blob" },
+  const resp = await withJsonErrorBody(
+    api.post(
+      `/workspaces/${workspaceId}/templates/${template.id}/render`,
+      { values },
+      { responseType: "blob" },
+    ),
   );
   const base = template.name.replace(/\.(docx|pptx)$/i, "");
   downloadBlob(resp.data as Blob, `${base}-filled.${template.format}`);
