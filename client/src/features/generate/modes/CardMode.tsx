@@ -127,6 +127,7 @@ export function CardMode() {
           imageError={gen.imageError}
           onAddImage={() => setPickerOpen(true)}
           onClearImage={gen.clearImage}
+          removingImage={gen.removingImage}
           editingText={editing && editingText}
           onToggleEditText={editing ? () => setEditingText((v) => !v) : undefined}
           onEditField={editing ? editor.setField : undefined}

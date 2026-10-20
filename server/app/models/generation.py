@@ -181,9 +181,10 @@ class DocumentOutput(BaseModel):
 
 
 class GenerationUpdate(BaseModel):
-    """Partial update applied to a card generation's `output` — Phase 1b attaches
+    """Partial update applied to a card generation's `output`. Phase 1b attaches
     the selected image; Phase 1.5 adds inline field/template edits + the per-card
-    accent. Every field is client-side customization: no `/generate` call."""
+    accent. Every field is client-side customization: no `/generate` call. An
+    explicit `image: null` clears the image; other nulls are ignored."""
 
     template_id: CardTemplate | None = None
     fields: CardFields | None = None

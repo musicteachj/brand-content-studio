@@ -15,9 +15,9 @@ const imageKey = (image: CardImage) => image.unsplash_id ?? image.storage_key ??
 
 /** The card-image concern shared by the card + post-pack generation hooks (ARCH-04):
  *  pick an Unsplash photo or an uploaded image, clear it, hydrate an already-
- *  persisted image from History, and PATCH the selection onto the generation once
- *  both an image and a generation id exist. Image selection is parallel to the copy
- *  stream, so this lives outside the streaming state — a picked image therefore
+ *  persisted image from History, and PATCH the selection (or its removal) onto the
+ *  generation once both an image and a generation id exist. Image selection is parallel to the copy
+ *  stream, so this lives outside the streaming state: a picked image therefore
  *  survives a regenerate and re-attaches to the new generation id. */
 export function useCardImageSelection(workspaceId: string | null, generationId: string | null) {
   const [state, setState] = useState<ImageState>(EMPTY);
@@ -26,6 +26,22 @@ export function useCardImageSelection(workspaceId: string | null, generationId: 
   // Bumped on every hydrate/reset/workspace-switch so a slow fetchImageDataUrl
   // from a prior generation can't write its bytes into the current one.
   const epochRef = useRef(0);
+  // Image PATCHes run one at a time, so a removal can't land before the pick it undoes.
+  const patchQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  // While a removal is in flight the persist effect waits, so a re-pick or a
+  // regenerate in that window is saved after it, never undone by it.
+  const removingRef = useRef(false);
+  const [removing, setRemoving] = useState(false);
+
+  const patchImage = useCallback(
+    (genId: string, image: CardImage | null) => {
+      const url = `/workspaces/${workspaceId}/generations/${genId}`;
+      const next = patchQueueRef.current.catch(() => {}).then(() => api.patch(url, { image }));
+      patchQueueRef.current = next;
+      return next;
+    },
+    [workspaceId],
+  );
 
   // Switching workspaces clears any picked image (the streaming hook aborts).
   useEffect(() => {
@@ -83,10 +99,37 @@ export function useCardImageSelection(workspaceId: string | null, generationId: 
     }
   }, []);
 
+  /** Remove the image, from the saved generation too (QA-07). With a generation,
+   *  the card clears only once the server has, so a failure leaves the image in
+   *  place with an error instead of letting it return on the next reload. */
   const clearImage = useCallback(() => {
-    epochRef.current += 1; // cancel any in-flight image fetch so it can't resurrect the image
-    setState({ image: null, imageDataUrl: null, imageError: null });
-  }, []);
+    if (removingRef.current) return; // one removal at a time
+    const epoch = ++epochRef.current; // cancel any in-flight image fetch so it can't resurrect the image
+    if (!state.image) return;
+    persistedKeyRef.current = null; // the server is about to have no image
+    if (!workspaceId || !generationId) {
+      setState(EMPTY);
+      return;
+    }
+    removingRef.current = true;
+    setRemoving(true);
+    patchImage(generationId, null)
+      .then(
+        () => {
+          // A pick made meanwhile wins (it saves once this settles); a regenerate
+          // doesn't, so the image doesn't carry over to the new card.
+          if (epochRef.current === epoch) setState(EMPTY);
+        },
+        () => {
+          if (epochRef.current === epoch)
+            setState((s) => ({ ...s, imageError: "Couldn’t remove the image. Try again." }));
+        },
+      )
+      .finally(() => {
+        removingRef.current = false;
+        setRemoving(false);
+      });
+  }, [state.image, workspaceId, generationId, patchImage]);
 
   /** Seed an already-persisted image (History re-open) WITHOUT re-PATCHing it —
    *  only a *new* selection should PATCH. `genId` is passed explicitly because the
@@ -116,16 +159,15 @@ export function useCardImageSelection(workspaceId: string | null, generationId: 
   // (generation, image) so we don't re-PATCH on every render. The server nests the
   // image under `output.card` for a post_pack; the PATCH body is identical.
   useEffect(() => {
-    if (!workspaceId || !generationId || !state.image) return;
+    if (!workspaceId || !generationId || !state.image || removing) return;
     const key = `${generationId}:${imageKey(state.image)}`;
     if (persistedKeyRef.current === key) return;
     persistedKeyRef.current = key;
-    api
-      .patch(`/workspaces/${workspaceId}/generations/${generationId}`, { image: state.image })
-      .catch(() => {
-        persistedKeyRef.current = null; // allow a retry on the next change
-      });
-  }, [workspaceId, generationId, state.image]);
+    patchImage(generationId, state.image).catch(() => {
+      // Allow a retry on the next change, unless a newer PATCH already took over.
+      if (persistedKeyRef.current === key) persistedKeyRef.current = null;
+    });
+  }, [workspaceId, generationId, state.image, removing, patchImage]);
 
-  return { ...state, selectUnsplash, selectUpload, clearImage, hydrate, reset };
+  return { ...state, removing, selectUnsplash, selectUpload, clearImage, hydrate, reset };
 }

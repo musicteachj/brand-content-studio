@@ -36,6 +36,7 @@ interface Props {
   imageError: string | null;
   onAddImage: () => void;
   onClearImage?: () => void; // un-pick the current image (ARCH-04)
+  removingImage?: boolean; // the removal is being saved (QA-07)
   // Inline text editing (Phase 1.5). When `onEditField` is provided the card can
   // enter an in-place edit mode; `editKey` re-seeds the editable fields when the
   // generation/template changes.
@@ -113,6 +114,7 @@ export function CardPreview({
   imageError,
   onAddImage,
   onClearImage,
+  removingImage = false,
   editingText = false,
   onToggleEditText,
   onEditField,
@@ -235,7 +237,12 @@ export function CardPreview({
                 </Button>
               )}
               {showAddImage && hasImage && onClearImage && (
-                <Button variant="ghost" onClick={onClearImage} aria-label="Remove image">
+                <Button
+                  variant="ghost"
+                  onClick={onClearImage}
+                  loading={removingImage}
+                  aria-label="Remove image"
+                >
                   <ImageMinus className="h-4 w-4" aria-hidden />
                   Remove
                 </Button>
