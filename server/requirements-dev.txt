@@ -9,3 +9,6 @@ ruff==0.15.18
 mypy==2.1.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
+# Starlette's TestClient runs on httpx2 (on plain httpx it warns that it's deprecated,
+# and pytest.ini turns that into an error). Tests only; httpx stays a runtime dep.
+httpx2==2.15.1

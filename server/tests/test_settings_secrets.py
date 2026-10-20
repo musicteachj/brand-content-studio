@@ -135,7 +135,12 @@ def test_the_real_app_serves_no_docs_or_schema_in_production(tmp_path):
     import sys
     from pathlib import Path
 
+    # pytest.ini's filterwarnings doesn't reach a subprocess, so the probe sets its own
+    # (before TestClient is imported, which is where the httpx fallback warns).
     probe = (
+        "import warnings\n"
+        "from starlette.exceptions import StarletteDeprecationWarning\n"
+        "warnings.simplefilter('error', StarletteDeprecationWarning)\n"
         "from fastapi.testclient import TestClient\n"
         "from app.main import app\n"
         "assert app.openapi_url is None and app.docs_url is None and app.redoc_url is None\n"
