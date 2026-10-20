@@ -6,7 +6,6 @@ import { extendTailwindMerge } from "tailwind-merge";
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: ["2xs", "3xs"],
       tracking: ["eyebrow", "heading", "display"],
       shadow: ["light", "medium", "heavy", "accent", "preview"],
       animate: ["fade-in-up", "slide-in-right", "fade-in"],

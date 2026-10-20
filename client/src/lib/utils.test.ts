@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { cn } from "./utils";
 
@@ -21,4 +23,26 @@ describe("cn with the custom theme", () => {
       expect(cn(input)).toBe(input);
     },
   );
+});
+
+// The merge config in utils.ts repeats the @theme names by hand; this fails when a
+// new --shadow-*, --tracking-*, --z-index-*, or --animate-* lands in index.css
+// without being registered (cn() would then keep both conflicting classes).
+describe("cn knows every custom @theme value", () => {
+  const css = readFileSync(path.resolve(process.cwd(), "src/index.css"), "utf8");
+  const theme = css.slice(css.indexOf("@theme"), css.indexOf("@keyframes"));
+  const names = (prefix: string) =>
+    [...theme.matchAll(new RegExp(`--${prefix}-([a-z0-9-]+):`, "g"))].map((m) => m[1]);
+
+  const groups: [string, string, string][] = [
+    ["shadow", "shadow", "shadow-none"],
+    ["tracking", "tracking", "tracking-normal"],
+    ["z-index", "z", "z-10"],
+    ["animate", "animate", "animate-none"],
+  ];
+  it.each(groups)("every --%s-* is registered", (prefix, utility, later) => {
+    const found = names(prefix);
+    expect(found.length).toBeGreaterThan(0);
+    for (const n of found) expect(cn(`${utility}-${n} ${later}`)).toBe(later);
+  });
 });

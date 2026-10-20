@@ -27,7 +27,7 @@ export function HistoryCard({
   const doc = documentOutput(gen);
   const isPost = gen.type === "post_pack";
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-[translate,box-shadow] hover:-translate-y-0.5 hover:shadow-medium">
+    <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition hover:-translate-y-0.5 hover:shadow-medium">
       <button
         type="button"
         onClick={(e) => onOpen(e.currentTarget)}

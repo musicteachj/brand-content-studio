@@ -213,7 +213,7 @@ function Toggle({
     >
       <span
         className={cn(
-          "inline-block h-5 w-5 transform rounded-full bg-surface shadow-light transition-transform",
+          "inline-block h-5 w-5 rounded-full bg-surface shadow-light transition-transform",
           checked ? "translate-x-[22px]" : "translate-x-0.5",
         )}
       />
