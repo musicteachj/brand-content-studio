@@ -181,7 +181,18 @@ jobs:
         run: |
           curl -sf http://127.0.0.1:8000/api/health | python3 -c \
             'import json, sys; d = json.load(sys.stdin); print(d); sys.exit(d["status"] != "ok")'
-          curl -sf http://127.0.0.1:8000/ | grep -q 'id="root"'
+          curl -sf http://127.0.0.1:8000/ -o index.html
+          grep -q 'id="root"' index.html
+          # The bundle index.html loads must come back as JavaScript, not as
+          # index.html again (that served a blank page; known-gaps plan, step 0).
+          js=$(grep -oE 'src="/assets/[^"]+\.js"' index.html | head -1 | cut -d'"' -f2)
+          test -n "$js" || { echo "no /assets/*.js in index.html" >&2; exit 1; }
+          type=$(curl -sf -o /dev/null -w '%{content_type}' "http://127.0.0.1:8000$js")
+          echo "$js -> $type"
+          case "$type" in *javascript*) ;; *) echo "bundle served as $type" >&2; exit 1 ;; esac
+          # An unknown API path is a 404, not the SPA.
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/does-not-exist)
+          test "$code" = 404 || { echo "/api/does-not-exist returned $code" >&2; exit 1; }
       - name: Container logs
         if: failure()
         run: docker logs bcs || true

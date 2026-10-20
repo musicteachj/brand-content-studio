@@ -27,11 +27,12 @@
 
 ## 2. Repo structure (monorepo)
 
-Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` builds the SPA with Node, then Python serves `client/dist` via `StaticFiles` (mirrors EMS/SRB). `docker-compose.yml` provides `mongo:7` + `chromadb/chroma`.
+Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` builds the SPA with Node, then Python serves `client/dist` (`app/spa.py`, `mount_spa`: real files as files, hashed `/assets/*` cached as immutable, every other path gets `index.html`, unknown `/api/...` paths are a JSON 404). `docker-compose.yml` provides `mongo:7` + `chromadb/chroma`.
 
 ```
 server/app/
   config.py database.py main.py          # lifespan: connect Mongo + init vector store + ensure indexes; pure-ASGI security-headers middleware
+  spa.py                                 # production only: serve the built client (mount_spa)
   routes/    auth · workspaces · assets · templates · generate · documents · generations · images · health
   services/  auth · workspace · asset · ingestion · retrieval · ai (Claude client) · generations (Mongo persistence) ·
              document · template · content_extraction · brand_extract · brand_fonts · upload · unsplash · storage
