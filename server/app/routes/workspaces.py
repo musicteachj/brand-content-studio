@@ -269,8 +269,9 @@ async def delete_brand_image(
     current_user: UserInDB = Depends(require_not_demo),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    """Remove a brand image from the library and delete its stored bytes. Images
-    already baked onto past cards are unaffected (copied onto the generation)."""
+    """Remove a brand image from the library and delete its stored bytes. A card
+    that picked this image points at the same stored file, so it loses its picture
+    (known issue; the Settings confirm dialog warns about it)."""
     result = await workspace_service.remove_workspace_image(
         db, str(workspace["_id"]), current_user.id, image_id
     )

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Trash2, Type, Upload } from "lucide-react";
 import { useAddFont, useRemoveFont } from "@/api/workspaces";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/apiError";
@@ -16,6 +17,7 @@ export function BrandFontsSection({ workspace }: { workspace: Workspace }) {
   const add = useAddFont(workspace.id);
   const remove = useRemoveFont(workspace.id);
   const fileRef = useRef<HTMLInputElement>(null);
+  const countRef = useRef<HTMLSpanElement>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const fonts = workspace.brand_profile.uploaded_fonts ?? [];
@@ -45,7 +47,7 @@ export function BrandFontsSection({ workspace }: { workspace: Workspace }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="eyebrow">
+        <span ref={countRef} tabIndex={-1} className="eyebrow focus-visible:outline-hidden">
           Brand fonts · {fonts.length} of {MAX_FONTS}
         </span>
         <div className="flex items-center gap-2">
@@ -99,17 +101,27 @@ export function BrandFontsSection({ workspace }: { workspace: Workspace }) {
                 {f.family}
               </span>
               {!isDemo && (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => remove.mutate(f.id)}
-                  loading={remove.isPending}
-                  aria-label={`Remove ${f.family}`}
-                  className="h-7 w-7 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                </Button>
+                <ConfirmDialog
+                  trigger={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove ${f.family}`}
+                      className="h-7 w-7 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                  }
+                  title={`Remove “${f.family}”?`}
+                  description="Cards and PDFs that use it will fall back to a standard font. Files you already downloaded keep it. This can’t be undone."
+                  confirmLabel="Remove font"
+                  onConfirm={async () => {
+                    await remove.mutateAsync(f.id);
+                  }}
+                  errorFallback="Couldn’t remove this font. Try again."
+                  focusAfterConfirm={countRef}
+                />
               )}
             </li>
           ))}

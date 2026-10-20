@@ -25,7 +25,7 @@ function addFont(args: unknown): Promise<never> {
 }
 vi.mock("@/api/workspaces", () => ({
   useAddFont: () => ({ mutateAsync: addFont, isPending: false }),
-  useRemoveFont: () => ({ mutate: vi.fn(), isPending: false }),
+  useRemoveFont: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 function axiosError(status: number, data: unknown): AxiosError {
