@@ -106,7 +106,7 @@ async def update_generation(
         }
         if accent.lower() not in palette:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="accent_hex must be one of the workspace's brand colors.",
             )
     doc = await generations_service.update_generation_output(

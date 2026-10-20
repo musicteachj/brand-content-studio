@@ -72,21 +72,21 @@ async def upload_template(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Reading this template timed out. Try a smaller or simpler file.",
         ) from None
     except template_service.TemplateHasLogic as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except Exception:  # noqa: BLE001 (a corrupt file must not 500)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Couldn't read this template. Is it a valid .docx or .pptx?",
         ) from None
     if len(placeholders) > template_service.MAX_PLACEHOLDERS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Template has too many fields (max {template_service.MAX_PLACEHOLDERS}).",
         )
 
@@ -186,18 +186,18 @@ async def fill_template_from_document(
         )
     except asyncio.TimeoutError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Parsing the document timed out. Try a smaller or simpler file.",
         ) from None
     except (NoExtractableTextError, UnsupportedSourceError, UnsafeArchive) as exc:
         # Our own refusals, written for users; the client shows them verbatim.
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     except Exception as exc:  # noqa: BLE001 (a parser's own error text is internals)
         logger.info("fill-from-document: unreadable source %r: %s", filename, exc)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Couldn't read that document. Is it a valid .docx, .pptx, .pdf, .txt, or .md file?",
         ) from exc
     tool = template_fill.build_fill_tool(placeholders)
@@ -242,12 +242,12 @@ async def render_template(
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Rendering this template timed out. Try a smaller or simpler file.",
         ) from None
     except template_service.TemplateHasLogic as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     out_name = safe_filename(f"{os.path.splitext(doc['name'])[0]}-filled.{fmt}")
     return Response(
