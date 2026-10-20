@@ -1,6 +1,6 @@
 # Known gaps plan (October 2026)
 
-> **Status: step 0 shipped (PR #66), step 1 shipped (PR #67), step 2 built (2026-10-20).** Follow-up to the October QA pass (`docs/QA-2026-10.md`, on branch `qa/2026-10-bug-bash`). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
+> **Status: done (2026-10-20). Step 0 shipped in PR #66, step 1 in PR #67, step 2 in PR #68.** Follow-up to the October QA pass ([`QA-2026-10.md`](./QA-2026-10.md)). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
 
 Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step 2 depends on step 0 (a CSP can only be checked against the production build). Every step follows the usual loop: tests first, full gate, live check in the browser, `/code-review` and `/security-review`, and the owner's go-ahead before each commit, push, and PR.
 
@@ -58,7 +58,7 @@ Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step
 
 ## Step 2: an enforcing Content-Security-Policy
 
-> **Status: built (2026-10-20), DECISIONS #36.** The draft policy held as written, plus `plus.unsplash.com` (Unsplash+ photos are served from it) in `img-src` and `connect-src`. The browser pass on the production image found no violations from the app; the only one was a placeholder `http://img/x.jpg` stored on an old demo generation, which it is right to block. Code review added the one exemption (FastAPI's `/docs` and `/redoc`, which the SPA policy would leave blank) and recorded the known limits in DECISIONS #36: browsers without `'wasm-unsafe-eval'`, no violation-report collector yet, and an S3 or CloudFront upload origin to add when storage moves.
+> **Status: shipped (PR #68), DECISIONS #36.** The draft policy held as written, plus `plus.unsplash.com` (Unsplash+ photos are served from it) in `img-src` and `connect-src`. The browser pass on the production image found no violations from the app; the only one was a placeholder `http://img/x.jpg` stored on an old demo generation, which it is right to block. Code review added the one exemption (FastAPI's `/docs` and `/redoc`, which the SPA policy would leave blank) and recorded the known limits in DECISIONS #36: browsers without `'wasm-unsafe-eval'`, no violation-report collector yet, and an S3 or CloudFront upload origin to add when storage moves.
 
 **Gap.** There's no CSP (AUDIT SEC-11 note; QA row H3). `SecurityHeadersMiddleware` already sets `nosniff`, `X-Frame-Options`, `Referrer-Policy`, and HSTS in production.
 
@@ -100,5 +100,7 @@ object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 **Docs:** a DECISIONS entry (#36), the security headers section in `ARCHITECTURE.md`, the AUDIT SEC-11 note closed, and the `SecurityHeadersMiddleware` docstring updated.
 
 ## After this plan
+
+A review of the CSP work turned up one more fix, now shipped: settings secrets (API keys, the JWT secret, the Mongo URL) could print in a traceback or a failed boot's logs, and FastAPI's docs and schema were public in production (PR #69, DECISIONS #37).
 
 Deploy items stay deferred to the AWS phase (`PLAN.md`): HSTS at the edge, per-IP rate-limit keying behind the load balancer (QA R2), and Docker/production hardening. Separately noted cleanups: deleting a generation leaves its built document files in storage; the starlette 1.x `HTTP_413`/`HTTP_422` constant renames; client dev-tool majors (vite 8, vitest 5, tailwind 4).
