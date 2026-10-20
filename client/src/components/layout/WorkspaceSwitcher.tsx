@@ -24,16 +24,20 @@ export function WorkspaceSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-surface-variant focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-surface-variant focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Switch workspace"
       >
-        <span className="flex flex-col leading-none">
+        {/* min-w-0 + truncate: a long name can't push the top bar past the window. */}
+        <span className="flex min-w-0 flex-col leading-none">
           <span className="eyebrow">Workspace</span>
-          <span className="mt-1 text-sm font-medium text-foreground">
+          <span
+            className="mt-1 truncate text-sm font-medium text-foreground"
+            title={workspace?.name}
+          >
             {workspace?.name ?? "No workspace"}
           </span>
         </span>
-        <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden />
+        <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuLabel>Workspaces</DropdownMenuLabel>

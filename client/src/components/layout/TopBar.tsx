@@ -9,11 +9,12 @@ export function TopBar() {
   return (
     <header className="z-header flex h-16 shrink-0 items-center gap-4 border-b border-border bg-surface px-6 md:px-10">
       <WorkspaceSwitcher />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         <ThemeToggle />
+        {/* Icon-only on a phone-width window, so it isn't cut off. */}
         <Button size="sm" onClick={() => navigate("/generate")}>
           <PenLine className="h-4 w-4" aria-hidden />
-          New generation
+          <span className="sr-only sm:not-sr-only">New generation</span>
         </Button>
       </div>
     </header>

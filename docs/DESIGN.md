@@ -121,7 +121,7 @@ foreground/background pairs for contrast independently per theme.
 - **Inputs:** outlined (`border`), `radius-sm`, visible label above (never placeholder-only), helper text
   below, error text below in `destructive` + `role="alert"`; focus = 2px `ring`. Validate on blur,
   focus first invalid on submit.
-- **Side navigation:** Fixed left sidebar, collapsible to icon-only. Active item = `accent` left border
+- **Side navigation:** Fixed left sidebar, collapsible to icon-only; starts collapsed below `lg` (desktop-first, DECISIONS #39). Active item = `accent` left border
   + `surface-variant` background. Icon + label when expanded, icon-only with tooltip when collapsed.
   Never top nav inside the app — landing page only.
 - **Cards (content history grid):** `surface` + 1px `border` + `shadow-light`; hover `translateY(-2px)`
