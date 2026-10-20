@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LayoutTemplate, Plus, Trash2 } from "lucide-react";
 import { useAddCardPreset, useRemoveCardPreset } from "@/api/workspaces";
 import { TemplatePicker } from "@/features/generate/TemplatePicker";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/apiError";
@@ -25,6 +26,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
   const brand = workspace.brand_profile;
   const add = useAddCardPreset(workspace.id);
   const remove = useRemoveCardPreset(workspace.id);
+  const countRef = useRef<HTMLSpanElement>(null);
   const [name, setName] = useState("");
   const [template, setTemplate] = useState<CardTemplate>("photo-led");
   const [accentHex, setAccentHex] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
-      <span className="eyebrow">
+      <span ref={countRef} tabIndex={-1} className="eyebrow focus-visible:outline-hidden">
         Card presets · {presets.length} of {MAX_PRESETS}
       </span>
       <p className="text-sm text-muted-foreground">
@@ -172,17 +174,27 @@ export function CardPresetsSection({ workspace }: { workspace: Workspace }) {
                 <span className="eyebrow">{TEMPLATE_LABEL[p.template_id]}</span>
               </span>
               {!isDemo && (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => remove.mutate(p.id)}
-                  loading={remove.isPending}
-                  aria-label={`Remove ${p.name}`}
-                  className="h-7 w-7 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                </Button>
+                <ConfirmDialog
+                  trigger={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Remove ${p.name}`}
+                      className="h-7 w-7 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                    </Button>
+                  }
+                  title={`Remove “${p.name}”?`}
+                  description="Cards already made with it keep their look. This can’t be undone."
+                  confirmLabel="Remove preset"
+                  onConfirm={async () => {
+                    await remove.mutateAsync(p.id);
+                  }}
+                  errorFallback="Couldn’t remove this preset. Try again."
+                  focusAfterConfirm={countRef}
+                />
               )}
             </li>
           ))}

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { ImageOff, Trash2, Upload } from "lucide-react";
 import { fetchImageDataUrl } from "@/api/images";
 import { useAddBrandImage, useRemoveBrandImage, useRenameBrandImage } from "@/api/workspaces";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
@@ -17,6 +18,7 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
   const remove = useRemoveBrandImage(workspace.id);
   const rename = useRenameBrandImage(workspace.id);
   const fileRef = useRef<HTMLInputElement>(null);
+  const countRef = useRef<HTMLSpanElement>(null);
   const [error, setError] = useState<string | null>(null);
   const images = workspace.brand_profile.brand_images ?? [];
 
@@ -37,7 +39,7 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="eyebrow">
+        <span ref={countRef} tabIndex={-1} className="eyebrow focus-visible:outline-hidden">
           Brand images · {images.length} of {MAX_BRAND_IMAGES}
         </span>
         <input
@@ -81,8 +83,10 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
               key={img.id}
               image={img}
               isDemo={isDemo}
-              removing={remove.isPending}
-              onRemove={() => remove.mutate(img.id)}
+              onRemove={async () => {
+                await remove.mutateAsync(img.id);
+              }}
+              focusAfterRemove={countRef}
               onRename={(name) => rename.mutate({ imageId: img.id, name })}
             />
           ))}
@@ -95,14 +99,14 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
 function ImageTile({
   image,
   isDemo,
-  removing,
   onRemove,
+  focusAfterRemove,
   onRename,
 }: {
   image: BrandImage;
   isDemo: boolean;
-  removing: boolean;
-  onRemove: () => void;
+  onRemove: () => Promise<void>;
+  focusAfterRemove: RefObject<HTMLElement | null>;
   onRename: (name: string) => void;
 }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -126,17 +130,25 @@ function ImageTile({
           <span className="absolute inset-0 animate-pulse bg-muted-foreground/10" aria-hidden />
         )}
         {!isDemo && (
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            onClick={onRemove}
-            loading={removing}
-            aria-label={`Remove ${image.name ?? "image"}`}
-            className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-destructive"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          </Button>
+          <ConfirmDialog
+            trigger={
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label={`Remove ${image.name ?? "image"}`}
+                className="absolute right-1 top-1 h-7 w-7 opacity-0 shadow-medium transition-opacity focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              </Button>
+            }
+            title={image.name ? `Remove “${image.name}”?` : "Remove this image?"}
+            description="This removes it from your brand images. Cards that use it as their picture will lose it. This can’t be undone."
+            confirmLabel="Remove image"
+            onConfirm={onRemove}
+            errorFallback="Couldn’t remove this image. Try again."
+            focusAfterConfirm={focusAfterRemove}
+          />
         )}
       </div>
       {isDemo ? (

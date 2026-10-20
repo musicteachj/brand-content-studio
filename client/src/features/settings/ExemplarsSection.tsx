@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { ImageOff, Sparkles, Trash2, Upload } from "lucide-react";
 import { fetchImageDataUrl } from "@/api/images";
 import { useAddExemplar, useRemoveExemplar } from "@/api/workspaces";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
@@ -17,6 +18,7 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
   const add = useAddExemplar(workspace.id);
   const remove = useRemoveExemplar(workspace.id);
   const fileRef = useRef<HTMLInputElement>(null);
+  const countRef = useRef<HTMLSpanElement>(null);
   const [error, setError] = useState<string | null>(null);
   const exemplars = workspace.brand_profile.exemplars ?? [];
 
@@ -35,7 +37,7 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5 shadow-light">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="eyebrow">
+        <span ref={countRef} tabIndex={-1} className="eyebrow focus-visible:outline-hidden">
           Example cards · {exemplars.length} of {MAX_EXEMPLARS}
         </span>
         <input
@@ -84,8 +86,10 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
               key={ex.id}
               exemplar={ex}
               isDemo={isDemo}
-              removing={remove.isPending}
-              onRemove={() => remove.mutate(ex.id)}
+              onRemove={async () => {
+                await remove.mutateAsync(ex.id);
+              }}
+              focusAfterRemove={countRef}
             />
           ))}
         </ul>
@@ -97,13 +101,13 @@ export function ExemplarsSection({ workspace }: { workspace: Workspace }) {
 function ExemplarRow({
   exemplar,
   isDemo,
-  removing,
   onRemove,
+  focusAfterRemove,
 }: {
   exemplar: BrandExemplar;
   isDemo: boolean;
-  removing: boolean;
-  onRemove: () => void;
+  onRemove: () => Promise<void>;
+  focusAfterRemove: RefObject<HTMLElement | null>;
 }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -127,19 +131,27 @@ function ExemplarRow({
         )}
       </div>
       <p className="flex-1 text-sm leading-relaxed text-foreground">{exemplar.style_note}</p>
-      <Button
-        type="button"
-        size="icon"
-        variant="ghost"
-        onClick={onRemove}
-        loading={removing}
-        disabled={isDemo}
-        title={isDemo ? "Disabled in the demo" : "Remove"}
-        aria-label="Remove example card"
-        className="hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" aria-hidden />
-      </Button>
+      <ConfirmDialog
+        trigger={
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={isDemo}
+            title={isDemo ? "Disabled in the demo" : "Remove"}
+            aria-label="Remove example card"
+            className="hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </Button>
+        }
+        title="Remove this example card?"
+        description="New copy will no longer be steered by its style note. This can’t be undone."
+        confirmLabel="Remove example card"
+        onConfirm={onRemove}
+        errorFallback="Couldn’t remove this example card. Try again."
+        focusAfterConfirm={focusAfterRemove}
+      />
     </li>
   );
 }
