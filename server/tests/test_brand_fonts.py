@@ -11,7 +11,9 @@ FONT_CATALOG = Path(__file__).resolve().parents[2] / "client" / "src" / "styles"
 
 
 def _client_catalog() -> dict[str, set[str]]:
-    entries = re.findall(r'\{\s*family:\s*"([^"]+)",\s*category:\s*"(serif|sans|mono)"\s*\}', FONT_CATALOG.read_text())
+    # Each entry starts `{ family: "...", category: "..."` (later fields, such as
+    # `weights`, may follow).
+    entries = re.findall(r'\{\s*family:\s*"([^"]+)",\s*category:\s*"(serif|sans|mono)"', FONT_CATALOG.read_text())
     out: dict[str, set[str]] = {"text": set(), "mono": set()}
     for family, category in entries:
         out["mono" if category == "mono" else "text"].add(family)

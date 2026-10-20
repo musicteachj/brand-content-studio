@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FONT_OPTIONS, findCatalogFamily, optionsForRole } from "./fontCatalog";
+import { FONT_OPTIONS, catalogWeights, findCatalogFamily, optionsForRole } from "./fontCatalog";
 
 describe("fontCatalog", () => {
   it("has serif, sans, and mono families", () => {
@@ -38,5 +38,14 @@ describe("fontCatalog", () => {
     expect(findCatalogFamily("inter")).toBe("Inter");
     expect(findCatalogFamily("Unknown Face")).toBeNull();
     expect(findCatalogFamily(null)).toBeNull();
+  });
+});
+
+describe("catalog weights", () => {
+  it("lists the weights each curated family really ships (fontsource), always with 400", () => {
+    for (const o of FONT_OPTIONS) expect(o.weights).toContain(400);
+    expect(catalogWeights("DM Serif Display")).toEqual([400]);
+    expect(catalogWeights("Lora")).toEqual([400, 500, 600, 700]);
+    expect(catalogWeights("Acme Sans")).toBeNull();
   });
 });

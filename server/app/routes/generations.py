@@ -1,6 +1,9 @@
 """Content history routes: list (with type filter), get one, delete."""
 from __future__ import annotations
 
+import logging
+
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -12,9 +15,11 @@ from app.models.generation import (
     GenerationUpdate,
 )
 from app.services import generations_service
+from app.services.storage_service import build_document_prefix, get_storage
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # PATCH fields an explicit null clears; a null for any other field is ignored.
 CLEARABLE_FIELDS = {"image"}
@@ -122,3 +127,14 @@ async def delete_generation(
     ok = await generations_service.delete_generation(db, workspace["_id"], generation_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
+    # Its built .docx/.pdf/.pptx go too (they used to stay in storage). Only after
+    # the delete succeeded, so the id is a real generation in this workspace, and
+    # normalized the way the files were saved (ObjectId accepts uppercase hex).
+    # Card images are left alone: an uploaded one may be shared with the brand
+    # image library. A cleanup failure is logged, not raised: the generation is
+    # already gone, so the delete did succeed.
+    prefix = build_document_prefix(str(workspace["_id"]), str(ObjectId(generation_id)))
+    try:
+        await get_storage().delete_prefix(prefix)
+    except Exception:  # noqa: BLE001
+        logger.exception("Couldn't remove the files for deleted generation %s", generation_id)

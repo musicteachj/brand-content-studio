@@ -6,21 +6,34 @@ export type FontCategory = "serif" | "sans" | "mono";
 export interface FontOption {
   family: string;
   category: FontCategory;
+  /** The weights fontsource ships for it, so the card never requests one that
+   *  can only 404 (DM Serif Display is 400 only). */
+  weights: readonly number[];
 }
 
+const ALL = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+
+// Weights from fontsource's metadata API (api.fontsource.org/v1/fonts/<id>), 2026-10.
 export const FONT_OPTIONS: FontOption[] = [
-  { family: "DM Serif Display", category: "serif" },
-  { family: "Playfair Display", category: "serif" },
-  { family: "Fraunces", category: "serif" },
-  { family: "Spectral", category: "serif" },
-  { family: "Lora", category: "serif" },
-  { family: "Inter", category: "sans" },
-  { family: "Work Sans", category: "sans" },
-  { family: "Libre Franklin", category: "sans" },
-  { family: "Archivo", category: "sans" },
-  { family: "JetBrains Mono", category: "mono" },
-  { family: "IBM Plex Mono", category: "mono" },
+  { family: "DM Serif Display", category: "serif", weights: [400] },
+  { family: "Playfair Display", category: "serif", weights: [400, 500, 600, 700, 800, 900] },
+  { family: "Fraunces", category: "serif", weights: ALL },
+  { family: "Spectral", category: "serif", weights: [200, 300, 400, 500, 600, 700, 800] },
+  { family: "Lora", category: "serif", weights: [400, 500, 600, 700] },
+  { family: "Inter", category: "sans", weights: ALL },
+  { family: "Work Sans", category: "sans", weights: ALL },
+  { family: "Libre Franklin", category: "sans", weights: ALL },
+  { family: "Archivo", category: "sans", weights: ALL },
+  { family: "JetBrains Mono", category: "mono", weights: [100, 200, 300, 400, 500, 600, 700, 800] },
+  { family: "IBM Plex Mono", category: "mono", weights: [100, 200, 300, 400, 500, 600, 700] },
 ];
+
+/** The weights a curated family ships (any casing, like the CDN slug), or null
+ *  for a family outside the catalog. */
+export function catalogWeights(family: string): readonly number[] | null {
+  const canonical = findCatalogFamily(family);
+  return FONT_OPTIONS.find((o) => o.family === canonical)?.weights ?? null;
+}
 
 export type FontRole = "heading" | "body" | "mono";
 
