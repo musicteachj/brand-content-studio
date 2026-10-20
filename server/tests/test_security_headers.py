@@ -94,6 +94,7 @@ def test_the_real_app_sends_the_csp():
     assert "default-src 'self'" in resp.headers["content-security-policy"]
 
 
+@pytest.mark.skipif(settings.environment == "production", reason="the docs are off in production")
 def test_fastapis_docs_pages_are_exempt():
     from app.main import app
 

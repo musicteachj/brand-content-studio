@@ -110,7 +110,7 @@ async def _ingest_corpus(db, workspace: dict) -> None:
     if await db.assets.count_documents({"workspace_id": workspace["_id"]}) > 0:
         print("✓ corpus already ingested")
         return
-    if not settings.openai_api_key:
+    if not settings.openai_api_key.get_secret_value():
         print("⚠ OPENAI_API_KEY not set — workspace created empty. Add the key and re-run to ingest.")
         return
 
@@ -428,7 +428,7 @@ async def _ensure_templates(db, workspace: dict) -> None:
 
 
 async def main() -> None:
-    client = AsyncIOMotorClient(settings.mongodb_url)
+    client = AsyncIOMotorClient(settings.mongodb_url.get_secret_value())
     db = client[settings.database_name]
     await db.users.create_index("email", unique=True)
 

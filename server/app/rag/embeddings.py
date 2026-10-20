@@ -20,7 +20,7 @@ class OpenAIEmbedder:
     def __init__(self) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=settings.openai_api_key)
+        self._client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
         self._model = settings.embedding_model
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:

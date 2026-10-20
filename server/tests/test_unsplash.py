@@ -3,6 +3,7 @@ and the access key never appears in the normalized output. httpx is mocked so th
 test makes no network call (and needs no real key)."""
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from app.config import settings
 from app.services import unsplash_service
@@ -32,7 +33,7 @@ _SAMPLE = {
 
 @pytest.mark.asyncio
 async def test_unsplash_search_normalizes_attribution(monkeypatch):
-    monkeypatch.setattr(settings, "unsplash_access_key", "test-key")
+    monkeypatch.setattr(settings, "unsplash_access_key", SecretStr("test-key"))
     captured: dict = {}
 
     class _Resp:
@@ -81,7 +82,7 @@ async def test_unsplash_search_normalizes_attribution(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_unsplash_search_without_key_raises(monkeypatch):
-    monkeypatch.setattr(settings, "unsplash_access_key", "")
+    monkeypatch.setattr(settings, "unsplash_access_key", SecretStr(""))
     with pytest.raises(unsplash_service.UnsplashError):
         await unsplash_service.search("hempcrete")
 
@@ -90,7 +91,7 @@ async def test_unsplash_search_without_key_raises(monkeypatch):
 async def test_track_download_rejects_non_unsplash_url(monkeypatch):
     """SSRF guard: a client-supplied download_location that is not an
     api.unsplash.com URL must never be fetched (and never leak the key header)."""
-    monkeypatch.setattr(settings, "unsplash_access_key", "test-key")
+    monkeypatch.setattr(settings, "unsplash_access_key", SecretStr("test-key"))
     called = {"get": False}
 
     class _Client:
@@ -122,7 +123,7 @@ async def test_track_download_rejects_non_unsplash_url(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_track_download_allows_unsplash_url(monkeypatch):
-    monkeypatch.setattr(settings, "unsplash_access_key", "test-key")
+    monkeypatch.setattr(settings, "unsplash_access_key", SecretStr("test-key"))
     seen: dict = {}
 
     class _Resp:

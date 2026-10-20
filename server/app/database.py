@@ -22,7 +22,7 @@ async def get_database() -> AsyncIOMotorDatabase:
 
 
 async def connect_to_mongo() -> None:
-    db.client = AsyncIOMotorClient(settings.mongodb_url)
+    db.client = AsyncIOMotorClient(settings.mongodb_url.get_secret_value())
     await db.client.admin.command("ping")
     logging.info("Connected to MongoDB (%s)", settings.database_name)
 

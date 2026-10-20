@@ -2,7 +2,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The shipped placeholder. Signing with it in production would let anyone forge a
@@ -12,16 +12,23 @@ MIN_JWT_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
+    # Secrets are SecretStr, so printing the settings (a traceback, a log line,
+    # a validation error) shows "**********"; read one with .get_secret_value()
+    # only where it's handed to its provider. Note SecretStr("") is truthy: to ask
+    # "is this key set?", test .get_secret_value(), never the field itself.
+
     # App
-    environment: str = "development"
+    # A fixed set, so a typo ("prod") fails at boot instead of quietly skipping the
+    # production-only checks (the JWT secret, docs off, HSTS).
+    environment: Literal["development", "production"] = "development"
     cors_origins: list[str] = ["http://localhost:5173"]
 
     # MongoDB
-    mongodb_url: str = "mongodb://localhost:27017"
+    mongodb_url: SecretStr = SecretStr("mongodb://localhost:27017")  # may carry credentials
     database_name: str = "brand_content"
 
     # JWT
-    jwt_secret_key: str = DEFAULT_JWT_SECRET
+    jwt_secret_key: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
@@ -45,11 +52,11 @@ class Settings(BaseSettings):
     rate_limit_generate: str = "30/minute"
 
     # AI — generation (Anthropic)
-    anthropic_api_key: str = ""
+    anthropic_api_key: SecretStr = SecretStr("")
     ai_model: str = "claude-sonnet-4-6"
 
     # AI — embeddings (OpenAI)
-    openai_api_key: str = ""
+    openai_api_key: SecretStr = SecretStr("")
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
 
@@ -72,9 +79,11 @@ class Settings(BaseSettings):
     brand_fonts_dir: str = str(Path(__file__).resolve().parent / "assets" / "fonts")
 
     # Images
-    unsplash_access_key: str = ""
+    unsplash_access_key: SecretStr = SecretStr("")
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # hide_input_in_errors: a validation error at boot would otherwise quote the raw
+    # input (every env setting, API keys included) into the logs as input_value.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     @model_validator(mode="after")
     def _reject_default_secrets_in_production(self) -> "Settings":
@@ -84,12 +93,13 @@ class Settings(BaseSettings):
         tokens."""
         if self.environment != "production":
             return self
-        if self.jwt_secret_key == DEFAULT_JWT_SECRET:
+        secret = self.jwt_secret_key.get_secret_value()
+        if secret == DEFAULT_JWT_SECRET:
             raise ValueError(
                 "JWT_SECRET_KEY is still the shipped default. Set it to a random "
                 f"string of at least {MIN_JWT_SECRET_LEN} characters."
             )
-        if len(self.jwt_secret_key) < MIN_JWT_SECRET_LEN:
+        if len(secret) < MIN_JWT_SECRET_LEN:
             raise ValueError(
                 f"JWT_SECRET_KEY must be at least {MIN_JWT_SECRET_LEN} characters "
                 "in production."
