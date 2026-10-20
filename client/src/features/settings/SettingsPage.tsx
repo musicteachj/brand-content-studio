@@ -49,8 +49,8 @@ export function SettingsPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-8">
       <header className="animate-fade-in-up">
-        <p className="eyebrow text-[11px]">Settings</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">Appearance</h1>
+        <p className="eyebrow text-[11px]">Workspace, brand, and appearance</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">Settings</h1>
       </header>
 
       {isDemo && (

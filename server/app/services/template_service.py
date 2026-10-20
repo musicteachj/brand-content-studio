@@ -48,17 +48,9 @@ def _load_docx(data: bytes) -> DocxTemplate:
 
 
 def _load_pptx(data: bytes):  # type: ignore[no-untyped-def]  # pptx Presentation is Any
-    """Parse the pptx and reject Jinja statements/comments in one pass."""
-    prs = Presentation(BytesIO(data))
-    _assert_no_logic(
-        "\n".join(
-            "".join(run.text for run in para.runs)
-            for slide in prs.slides
-            for frame in _text_frames(slide.shapes)
-            for para in frame.paragraphs
-        )
-    )
-    return prs
+    """Parse the pptx. Unlike a docx it's filled by plain `{{tag}}` substitution and
+    never handed to Jinja, so `{%`/`{#` in slide text is ordinary copy (QA-13)."""
+    return Presentation(BytesIO(data))
 
 
 # ---------------------------------------------------------------------------
@@ -67,8 +59,8 @@ def _load_pptx(data: bytes):  # type: ignore[no-untyped-def]  # pptx Presentatio
 def discover_placeholders(data: bytes, fmt: str) -> list[str]:
     """The `{{tags}}` declared in the template. docx: docxtpl's Jinja analysis
     (robust to run-splitting), sorted for determinism. pptx: scan joined
-    paragraph text, de-duped in first-seen order. Both reject `{% %}`/`{# #}`
-    logic (SEC-03/10) as part of the single parse."""
+    paragraph text, de-duped in first-seen order. A docx rejects `{% %}`/`{# #}`
+    logic (SEC-03/10) as part of the single parse; a pptx never runs through Jinja."""
     assert_safe_ooxml(data)
     if fmt == "docx":
         return sorted(_load_docx(data).get_undeclared_template_variables())
@@ -134,7 +126,7 @@ def _fill_docx(data: bytes, values: dict[str, str]) -> bytes:
 
 
 def _fill_pptx(data: bytes, values: dict[str, str]) -> bytes:
-    prs = _load_pptx(data)  # single parse; also rejects logic tags
+    prs = _load_pptx(data)
     for slide in prs.slides:
         for frame in _text_frames(slide.shapes):
             for para in frame.paragraphs:

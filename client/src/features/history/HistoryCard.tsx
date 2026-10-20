@@ -16,7 +16,7 @@ export function HistoryCard({
   gen: Generation;
   brand: BrandProfile | null;
   workspaceId: string | null;
-  onOpen: () => void;
+  onOpen: (opener: HTMLElement) => void;
 }) {
   // Outer is a div (not a button) so the inline action buttons aren't nested
   // inside an interactive element. The content area is its own trigger button.
@@ -30,7 +30,7 @@ export function HistoryCard({
     <div className="flex flex-col rounded-lg border border-border bg-surface shadow-light transition-transform transition-shadow hover:-translate-y-0.5 hover:shadow-medium">
       <button
         type="button"
-        onClick={onOpen}
+        onClick={(e) => onOpen(e.currentTarget)}
         className="flex flex-1 flex-col rounded-t-lg p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex items-center gap-2">

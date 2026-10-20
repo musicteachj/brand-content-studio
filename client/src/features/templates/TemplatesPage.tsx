@@ -8,6 +8,7 @@ import {
   useTemplates,
   useUploadTemplate,
 } from "@/api/templates";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DemoNotice } from "@/components/DemoNotice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,8 @@ export function TemplatesPage() {
   const upload = useUploadTemplate(workspaceId);
   const del = useDeleteTemplate(workspaceId);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Where focus goes after a confirmed delete removes its row.
+  const listHeadingRef = useRef<HTMLHeadingElement>(null);
   const [active, setActive] = useState<Template | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +65,13 @@ export function TemplatesPage() {
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Your templates</h2>
+          <h2
+            ref={listHeadingRef}
+            tabIndex={-1}
+            className="text-sm font-semibold text-foreground focus-visible:outline-none"
+          >
+            Your templates
+          </h2>
           <input
             ref={fileRef}
             type="file"
@@ -107,17 +116,29 @@ export function TemplatesPage() {
                   <Button size="sm" onClick={() => setActive(t)}>
                     Use
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => del.mutate(t.id)}
-                    disabled={isDemo}
-                    title={isDemo ? "Disabled in the demo" : "Delete"}
-                    aria-label="Delete template"
-                    className="hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={isDemo}
+                        title={isDemo ? "Disabled in the demo" : "Delete"}
+                        aria-label={`Delete ${t.name}`}
+                        className="hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                    }
+                    title={`Delete “${t.name}”?`}
+                    description="This removes the template from this workspace. Files you already downloaded are unaffected. This can’t be undone."
+                    confirmLabel="Delete template"
+                    onConfirm={async () => {
+                      await del.mutateAsync(t.id);
+                      if (active?.id === t.id) setActive(null); // close its fill panel
+                    }}
+                    errorFallback="Couldn’t delete this template. Try again."
+                    focusAfterConfirm={listHeadingRef}
+                  />
                 </div>
               </li>
             ))}

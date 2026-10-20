@@ -68,10 +68,8 @@ async def upload_template(
             asyncio.to_thread(template_service.discover_placeholders, data, fmt),
             SOURCE_PARSE_TIMEOUT_S,
         )
-    except UnsafeArchive as exc:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
-        ) from exc
+    except UnsafeArchive as exc:  # 413 too large, or 422 not a zip at all (QA-13)
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -240,10 +238,8 @@ async def render_template(
             asyncio.to_thread(template_service.render, data, values, fmt),
             SOURCE_PARSE_TIMEOUT_S,
         )
-    except UnsafeArchive as exc:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=str(exc)
-        ) from exc
+    except UnsafeArchive as exc:  # 413 too large, or 422 not a zip at all (QA-13)
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except asyncio.TimeoutError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
