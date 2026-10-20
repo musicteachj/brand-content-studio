@@ -77,6 +77,7 @@ export function PostPackMode() {
             imageError={gen.imageError}
             onAddImage={() => setPickerOpen(true)}
             onClearImage={gen.clearImage}
+            removingImage={gen.removingImage}
           />
           <PostCaptionPanel
             status={gen.status}

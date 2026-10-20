@@ -1,6 +1,8 @@
 """Integration: PATCH /generations/{id} — Phase 1.5 client-side customization.
 Inline field edits, layout (template) swap, and the per-card accent all merge
 into `output` with NO model call. Card-only guard + accent palette guard hold."""
+import asyncio
+
 import pytest
 import pytest_asyncio
 from bson import ObjectId
@@ -10,6 +12,7 @@ from app.config import settings
 from app.database import get_database
 from app.main import app
 from app.models.common import utcnow
+from app.services import generations_service
 from app.utils.dependencies import get_workspace_or_404
 from tests.conftest import TEST_DB_NAME
 
@@ -211,3 +214,104 @@ async def test_patch_empty_payload_is_rejected(client, test_db):
     gid = await _seed_card(test_db)
     resp = await client.patch(_url(gid), json={})
     assert resp.status_code == 400
+
+
+_IMAGE = {"source": "unsplash", "url": "http://x/i.jpg", "unsplash_id": "abc",
+          "attribution": {"author": "Jo", "author_url": "http://x", "source_url": "http://x"}}
+
+
+@pytest.mark.asyncio
+async def test_patch_image_null_clears_a_card_image(client, test_db):
+    """QA-07: "Remove image" sends `{"image": null}`; it must clear the saved image."""
+    gid = await _seed_card(test_db)
+    assert (await client.patch(_url(gid), json={"image": _IMAGE})).status_code == 200
+
+    resp = await client.patch(_url(gid), json={"image": None})
+    assert resp.status_code == 200
+    assert resp.json()["output"]["image"] is None
+    stored = await test_db.generations.find_one({"_id": ObjectId(gid)})
+    assert stored["output"]["image"] is None
+    # The rest of the card is untouched.
+    assert stored["output"]["fields"]["headline"] == "The carbon math is changing"
+
+
+@pytest.mark.asyncio
+async def test_patch_image_null_clears_a_post_pack_card_image(client, test_db):
+    gid = await _seed_post_pack(test_db)
+    assert (await client.patch(_url(gid), json={"image": _IMAGE})).status_code == 200
+
+    resp = await client.patch(_url(gid), json={"image": None})
+    assert resp.status_code == 200
+    out = resp.json()["output"]
+    assert out["card"]["image"] is None
+    assert out["card"]["fields"]["headline"] == "Carbon, in the wall"
+
+
+@pytest.mark.asyncio
+async def test_patch_null_for_other_fields_is_still_ignored(client, test_db):
+    """Only `image` can be cleared: a null template, fields, or accent never wipes them."""
+    gid = await _seed_card(test_db)
+    resp = await client.patch(_url(gid), json={"template_id": None, "fields": None, "accent_hex": None})
+    assert resp.status_code == 400
+    stored = await test_db.generations.find_one({"_id": ObjectId(gid)})
+    assert stored["output"]["template_id"] == "photo-led"
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seed", ["card", "post_pack"])
+async def test_concurrent_patches_dont_overwrite_each_other(client, test_db, seed):
+    """Removing the image while a text edit saves must keep both changes: each update
+    writes only its own fields, never the whole `output` it read earlier."""
+    gid = await (_seed_card(test_db) if seed == "card" else _seed_post_pack(test_db))
+    assert (await client.patch(_url(gid), json={"image": _IMAGE})).status_code == 200
+    fields = {"eyebrow": "E", "headline": "Edited headline", "body": "", "cta": "C", "hashtag": "#H"}
+    nested_key = None if seed == "card" else "card"
+
+    await asyncio.gather(
+        generations_service.update_generation_output(
+            test_db, WORKSPACE_OID, gid, {"image": None}, nested_key=nested_key
+        ),
+        generations_service.update_generation_output(
+            test_db, WORKSPACE_OID, gid, {"fields": fields}, nested_key=nested_key
+        ),
+    )
+    stored = (await test_db.generations.find_one({"_id": ObjectId(gid)}))["output"]
+    card = stored if seed == "card" else stored["card"]
+    assert card["image"] is None
+    assert card["fields"]["headline"] == "Edited headline"
+
+
+@pytest.mark.asyncio
+async def test_partial_fields_patch_still_stores_the_full_card_copy(client, test_db):
+    """Nested models keep their defaults: a `fields` patch stores all five keys."""
+    gid = await _seed_card(test_db)
+    resp = await client.patch(_url(gid), json={"fields": {"headline": "Only this"}})
+    assert resp.status_code == 200
+    stored = (await test_db.generations.find_one({"_id": ObjectId(gid)}))["output"]["fields"]
+    assert stored == {"eyebrow": "", "headline": "Only this", "body": "", "cta": "", "hashtag": ""}
+
+
+@pytest.mark.asyncio
+async def test_post_pack_without_a_card_object_gets_one(client, test_db):
+    gid = await _seed_post_pack(test_db)
+    await test_db.generations.update_one({"_id": ObjectId(gid)}, {"$set": {"output.card": None}})
+    resp = await client.patch(_url(gid), json={"image": _IMAGE})
+    assert resp.status_code == 200
+    assert resp.json()["output"]["card"]["image"]["unsplash_id"] == "abc"
+    assert resp.json()["output"]["post_text"].startswith("Specify hempcrete")
+
+
+@pytest.mark.asyncio
+async def test_card_with_a_null_output_still_patches(client, test_db):
+    gid = await _seed_card(test_db)
+    await test_db.generations.update_one({"_id": ObjectId(gid)}, {"$set": {"output": None}})
+    resp = await client.patch(_url(gid), json={"image": _IMAGE})
+    assert resp.status_code == 200
+    assert resp.json()["output"]["image"]["unsplash_id"] == "abc"
+
+
+@pytest.mark.asyncio
+async def test_patch_unknown_generation_is_404(client, test_db):
+    resp = await client.patch(_url(str(ObjectId())), json={"image": None})
+    assert resp.status_code == 404

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo import ReturnDocument
 
 from app.config import settings
 from app.models.common import serialize_doc, utcnow
@@ -85,30 +86,32 @@ async def update_generation_output(
     provided keys are written, so a partial patch never wipes the rest of the
     output. Workspace-scoped, so a non-owner can't touch another's generation.
 
-    `nested_key` merges the patch into a sub-object instead of the top level —
-    a post_pack nests its card under `output.card` (Phase 3)."""
+    `nested_key` merges the patch into a sub-object instead of the top level:
+    a post_pack nests its card under `output.card` (Phase 3).
+
+    Each key is `$set` on its own path, so two concurrent patches (say, removing
+    the image while a text edit saves) both land instead of one overwriting the
+    other with the `output` it read earlier."""
     try:
         oid = ObjectId(generation_id)
     except Exception:
         return None
-    doc = await db.generations.find_one({"_id": oid, "workspace_id": workspace_oid})
-    if not doc:
-        return None
-    output = dict(doc.get("output") or {})
-    if nested_key:
-        nested = dict(output.get(nested_key) or {})
-        nested.update(output_patch)
-        output[nested_key] = nested
-    else:
-        output.update(output_patch)
-    now = utcnow()
-    await db.generations.update_one(
-        {"_id": oid, "workspace_id": workspace_oid},
-        {"$set": {"output": output, "updated_at": now}},
+    query: dict = {"_id": oid, "workspace_id": workspace_oid}
+    base = f"output.{nested_key}" if nested_key else "output"
+    # Dotted paths only work on an existing object (they can't extend a null).
+    dotted = {f"{base}.{k}": v for k, v in output_patch.items()}
+    doc = await _set_and_return(db, {**query, base: {"$type": "object"}}, dotted)
+    if doc is not None:
+        return doc
+    return await _set_and_return(db, query, {base: output_patch})  # missing: create it
+
+
+async def _set_and_return(db: AsyncIOMotorDatabase, query: dict, update: dict) -> dict | None:
+    return await db.generations.find_one_and_update(
+        query,
+        {"$set": {**update, "updated_at": utcnow()}},
+        return_document=ReturnDocument.AFTER,
     )
-    doc["output"] = output
-    doc["updated_at"] = now
-    return doc
 
 
 async def get_generation(

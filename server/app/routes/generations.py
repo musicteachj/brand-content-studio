@@ -1,4 +1,4 @@
-"""Content history routes — list (with type filter), get one, delete."""
+"""Content history routes: list (with type filter), get one, delete."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,6 +15,9 @@ from app.services import generations_service
 from app.utils.dependencies import get_workspace_or_404, require_not_demo
 
 router = APIRouter()
+
+# PATCH fields an explicit null clears; a null for any other field is ignored.
+CLEARABLE_FIELDS = {"image"}
 
 
 @router.get("", response_model=GenerationPage)
@@ -59,9 +62,14 @@ async def update_generation(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Attach the selected card image (and, from Phase 1.5, inline field/template
-    edits) to a generation's `output`. Allowed for the demo user — these are the
+    edits) to a generation's `output`. Allowed for the demo user: these are the
     user's own generations, not the protected seed corpus."""
     patch = payload.model_dump(exclude_none=True)
+    # An explicit null clears only the image ("Remove image", QA-07); a null for
+    # any other field is ignored, so it can't wipe the template, copy, or accent.
+    for key in CLEARABLE_FIELDS & payload.model_fields_set:
+        if getattr(payload, key) is None:
+            patch[key] = None
     if not patch:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
@@ -71,7 +79,7 @@ async def update_generation(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
     # These fields are card-shaped (image/template/fields/accent). A `card` carries
     # them at the top of `output`; a `post_pack` nests its card under `output.card`.
-    # Refuse anything else (text/document) — merging would corrupt its shape.
+    # Refuse anything else (text/document); merging would corrupt its shape.
     gen_type = existing.get("type")
     if gen_type == "card":
         nested_key = None
@@ -82,7 +90,7 @@ async def update_generation(
             status_code=status.HTTP_409_CONFLICT,
             detail="Only card and post-pack generations can be edited.",
         )
-    # The per-card accent must be one of the workspace's own brand-palette colors —
+    # The per-card accent must be one of the workspace's own brand-palette colors,
     # never an arbitrary hex (keeps cards on-brand; DESIGN §7).
     accent = patch.get("accent_hex")
     if accent is not None:
