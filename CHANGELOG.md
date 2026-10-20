@@ -21,6 +21,10 @@ Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/W
 
 ## [Unreleased]
 
+### Security: follow-redirects 1.16.1
+
+A new advisory pair against `follow-redirects` 1.16.0 (GHSA-q3jh-wrc6-jgq8, GHSA-8r9p-f939-6h3c: credential headers could survive a cross-origin redirect) failed the CI `audit` job. It's a transitive dependency of `axios`; `npm audit fix` moves it to 1.16.1, a lockfile-only change. Axios only uses it in Node, not in the browser bundle, so the shipped app never ran the affected code, but the gate stays strict. Gate: vitest 148, build, `npm audit --omit=dev` clean for the client and the root.
+
 ### Docs: the October QA report is on `dev`
 
 [`docs/QA-2026-10.md`](./docs/QA-2026-10.md) (the checklist, all 17 findings with their fixing PRs, and the regression review candidates) lived only on a local branch, though the changelog, `known-gaps-plan.md`, and the fix PRs all point to it. It's now in `docs/`, with its status brought up to date (the known gaps closed in PRs #66 to #68, plus PR #69), and `known-gaps-plan.md` marked done and linking to it.
