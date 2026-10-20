@@ -46,7 +46,7 @@ async def get_workspace_or_404(
     """Resolve a workspace by id and enforce `owner_id == current_user`.
 
     Returns the raw Mongo doc (callers need `vector_namespace`, `brand_profile`,
-    `ready_chunk_count`, …). A non-owner gets a 404 — we don't reveal existence.
+    `ready_chunk_count`, …). A non-owner gets a 404; we don't reveal existence.
     """
     try:
         oid = ObjectId(workspace_id)
@@ -62,7 +62,7 @@ async def get_workspace_or_404(
 
 def ensure_ready_corpus(workspace: dict) -> None:
     """Block generation on an empty/thin corpus BEFORE the model is called
-    (ARCHITECTURE gotcha #10). Called at the top of every /generate route body — a
+    (ARCHITECTURE gotcha #10). Called at the top of every /generate route body: a
     plain guard (not a dependency) so it runs after the rate-limit/quota deps
     (preserving their precedence) and stays a real HTTP 409, which is the client's
     non-stream error path (never an in-stream frame)."""
@@ -100,5 +100,5 @@ async def enforce_demo_generation_quota(
     if used >= settings.demo_daily_generation_limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="The demo's daily generation limit has been reached — try again tomorrow.",
+            detail="The demo's daily generation limit has been reached. Try again tomorrow.",
         )

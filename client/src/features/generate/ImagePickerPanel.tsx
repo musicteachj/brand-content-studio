@@ -4,6 +4,7 @@ import { Check, ImageOff, Search, Upload, X } from "lucide-react";
 import { fetchImageDataUrl, uploadImage, useUnsplashSearch } from "@/api/images";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import type { BrandImage, UnsplashPhoto } from "@/types";
 
@@ -42,7 +43,7 @@ export function ImagePickerPanel({
 
   // The panel can be opened before the card is generated (image selection is a
   // parallel step), so the search starts empty and is auto-seeded from the model's
-  // keywords once they arrive — whether that's before opening or while open. Seed
+  // keywords once they arrive, whether that's before opening or while open. Seed
   // at most once, and never clobber a query the user has already typed.
   useEffect(() => {
     if (!open) {
@@ -69,8 +70,8 @@ export function ImagePickerPanel({
       onSelectUpload(res.url, res.storage_key);
       setLastUpload(file);
       setSaved(false);
-    } catch {
-      setUploadError("Upload failed. Use a JPG, PNG, or WebP under 8 MB.");
+    } catch (err) {
+      setUploadError(apiErrorMessage(err, "Upload failed. Use a JPG, PNG, or WebP under 8 MB."));
     } finally {
       setUploading(false);
     }
@@ -83,8 +84,10 @@ export function ImagePickerPanel({
     try {
       await onSaveBrandImage(lastUpload);
       setSaved(true);
-    } catch {
-      setUploadError("Couldn’t save to brand images (the 24-image limit may be reached).");
+    } catch (err) {
+      setUploadError(
+        apiErrorMessage(err, "Couldn’t save to brand images (the 24-image limit may be reached)."),
+      );
     } finally {
       setSaving(false);
     }
@@ -265,7 +268,7 @@ function PhotoTile({
           </span>
         )}
       </button>
-      {/* Attribution is rendered visibly (never a tooltip) — Unsplash license. */}
+      {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license. */}
       <p className="mt-1 truncate text-[11px] leading-tight text-muted-foreground">
         Photo by{" "}
         <a

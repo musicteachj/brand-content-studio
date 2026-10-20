@@ -3,6 +3,7 @@ import { ImageOff, Trash2, Upload } from "lucide-react";
 import { fetchImageDataUrl } from "@/api/images";
 import { useAddBrandImage, useRemoveBrandImage, useRenameBrandImage } from "@/api/workspaces";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { BrandImage, Workspace } from "@/types";
 import { canAddBrandImage, MAX_BRAND_IMAGES } from "./brandImages";
@@ -26,8 +27,10 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
     setError(null);
     try {
       await add.mutateAsync(file);
-    } catch {
-      setError("Couldn’t add that image. Use a JPG, PNG, or WebP under 8 MB.");
+    } catch (err) {
+      setError(
+        apiErrorMessage(err, "Couldn’t add that image. Use a JPG, PNG, or WebP under 8 MB."),
+      );
     }
   }
 
@@ -58,10 +61,14 @@ export function BrandImagesSection({ workspace }: { workspace: Workspace }) {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        Save your own images here to reuse them as card pictures — pick them from the image picker
+        Save your own images here to reuse them as card pictures. Pick them from the image picker
         when generating a card.
       </p>
-      {error && <span className="text-xs text-destructive">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      )}
       {images.length === 0 ? (
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           <ImageOff className="h-4 w-4" aria-hidden />
