@@ -18,17 +18,27 @@ from app.limits import MAX_COMPRESSION_RATIO, MAX_UNCOMPRESSED_BYTES
 
 
 class UnsafeArchive(ValueError):
-    """An OOXML upload that is unreadable or expands beyond the safety bounds."""
+    """An OOXML upload that expands beyond the safety bounds (413), or, as the
+    `UnreadableArchive` subclass, isn't a ZIP at all (422). Routes answer with
+    `exc.status_code` so the two never get mixed up."""
+
+    status_code = 413
+
+
+class UnreadableArchive(UnsafeArchive):
+    """The upload isn't a ZIP at all: a bad file, not an oversized one (QA-13)."""
+
+    status_code = 422
 
 
 def assert_safe_ooxml(data: bytes) -> None:
-    """Raise UnsafeArchive if `data` is not a readable ZIP, or would decompress to
-    more than MAX_UNCOMPRESSED_BYTES / MAX_COMPRESSION_RATIO."""
+    """Raise UnreadableArchive if `data` is not a readable ZIP, or UnsafeArchive if
+    it would decompress to more than MAX_UNCOMPRESSED_BYTES / MAX_COMPRESSION_RATIO."""
     try:
         with zipfile.ZipFile(BytesIO(data)) as zf:
             total = sum(info.file_size for info in zf.infolist())
     except zipfile.BadZipFile as exc:
-        raise UnsafeArchive("File is not a readable .docx/.pptx archive.") from exc
+        raise UnreadableArchive("File is not a readable .docx/.pptx archive.") from exc
 
     if total > MAX_UNCOMPRESSED_BYTES:
         raise UnsafeArchive(

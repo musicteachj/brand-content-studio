@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Trash2, UploadCloud } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAssets, useDeleteAsset, useReingestAsset, useUploadAsset } from "@/api/assets";
 import { flattenPages } from "@/api/pagination";
 import { DemoNotice } from "@/components/DemoNotice";
@@ -37,6 +38,8 @@ export function AssetsPage() {
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useAssets(workspaceId);
   const assets = flattenPages(data);
+  // Where focus goes after a confirmed delete removes its row.
+  const listHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // When ingestion finishes (nothing left processing), refresh the workspace
   // counters that the dashboard + corpus-ready gate read from.
@@ -71,7 +74,11 @@ export function AssetsPage() {
       )}
 
       <section className="animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">
+        <h2
+          ref={listHeadingRef}
+          tabIndex={-1}
+          className="mb-3 text-sm font-semibold text-foreground focus-visible:outline-none"
+        >
           Assets{" "}
           {!isLoading ? <span className="text-muted-foreground">({assets.length})</span> : null}
         </h2>
@@ -90,6 +97,7 @@ export function AssetsPage() {
                 asset={asset}
                 workspaceId={workspaceId}
                 canDelete={!isDemo}
+                focusAfterDelete={listHeadingRef}
               />
             ))}
           </ul>
@@ -198,10 +206,12 @@ function AssetRow({
   asset,
   workspaceId,
   canDelete,
+  focusAfterDelete,
 }: {
   asset: Asset;
   workspaceId: string | null;
   canDelete: boolean;
+  focusAfterDelete: RefObject<HTMLElement | null>;
 }) {
   const del = useDeleteAsset(workspaceId);
   const reingest = useReingestAsset(workspaceId);
@@ -232,15 +242,26 @@ function AssetRow({
         </Button>
       )}
       {canDelete && (
-        <button
-          type="button"
-          onClick={() => del.mutate(asset.id)}
-          disabled={del.isPending}
-          aria-label={`Delete ${asset.filename}`}
-          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-        >
-          <Trash2 className="h-4 w-4" aria-hidden />
-        </button>
+        // One click used to delete the file and its vectors outright (QA-04).
+        <ConfirmDialog
+          trigger={
+            <button
+              type="button"
+              aria-label={`Delete ${asset.filename}`}
+              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+            </button>
+          }
+          title={`Delete “${asset.filename}”?`}
+          description="This removes the file and its retrievable chunks from this workspace, so future generations can’t draw on it. Past generations are kept. This can’t be undone."
+          confirmLabel="Delete asset"
+          onConfirm={async () => {
+            await del.mutateAsync(asset.id);
+          }}
+          errorFallback="Couldn’t delete this asset. Try again."
+          focusAfterConfirm={focusAfterDelete}
+        />
       )}
     </li>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LayoutGrid } from "lucide-react";
 import { useGenerations, type HistoryFilter } from "@/api/generations";
 import { flattenPages } from "@/api/pagination";
@@ -26,6 +26,10 @@ export function HistoryPage() {
     useGenerations(workspaceId, filter);
   const generations = flattenPages(data);
   const [open, setOpen] = useState<Generation | null>(null);
+  // The dialog is controlled (no Radix Trigger), so remember what opened it to
+  // hand focus back on close (QA-10).
+  const openerRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Load workspace fonts so card thumbnails render in the brand type.
   useEffect(() => {
@@ -37,16 +41,25 @@ export function HistoryPage() {
       <header className="flex flex-wrap items-end justify-between gap-4 animate-fade-in-up">
         <div>
           <p className="eyebrow text-[11px]">Content History</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-heading text-foreground">
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className="mt-2 text-2xl font-semibold tracking-heading text-foreground focus-visible:outline-none"
+          >
             Generations
           </h1>
         </div>
-        <div className="flex gap-1 rounded-md border border-border bg-surface p-1">
+        <div
+          role="group"
+          aria-label="Filter by type"
+          className="flex gap-1 rounded-md border border-border bg-surface p-1"
+        >
           {FILTERS.map((f) => (
             <button
               key={f.value}
               type="button"
               onClick={() => setFilter(f.value)}
+              aria-pressed={filter === f.value}
               className={cn(
                 "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
                 filter === f.value
@@ -75,7 +88,10 @@ export function HistoryPage() {
               gen={gen}
               brand={brand}
               workspaceId={workspaceId}
-              onOpen={() => setOpen(gen)}
+              onOpen={(opener) => {
+                openerRef.current = opener;
+                setOpen(gen);
+              }}
             />
           ))}
         </div>
@@ -93,6 +109,9 @@ export function HistoryPage() {
         brand={brand}
         workspaceId={workspaceId}
         onClose={() => setOpen(null)}
+        returnFocusTo={openerRef}
+        // The opening card is about to disappear, so land on the page heading.
+        onDeleted={() => (openerRef.current = headingRef.current)}
       />
     </div>
   );

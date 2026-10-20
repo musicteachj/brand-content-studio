@@ -1,8 +1,8 @@
-import { useState } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
+import { useRef, useState, type RefObject } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDeleteWorkspace, useUpdateWorkspace, useWorkspaces } from "@/api/workspaces";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
@@ -20,6 +20,8 @@ export function WorkspacesSection() {
   const { data: workspaces } = useWorkspaces();
   const { workspace: active } = useActiveWorkspace();
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
+  // Where focus goes after a confirmed delete removes its row.
+  const newButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="flex flex-col gap-3">
@@ -31,11 +33,13 @@ export function WorkspacesSection() {
             isActive={ws.id === active?.id}
             isDemo={isDemo}
             canDelete={(workspaces?.length ?? 0) > 1}
+            focusAfterDelete={newButtonRef}
           />
         ))}
       </div>
       <div>
         <Button
+          ref={newButtonRef}
           variant="secondary"
           size="sm"
           onClick={() => navigate("/setup")}
@@ -55,11 +59,13 @@ function WorkspaceRow({
   isActive,
   isDemo,
   canDelete,
+  focusAfterDelete,
 }: {
   ws: Workspace;
   isActive: boolean;
   isDemo: boolean;
   canDelete: boolean;
+  focusAfterDelete: RefObject<HTMLElement | null>;
 }) {
   const setActive = useWorkspaceStore((s) => s.setActive);
   const update = useUpdateWorkspace(ws.id);
@@ -67,7 +73,6 @@ function WorkspaceRow({
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(ws.name);
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   async function save() {
     const trimmed = name.trim();
@@ -86,13 +91,8 @@ function WorkspaceRow({
   }
 
   async function remove() {
-    try {
-      await del.mutateAsync(ws.id);
-      if (isActive) setActive(null); // resolver falls back to the first workspace
-      setConfirmOpen(false);
-    } catch (err) {
-      setError(apiErrorMessage(err, "Couldn’t delete. Try again."));
-    }
+    await del.mutateAsync(ws.id); // a failure shows in the confirm dialog
+    if (isActive) setActive(null); // resolver falls back to the first workspace
   }
 
   return (
@@ -162,23 +162,32 @@ function WorkspaceRow({
             >
               <Pencil className="h-4 w-4" aria-hidden />
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setConfirmOpen(true)}
-              disabled={isDemo || !canDelete}
-              title={
-                isDemo
-                  ? "Disabled in the demo"
-                  : !canDelete
-                    ? "Keep at least one workspace"
-                    : "Delete"
+            <ConfirmDialog
+              trigger={
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={isDemo || !canDelete}
+                  title={
+                    isDemo
+                      ? "Disabled in the demo"
+                      : !canDelete
+                        ? "Keep at least one workspace"
+                        : "Delete"
+                  }
+                  aria-label="Delete workspace"
+                  className={cn(!isDemo && canDelete && "hover:text-destructive")}
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </Button>
               }
-              aria-label="Delete workspace"
-              className={cn(!isDemo && canDelete && "hover:text-destructive")}
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-            </Button>
+              title={`Delete “${ws.name}”?`}
+              description="This permanently removes the workspace and all of its assets and generations. This can’t be undone."
+              confirmLabel="Delete workspace"
+              onConfirm={remove}
+              errorFallback="Couldn’t delete. Try again."
+              focusAfterConfirm={focusAfterDelete}
+            />
           </div>
         </>
       )}
@@ -187,36 +196,6 @@ function WorkspaceRow({
           {error}
         </span>
       )}
-
-      <Dialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-modal bg-foreground/30 backdrop-blur-[1px]" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-modal flex w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-xl border border-border bg-surface p-6 shadow-heavy">
-            <Dialog.Title className="text-base font-semibold text-foreground">
-              Delete “{ws.name}”?
-            </Dialog.Title>
-            <Dialog.Description className="text-sm text-muted-foreground">
-              This permanently removes the workspace and all of its assets and generations. This
-              can’t be undone.
-            </Dialog.Description>
-            <div className="flex justify-end gap-2">
-              <Dialog.Close asChild>
-                <Button variant="secondary" size="sm">
-                  Cancel
-                </Button>
-              </Dialog.Close>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => void remove()}
-                loading={del.isPending}
-              >
-                Delete workspace
-              </Button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
     </div>
   );
 }

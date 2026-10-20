@@ -87,9 +87,14 @@ def test_docx_jinja_comment_is_rejected():
         discover_placeholders(_docx_bytes("Hi {# secret #}{{name}}"), "docx")
 
 
-def test_pptx_with_jinja_statement_is_rejected():
-    with pytest.raises(TemplateHasLogic):
-        discover_placeholders(_pptx_bytes("{% if x %}{{a}}{% endif %}"), "pptx")
+def test_pptx_text_that_looks_like_jinja_is_allowed():
+    # QA-13: a .pptx is filled by plain {{tag}} substitution, never Jinja, so slide
+    # text like "Save {%}" is ordinary copy, not template logic.
+    data = _pptx_bytes("Save {%} on bulk orders", "{# 1 seller #} {{title}}")
+    assert discover_placeholders(data, "pptx") == ["title"]
+    out = Presentation(io.BytesIO(render(data, {"title": "Verdure"}, "pptx")))
+    text = "\n".join(sh.text_frame.text for sl in out.slides for sh in sl.shapes if sh.has_text_frame)
+    assert text == "Save {%} on bulk orders\n{# 1 seller #} Verdure"
 
 
 def test_discover_placeholders_pptx_in_order():
@@ -362,3 +367,35 @@ async def test_fill_from_document_hides_parser_internals(tpl_client):
     assert "content type" not in detail and "stream" not in detail
     assert detail.startswith("Couldn't read that document.")
 
+
+
+
+PPTX_CT = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+
+@pytest.mark.asyncio
+async def test_upload_pptx_with_brace_percent_text_succeeds(tpl_client):
+    data = _pptx_bytes("Save {%} today", "{{title}}")
+    resp = await tpl_client.post(_base(), files={"file": ("Deck.pptx", data, PPTX_CT)})
+    assert resp.status_code == 201
+    assert resp.json()["placeholders"] == ["title"]
+
+
+@pytest.mark.asyncio
+async def test_upload_non_zip_docx_is_422_not_413(tpl_client):
+    # QA-13: a text file renamed to .docx is unreadable, not too large.
+    resp = await tpl_client.post(
+        _base(), files={"file": ("notes.docx", b"just some text, not a zip", DOCX_CT)}
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "File is not a readable .docx/.pptx archive."
+
+
+@pytest.mark.asyncio
+async def test_upload_oversized_archive_is_still_413(tpl_client, monkeypatch):
+    import app.utils.archives as archives
+
+    monkeypatch.setattr(archives, "MAX_UNCOMPRESSED_BYTES", 100)
+    data = _docx_bytes("Hello {{name}}")
+    resp = await tpl_client.post(_base(), files={"file": ("Big.docx", data, DOCX_CT)})
+    assert resp.status_code == 413

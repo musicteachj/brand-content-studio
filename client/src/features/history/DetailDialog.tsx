@@ -1,7 +1,9 @@
+import type { RefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Copy, Download, Sliders, Trash2, X } from "lucide-react";
 import { useDeleteGeneration } from "@/api/generations";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
 import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
@@ -18,11 +20,17 @@ export function DetailDialog({
   brand,
   workspaceId,
   onClose,
+  onDeleted,
+  returnFocusTo,
 }: {
   gen: Generation | null;
   brand: BrandProfile | null;
   workspaceId: string | null;
   onClose: () => void;
+  /** Called after a confirmed delete, before the dialog closes. */
+  onDeleted?: () => void;
+  /** Where focus goes on close; ignored if it's gone (deleted, or navigated away). */
+  returnFocusTo?: RefObject<HTMLElement | null>;
 }) {
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const navigate = useNavigate();
@@ -54,7 +62,8 @@ export function DetailDialog({
 
   async function remove() {
     if (!gen) return;
-    await del.mutateAsync(gen.id);
+    await del.mutateAsync(gen.id); // a failure shows in the confirm dialog
+    onDeleted?.();
     onClose();
   }
 
@@ -62,7 +71,16 @@ export function DetailDialog({
     <Dialog.Root open={!!gen} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-modal bg-foreground/30 backdrop-blur-[1px]" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-modal flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-heavy">
+        <Dialog.Content
+          onCloseAutoFocus={(e) => {
+            const opener = returnFocusTo?.current;
+            if (opener?.isConnected) {
+              e.preventDefault();
+              opener.focus();
+            }
+          }}
+          className="fixed left-1/2 top-1/2 z-modal flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-heavy"
+        >
           <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
             <div className="min-w-0">
               <Dialog.Title className="text-sm font-semibold text-foreground">
@@ -152,16 +170,23 @@ export function DetailDialog({
               )}
             </div>
             {!isDemo && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={remove}
-                loading={del.isPending}
-                className="text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-                Delete
-              </Button>
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                    Delete
+                  </Button>
+                }
+                title="Delete this generation?"
+                description="It’s removed from History for good. Files you already downloaded are unaffected."
+                confirmLabel="Delete generation"
+                onConfirm={remove}
+                errorFallback="Couldn’t delete this generation. Try again."
+              />
             )}
           </div>
         </Dialog.Content>

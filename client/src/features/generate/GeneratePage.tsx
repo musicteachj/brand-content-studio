@@ -47,7 +47,11 @@ export function GeneratePage() {
             {MODE_TITLE[mode]}
           </h1>
         </div>
-        <div className="flex gap-1 rounded-md border border-border bg-surface p-1">
+        <div
+          role="group"
+          aria-label="Generation type"
+          className="flex gap-1 rounded-md border border-border bg-surface p-1"
+        >
           {MODES.map((m) => {
             const Icon = m.icon;
             return (
@@ -55,6 +59,7 @@ export function GeneratePage() {
                 key={m.value}
                 type="button"
                 onClick={() => setMode(m.value)}
+                aria-pressed={mode === m.value}
                 className={cn(
                   "flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
                   mode === m.value
