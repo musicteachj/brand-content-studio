@@ -1,11 +1,10 @@
 """FastAPI application entrypoint."""
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
@@ -25,6 +24,7 @@ from app.routes import (
     templates,
     workspaces,
 )
+from app.spa import mount_spa
 from app.utils.ratelimit import limiter
 
 logging.basicConfig(level=logging.INFO)
@@ -130,8 +130,4 @@ app.include_router(
 
 
 if settings.environment == "production":
-    app.mount("/static", StaticFiles(directory="dist"), name="static")
-
-    @app.get("/{path:path}")
-    async def serve_spa(path: str):
-        return FileResponse("dist/index.html")
+    mount_spa(app, Path("dist"))  # last: its catch-all only sees unclaimed paths
