@@ -11,6 +11,7 @@ import symbolsUrl from "@/assets/fonts/folio-card-symbols-400.ttf?url";
 import loraBoldUrl from "@/assets/fonts/lora-latin-700-normal.ttf?url";
 import loraRegularUrl from "@/assets/fonts/lora-latin-400-normal.ttf?url";
 import { useAuthStore } from "@/stores/auth";
+import { catalogWeights } from "@/styles/fontCatalog";
 import type { BrandFonts, UploadedFont } from "@/types";
 
 export interface SatoriFont {
@@ -35,8 +36,9 @@ function ttfUrl(family: string, weight: number): string {
 }
 
 // Families used by the card, with the weights the archetypes reference. A brand's
-// display face often ships a single weight (e.g. DM Serif Display = 400 only), so
-// missing weights are tolerated — Satori falls back to the nearest available.
+// display face often ships a single weight (e.g. DM Serif Display = 400 only): a
+// curated family is only asked for the weights it has, and for any other family a
+// missing weight is tolerated (Satori falls back to the nearest available).
 const HEADING_WEIGHTS: Array<400 | 700> = [400, 700];
 const BODY_WEIGHTS: Array<400 | 600 | 700> = [400, 600, 700];
 
@@ -93,12 +95,16 @@ interface FontReq {
   weight: 400 | 600 | 700;
 }
 
-function requiredFonts(fonts: BrandFonts): FontReq[] {
+function requiredFonts(fonts: BrandFonts, uploaded: UploadedFont[]): FontReq[] {
   const heading = headingFamily(fonts);
   const body = bodyFamily(fonts);
   const reqs: FontReq[] = [];
-  for (const w of HEADING_WEIGHTS) reqs.push({ family: heading, weight: w });
-  for (const w of BODY_WEIGHTS) reqs.push({ family: body, weight: w });
+  // An uploaded font serves its one file at every weight, so it's never filtered,
+  // even if it shares a curated family's name.
+  const has = (family: string, weight: number) =>
+    uploadedUrl(family, uploaded) !== null || (catalogWeights(family)?.includes(weight) ?? true);
+  for (const w of HEADING_WEIGHTS) if (has(heading, w)) reqs.push({ family: heading, weight: w });
+  for (const w of BODY_WEIGHTS) if (has(body, w)) reqs.push({ family: body, weight: w });
   // De-dupe when heading === body.
   const seen = new Set<string>();
   return reqs.filter((r) => {
@@ -216,7 +222,7 @@ export async function loadBrandFontBuffers(
   fonts: BrandFonts,
   uploaded: UploadedFont[] = [],
 ): Promise<SatoriFont[]> {
-  const reqs = requiredFonts(fonts);
+  const reqs = requiredFonts(fonts, uploaded);
   // Same-origin assets: start them alongside the brand fonts, not after.
   const glyphBytes = Promise.all(GLYPH_FALLBACKS.map((g) => fetchFontBytes(g.url, false)));
   const loaded = await Promise.all(reqs.map((r) => loadFace(r.family, r.weight, uploaded)));
@@ -339,7 +345,7 @@ function injectFamily(family: string, weight: number, uploaded: UploadedFont[]):
  *  fonts (not the app's), matching the Satori export. Idempotent per family. */
 export function injectBrandFontFaces(fonts: BrandFonts, uploaded: UploadedFont[] = []): void {
   if (typeof document === "undefined") return;
-  for (const req of requiredFonts(fonts)) injectFamily(req.family, req.weight, uploaded);
+  for (const req of requiredFonts(fonts, uploaded)) injectFamily(req.family, req.weight, uploaded);
 }
 
 /** Inject a single 400-weight @font-face for `family` so a Settings preview can

@@ -134,3 +134,67 @@ describe("loadBrandFontBuffers glyph fallbacks", () => {
     ).toEqual([]);
   });
 });
+
+// DM Serif Display ships only 400, so its 700 request was a guaranteed CDN 404
+// on every card in that brand (seen in the console on every page).
+describe("requested weights", () => {
+  const cdnUrls = (f: ReturnType<typeof vi.fn>) =>
+    f.mock.calls.map(([u]) => String(u)).filter((u) => u.includes("cdn.jsdelivr.net"));
+
+  it("never asks the CDN for a weight a catalog family doesn't have", async () => {
+    const f = stubFetch(() => "ok");
+    await mod.loadBrandFontBuffers({ heading: "DM Serif Display", body: "Inter", mono: null });
+    const urls = cdnUrls(f);
+    expect(urls.some((u) => u.includes("dm-serif-display@latest/latin-400"))).toBe(true);
+    expect(urls.some((u) => /dm-serif-display@latest\/latin-(600|700)/.test(u))).toBe(false);
+    expect(urls.some((u) => u.includes("inter@latest/latin-700"))).toBe(true);
+  });
+
+  it("still asks for every card weight of a family with them", async () => {
+    const f = stubFetch(() => "ok");
+    await mod.loadBrandFontBuffers({ heading: "Playfair Display", body: "Lora", mono: null });
+    const urls = cdnUrls(f);
+    for (const w of [400, 700])
+      expect(urls.some((u) => u.includes(`playfair-display@latest/latin-${w}`))).toBe(true);
+    for (const w of [400, 600, 700])
+      expect(urls.some((u) => u.includes(`lora@latest/latin-${w}`))).toBe(true);
+  });
+
+  it("keeps trying every weight for a family outside the catalog", async () => {
+    const f = stubFetch(() => "ok");
+    await mod.loadBrandFontBuffers(FONTS); // "Acme Sans": weights unknown
+    const urls = cdnUrls(f);
+    for (const w of [400, 600, 700]) expect(urls.some((u) => u.includes(`latin-${w}`))).toBe(true);
+  });
+});
+
+describe("requested weights: uploads and casing", () => {
+  const cdnUrls = (f: ReturnType<typeof vi.fn>) =>
+    f.mock.calls.map(([u]) => String(u)).filter((u) => u.includes("cdn.jsdelivr.net"));
+
+  it("matches a curated family in any casing", async () => {
+    const f = stubFetch(() => "ok");
+    await mod.loadBrandFontBuffers({ heading: "dm serif display", body: "Inter", mono: null });
+    expect(cdnUrls(f).some((u) => /dm-serif-display@latest\/latin-(600|700)/.test(u))).toBe(false);
+  });
+
+  it("gives an uploaded font named like a curated one every card weight", async () => {
+    stubFetch(() => "ok");
+    const uploaded: UploadedFont[] = [
+      {
+        id: "f1",
+        family: "DM Serif Display",
+        storage_key: "k",
+        url: "/api/workspaces/w/fonts/file/f1/a.ttf",
+      },
+    ];
+    const out = await mod.loadBrandFontBuffers(
+      { heading: "DM Serif Display", body: "DM Serif Display", mono: null },
+      uploaded,
+    );
+    const weights = brandOnly(out)
+      .map((x) => x.weight)
+      .sort();
+    expect(weights).toEqual([400, 600, 700]);
+  });
+});

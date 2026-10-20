@@ -269,3 +269,62 @@ async def test_short_deck_builds_and_serves_pptx(client, test_db):
     assert pptx.content[:2] == b"PK"
     # The formats this archetype didn't build aren't downloadable.
     assert (await client.get(f"{GEN_BASE}/{gid}/download/docx")).status_code == 404
+
+
+async def _exists(gid: str, fmt: str) -> bool:
+    try:
+        await get_storage().read(build_document_key(str(WORKSPACE_OID), gid, fmt))
+        return True
+    except FileNotFoundError:
+        return False
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_document_generation_removes_its_files(client):
+    _override_workspace(12)
+    keep = _meta((await client.post(DOC_URL, json=_BRIEF)).text)["generation_id"]
+    gone = _meta((await client.post(DOC_URL, json=_BRIEF)).text)["generation_id"]
+    assert await _exists(gone, "docx") and await _exists(gone, "pdf")
+
+    assert (await client.delete(f"{GEN_BASE}/{gone}")).status_code == 204
+
+    assert not await _exists(gone, "docx") and not await _exists(gone, "pdf")
+    assert await _exists(keep, "docx") and await _exists(keep, "pdf")  # only its own files
+
+
+@pytest.mark.asyncio
+async def test_a_failed_delete_removes_no_files(client):
+    _override_workspace(12)
+    gid = _meta((await client.post(DOC_URL, json=_BRIEF)).text)["generation_id"]
+    for bad in (str(ObjectId()), "not-an-id"):  # another workspace's or unknown id; not an ObjectId
+        assert (await client.delete(f"{GEN_BASE}/{bad}")).status_code == 404
+    assert await _exists(gid, "docx") and await _exists(gid, "pdf")
+
+
+@pytest.mark.asyncio
+async def test_an_uppercase_id_still_removes_the_files(client):
+    # ObjectId accepts uppercase hex, but the files were saved under the lowercase id.
+    _override_workspace(12)
+    gid = _meta((await client.post(DOC_URL, json=_BRIEF)).text)["generation_id"]
+    assert (await client.delete(f"{GEN_BASE}/{gid.upper()}")).status_code == 204
+    assert not await _exists(gid, "docx") and not await _exists(gid, "pdf")
+
+
+@pytest.mark.asyncio
+async def test_a_storage_failure_after_the_delete_is_logged_not_raised(client, monkeypatch, caplog):
+    _override_workspace(12)
+    gid = _meta((await client.post(DOC_URL, json=_BRIEF)).text)["generation_id"]
+
+    async def boom(_prefix):
+        raise OSError("disk unavailable")
+
+    monkeypatch.setattr(get_storage(), "delete_prefix", boom)
+    assert (await client.delete(f"{GEN_BASE}/{gid}")).status_code == 204
+    assert "Couldn't remove the files" in caplog.text
+
+
+def test_the_document_prefix_cannot_escape_its_folder():
+    from app.services.storage_service import build_document_prefix
+
+    prefix = build_document_prefix("ws1", "../../etc")
+    assert prefix.startswith("ws1/documents/") and ".." not in prefix

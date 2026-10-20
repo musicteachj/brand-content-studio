@@ -4,8 +4,10 @@ server-side (never from raw client filenames) and every read/write is confined
 to the storage root — a path-traversal guard, since filenames are untrusted."""
 from __future__ import annotations
 
+import asyncio
 import os
 import re
+import shutil
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -44,10 +46,15 @@ def build_font_key(workspace_id: str, font_id: str, filename: str) -> str:
 DOCUMENT_FORMATS = ("docx", "pdf", "pptx")
 
 
+def build_document_prefix(workspace_id: str, generation_id: str) -> str:
+    """Everything built for one generation lives under this prefix."""
+    return f"{safe_filename(workspace_id)}/documents/{safe_filename(generation_id)}"
+
+
 def build_document_key(workspace_id: str, generation_id: str, fmt: str) -> str:
     if fmt not in DOCUMENT_FORMATS:
         raise ValueError(f"Unsupported document format: {fmt!r}")
-    return f"{safe_filename(workspace_id)}/documents/{safe_filename(generation_id)}/document.{fmt}"
+    return f"{build_document_prefix(workspace_id, generation_id)}/document.{fmt}"
 
 
 def build_template_key(workspace_id: str, template_id: str, filename: str) -> str:
@@ -96,9 +103,8 @@ class LocalStorage:
     async def delete_prefix(self, prefix: str) -> None:
         base = self._resolve(prefix)
         if base.is_dir():
-            import shutil
-
-            shutil.rmtree(base, ignore_errors=True)
+            # Off the event loop: a generation delete now does this on the request path.
+            await asyncio.to_thread(shutil.rmtree, base, True)
 
 
 @lru_cache(maxsize=1)
