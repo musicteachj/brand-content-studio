@@ -31,7 +31,7 @@ Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` 
 
 ```
 server/app/
-  config.py database.py main.py          # lifespan: connect Mongo + init vector store + ensure indexes; pure-ASGI security-headers middleware
+  config.py database.py main.py          # lifespan: connect Mongo + init vector store + ensure indexes; pure-ASGI security-headers middleware (incl. the CSP, `csp_mode`; DECISIONS #36)
   spa.py                                 # production only: serve the built client (mount_spa)
   routes/    auth · workspaces · assets · templates · generate · documents · generations · images · health
   services/  auth · workspace · asset · ingestion · retrieval · ai (Claude client) · generations (Mongo persistence) ·

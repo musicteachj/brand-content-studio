@@ -30,14 +30,50 @@ from app.utils.ratelimit import limiter
 logging.basicConfig(level=logging.INFO)
 
 
+# The SPA's Content-Security-Policy (known-gaps plan, step 2; DECISIONS #36),
+# tightened by a browser pass over every flow on the production build:
+# - script-src: the bundle only. 'wasm-unsafe-eval' lets WebAssembly compile
+#   (resvg rasterizes card PNGs, satori lays them out); no eval, no inline script.
+# - style-src 'unsafe-inline': Radix dialogs inject a <style> element for scroll
+#   locking. React style props go through the CSSOM and don't need it.
+# - Card fonts come from jsDelivr (fetched as bytes, and loaded as FontFace URLs);
+#   Unsplash photos are shown from, and fetched into data URLs from, its CDNs.
+CONTENT_SECURITY_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' 'wasm-unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob: https://images.unsplash.com https://plus.unsplash.com",
+        "font-src 'self' data: https://cdn.jsdelivr.net",
+        "connect-src 'self' https://cdn.jsdelivr.net https://images.unsplash.com https://plus.unsplash.com",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
+
+_CSP_HEADER = {
+    "enforce": "Content-Security-Policy",
+    "report-only": "Content-Security-Policy-Report-Only",
+}
+
+# FastAPI's own API docs pages load Swagger UI / ReDoc from jsDelivr and start
+# them with an inline script; the SPA policy would leave them blank. They're the
+# framework's trusted pages, so they're the one exemption.
+_CSP_EXEMPT_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc"}
+
+
 class SecurityHeadersMiddleware:
-    """Baseline hardening headers on every response.
+    """Baseline hardening headers on every response, including the CSP.
 
     Pure ASGI (not @app.middleware('http') / BaseHTTPMiddleware): that wraps the
-    response body and can buffer SSE, and generation is served over SSE — this
+    response body and can buffer SSE, and generation is served over SSE. This
     only rewrites the response-start headers and leaves the streaming body
-    untouched. No enforcing Content-Security-Policy yet: the SPA uses inline
-    styles + resvg WebAssembly, so a CSP needs its own browser-QA'd pass.
+    untouched. The CSP goes on every response (not just the SPA's HTML), so a
+    user-uploaded file opened directly can't run script either. `csp_mode`
+    switches it to report-only or off with an env change and a restart, no code
+    change.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -54,6 +90,9 @@ class SecurityHeadersMiddleware:
                 headers.setdefault("X-Content-Type-Options", "nosniff")
                 headers.setdefault("X-Frame-Options", "DENY")
                 headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+                csp_header = _CSP_HEADER.get(settings.csp_mode)
+                if csp_header and scope["path"] not in _CSP_EXEMPT_PATHS:
+                    headers.setdefault(csp_header, CONTENT_SECURITY_POLICY)
                 if settings.environment == "production":
                     headers.setdefault(
                         "Strict-Transport-Security", "max-age=31536000; includeSubDomains"

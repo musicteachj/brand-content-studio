@@ -1,5 +1,6 @@
 """Application settings (pydantic-settings). Loads from server/.env."""
 from pathlib import Path
+from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -33,6 +34,11 @@ class Settings(BaseSettings):
     # document) consumes one. Per-IP rate limits don't bound total demo spend
     # across many visitors. The name predates the non-saving routes being counted.
     demo_daily_generation_limit: int = 50
+
+    # Content-Security-Policy (known-gaps plan, step 2): "enforce" sends it,
+    # "report-only" sends it as Content-Security-Policy-Report-Only (to ease off
+    # after a regression without a code change), "off" sends neither.
+    csp_mode: Literal["enforce", "report-only", "off"] = "enforce"
 
     # Per-IP rate limits (slowapi syntax) — env-tunable (SEC-02).
     rate_limit_auth: str = "10/minute"

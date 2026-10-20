@@ -193,6 +193,9 @@ jobs:
           # An unknown API path is a 404, not the SPA.
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/does-not-exist)
           test "$code" = 404 || { echo "/api/does-not-exist returned $code" >&2; exit 1; }
+          # The SPA is served under an enforcing CSP (known-gaps plan, step 2).
+          curl -sfI http://127.0.0.1:8000/login | grep -qi "^content-security-policy: default-src 'self'" \
+            || { echo "no enforcing Content-Security-Policy on the SPA" >&2; exit 1; }
       - name: Container logs
         if: failure()
         run: docker logs bcs || true

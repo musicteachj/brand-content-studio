@@ -1,6 +1,6 @@
 # Known gaps plan (October 2026)
 
-> **Status: step 0 shipped (PR #66); step 1 built; step 2 planned (2026-10-20).** Follow-up to the October QA pass (`docs/QA-2026-10.md`, on branch `qa/2026-10-bug-bash`). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
+> **Status: step 0 shipped (PR #66), step 1 shipped (PR #67), step 2 built (2026-10-20).** Follow-up to the October QA pass (`docs/QA-2026-10.md`, on branch `qa/2026-10-bug-bash`). All 17 findings there are fixed (PRs #58 to #65). This plan covers the two gaps the QA pass listed as still open, plus one High found while planning them. When a step ships, its decision lands in [`DECISIONS.md`](./DECISIONS.md), which stays the source of truth; this doc records the plan and the reasoning.
 
 Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step 2 depends on step 0 (a CSP can only be checked against the production build). Every step follows the usual loop: tests first, full gate, live check in the browser, `/code-review` and `/security-review`, and the owner's go-ahead before each commit, push, and PR.
 
@@ -32,7 +32,7 @@ Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step
 
 ## Step 1: one AI-call counter for the demo quota
 
-> **Status: built (2026-10-20), DECISIONS #35.** As planned, with one addition: when the upsert hits a duplicate key, a plain conditional update decides, so a first-of-the-day race between two requests isn't refused.
+> **Status: shipped (PR #67), DECISIONS #35.** As planned, with one addition: when the upsert hits a duplicate key, a plain conditional update decides, so a first-of-the-day race between two requests isn't refused.
 
 **Gap.** `enforce_demo_generation_quota` counts the demo account's saved generations for the UTC day (cap `demo_daily_generation_limit`, 50). Brand extract, template "Draft with AI", and fill-from-document make paid model calls but save nothing, so they are bounded only by the per-IP rate limit. Many visitors can spend without limit on those three routes.
 
@@ -57,6 +57,8 @@ Order: **0 → 1 → 2**, each on its own branch off `dev` with its own PR. Step
 **Live:** set the limit to 3 by env. Use brand extract, AI fill, and a text post once each, then confirm the fourth action shows the 429 message in the UI.
 
 ## Step 2: an enforcing Content-Security-Policy
+
+> **Status: built (2026-10-20), DECISIONS #36.** The draft policy held as written, plus `plus.unsplash.com` (Unsplash+ photos are served from it) in `img-src` and `connect-src`. The browser pass on the production image found no violations from the app; the only one was a placeholder `http://img/x.jpg` stored on an old demo generation, which it is right to block. Code review added the one exemption (FastAPI's `/docs` and `/redoc`, which the SPA policy would leave blank) and recorded the known limits in DECISIONS #36: browsers without `'wasm-unsafe-eval'`, no violation-report collector yet, and an S3 or CloudFront upload origin to add when storage moves.
 
 **Gap.** There's no CSP (AUDIT SEC-11 note; QA row H3). `SecurityHeadersMiddleware` already sets `nosniff`, `X-Frame-Options`, `Referrer-Policy`, and HSTS in production.
 
