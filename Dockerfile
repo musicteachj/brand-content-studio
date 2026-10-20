@@ -1,6 +1,6 @@
 # Multi-stage production image (deployment is deferred — see docs/PLAN.md).
 # Stage 1: build the React/Vite SPA.
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci
