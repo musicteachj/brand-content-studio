@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   Files,
@@ -32,10 +32,24 @@ const NAV: NavItem[] = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
+// Below Tailwind's `lg` (64rem, 1024px at the default font size) the sidebar starts
+// collapsed. The app is desktop-first (DECISIONS #39); this keeps a narrow window
+// or tablet usable. rem, like Tailwind, so the two agree at any browser font size.
+const NARROW = "(width < 64rem)";
+
 export function SideNav() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.matchMedia(NARROW).matches);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  // Follow the window across the breakpoint; the toggle still works in between.
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const onChange = (e: { matches: boolean }) => setCollapsed(e.matches);
+    mq.addEventListener("change", onChange);
+    setCollapsed(mq.matches); // in case the window crossed it between render and now
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const initials = (user?.full_name ?? "Demo User")
     .split(" ")
@@ -79,8 +93,12 @@ export function SideNav() {
       </nav>
 
       <div className="border-t border-border p-3">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-variant font-mono text-[11px] font-medium text-foreground">
+        {/* Collapsed (the default on narrow screens), the row stacks so Sign out stays. */}
+        <div className={cn("flex items-center gap-3", collapsed && "flex-col gap-2")}>
+          <span
+            title={collapsed ? (user?.full_name ?? "Demo User") : undefined}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-variant font-mono text-[11px] font-medium text-foreground"
+          >
             {initials}
           </span>
           {!collapsed && (
@@ -91,16 +109,15 @@ export function SideNav() {
               {user?.is_demo && <span className="mt-0.5 eyebrow">Demo session</span>}
             </div>
           )}
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="Sign out"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <LogOut className="h-[18px] w-[18px]" aria-hidden />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Sign out"
+            title={collapsed ? "Sign out" : undefined}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <LogOut className="h-[18px] w-[18px]" aria-hidden />
+          </button>
         </div>
 
         <button
