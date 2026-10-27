@@ -26,7 +26,7 @@ export const brandSchema = z
       !val.colors.some((c) => c.hex.toLowerCase() === val.accent_hex.toLowerCase())
     ) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["accent_hex"],
         message: "Accent must be one of the palette colors.",
       });

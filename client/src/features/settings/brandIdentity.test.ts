@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { describe, expect, it } from "vitest";
 import { findCatalogFamily } from "@/styles/fontCatalog";
 import type { BrandExtract } from "@/types";
@@ -120,5 +121,40 @@ describe("proposalToForm font snapping", () => {
     });
     expect(form.fonts.heading).toBe("");
     expect(findCatalogFamily("Some Custom Face")).toBeNull();
+  });
+});
+
+describe("brand form validation through the form resolver", () => {
+  // The editor validates with zodResolver(brandSchema); this pins the zod and
+  // @hookform/resolvers majors together: each error lands on its field.
+  const resolve = (values: unknown) =>
+    zodResolver(brandSchema)(values as never, undefined, {
+      fields: {},
+      shouldUseNativeValidation: false,
+    });
+
+  it("passes a valid form through, with color names trimmed", async () => {
+    const form = {
+      ...toForm(BRAND),
+      colors: [{ name: " Forest ", hex: "#1C3A2E", role: "primary" }],
+    };
+    const result = await resolve({ ...form, accent_hex: "#1C3A2E" });
+    expect(result.errors).toEqual({});
+    expect((result.values as { colors: { name: string }[] }).colors[0].name).toBe("Forest");
+  });
+
+  it("puts each message on its own field", async () => {
+    const result = await resolve({
+      ...toForm(BRAND),
+      colors: [{ name: "  ", hex: "#12ZZ45", role: "primary" }],
+      accent_hex: "#C98A3D",
+    });
+    const errors = result.errors as Record<string, unknown> & {
+      colors?: { name?: { message?: string }; hex?: { message?: string } }[];
+      accent_hex?: { message?: string };
+    };
+    expect(errors.colors?.[0]?.name?.message).toBe("Name required");
+    expect(errors.colors?.[0]?.hex?.message).toBe("Hex like #1C3A2E");
+    expect(errors.accent_hex?.message).toBe("Accent must be one of the palette colors.");
   });
 });
