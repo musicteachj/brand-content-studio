@@ -36,16 +36,6 @@ brand corpus pulled in at query time. Every generation shows exactly which brand
 
 Screenshots use the "Verdure Materials" demo brand and a made-up user.
 
-## Portfolio context
-
-The 3rd of three AI portfolio projects, each demonstrating a different AI pattern:
-
-| Project | AI pattern |
-|---|---|
-| Smart Resume Builder | Prompt → Response |
-| Employee Management System (AI chatbot) | Tool Use / Function Calling |
-| **Brand Content Studio** | **RAG (Retrieval Augmented Generation)** |
-
 ## Features
 
 - **Generate** in four modes (LinkedIn post, text post, image card, document). Output streams in live over SSE,
