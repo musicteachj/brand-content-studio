@@ -30,7 +30,7 @@ The app exists to produce beautiful branded content. Every UI decision should se
   preference, not the primary experience.
 - **AI surfaces stay quiet** — generation loading states and retrieval indicators must feel like precise,
   trustworthy tooling. No gradient glows, no animated shimmer beyond a tasteful skeleton state.
-- **Highest-risk surfaces** for drifting generic-or-gimmicky: the **landing page** and the **Generate page
+- **Highest-risk surfaces** for drifting generic-or-gimmicky: the **landing page** (mocked, not built yet) and the **Generate page
   card preview panel** — hold both firmly in the creative-restraint lane and review against this North
   Star before shipping.
 
@@ -50,19 +50,23 @@ foreground/background pairs for contrast independently per theme.
 | `surface` (card) | `--surface` / `--card` | `#FFFFFF` | `#222426` |
 | `surface-variant` | `--surface-variant` | `#F1F3F5` | `#2C2F32` |
 | `foreground` (primary text) | `--foreground` | `#1A1D21` | `#F0F2F4` |
-| `muted-foreground` (secondary) | `--muted-foreground` | `#6C737A` | `#9AA0A8` |
+| `muted-foreground` (secondary) | `--muted-foreground` | `#5F666D` (darkened from `#6C737A` for AA on `surface-variant`) | `#9AA0A8` |
 | `accent` (CTA/active — RESERVED) | `--accent` / `--primary` | `#C2185B` | `#E91E8C` |
+| `accent-strong` (hover/press) | `--accent-strong` | `#9E1248` | `#C2185B` |
 | `accent-foreground` | `--accent-foreground` | `#FFFFFF` | `#1A0510` |
 | `border` (hairline) | `--border` | `#E4E7EA` | `#363B40` |
-| `ring` (focus) | `--ring` | `rgba(194,24,91,.34)` | `rgba(194,24,91,.50)` |
+| `ring` (focus) | `--ring` | `#C2185B` (solid accent, drawn as a 2px ring) | `#E91E8C` |
 | `success` | `--success` | `#15803D` | `#4ADE80` |
 | `warning` | `--warning` | `#B45309` | `#F59E0B` |
 | `destructive` | `--destructive` | `#B42318` | `#F87171` |
+| `destructive-foreground` | `--destructive-foreground` | `#FFFFFF` | `#311313` (dark ink on the light-red fill) |
 | `preview-bg` (card canvas surround) | `--preview-bg` | `#E8EAED` | `#111314` |
 
-> **Accent — Magenta (`#C2185B`):** Confirmed during the UI design phase. The full accent token set:
-> `--accent: #C2185B` · `--accent-strong: #9E1248` · `--accent-soft: rgba(194,24,91,.10)` ·
-> `--accent-ring: rgba(194,24,91,.34)` · `--accent-shadow: 0 8px 22px rgba(194,24,91,.24)`.
+> **Accent — Magenta (`#C2185B`):** Confirmed during the UI design phase. The accent token set in the
+> code is `--accent`, `--accent-strong`, `--accent-foreground`, and `--ring` (values in the table), plus
+> `--shadow-accent` (`0 8px 24px rgb(194 24 91 / .22)`, §3). There are no separate soft, ring, or
+> shadow accent variables. With **Brand color tint** on (the default), all four color tokens are
+> overridden at runtime from the active workspace's primary brand color (§4).
 > Used only for the primary CTA per view, active nav state, focused field ring, and selected state.
 > Never decoratively. Distinguish from `success` (outcomes) by reserving accent for *actions*.
 
@@ -87,7 +91,10 @@ foreground/background pairs for contrast independently per theme.
   not the app's UI.
 - `font-display: swap`; preload only Plus Jakarta Sans + DM Mono.
 - **Type scale (rem):** 0.75 / 0.875 / 1 / 1.125 / 1.25 / 1.5 / 1.875 / 2.25 / 3
-  (+ landing hero `clamp(2.75rem, 6vw, 4.5rem)`).
+  (+ landing hero `clamp(2.75rem, 6vw, 4.5rem)`, reserved for the landing page, which isn't built yet).
+  Two extra small sizes exist for mono labels: `text-2xs` 0.625rem (10px, the default `eyebrow`) and
+  `text-3xs` 0.5625rem (9px, tiny badges such as history type tags and template labels). Page-header
+  eyebrows use 11px.
 
 ---
 
@@ -108,7 +115,8 @@ foreground/background pairs for contrast independently per theme.
   - `--shadow-preview` `0 8px 32px rgb(26 29 33 / .18)` (card preview canvas elevation)
 - Cards/surfaces use **1px border + light shadow**, never heavy elevation.
 - **z-index scale:** 0 / 10 (sticky header) / 20 (dropdown) / 40 (side drawer) / 60 (image picker panel)
-  / 100 (modal) / 1000 (toast).
+  / 100 (modal) / 1000 (toast, reserved: the app has no toasts; feedback is inline, e.g. "Copied" on the
+  button that copied).
 
 ---
 
@@ -125,25 +133,37 @@ foreground/background pairs for contrast independently per theme.
   + `surface-variant` background. Icon + label when expanded, icon-only with tooltip when collapsed.
   Never top nav inside the app — landing page only.
 - **Cards (content history grid):** `surface` + 1px `border` + `shadow-light`; hover `translateY(-2px)`
-  + `shadow-medium`; card thumbnail shows generated card preview at reduced scale; actions (re-open,
-  re-export, delete) in overflow menu; destructive separated and confirmed.
+  + `shadow-medium`; a mono type tag (`POST + CARD`, `CARD`, `TEXT`, `DOCUMENT`) and date, the brief,
+  then the artifact (card thumbnail at reduced scale, text snippet, or document header) and a source
+  count. Actions sit inline under each card, by type: Download + Caption (LinkedIn post), Download
+  (card), Copy (text post), or the format download row (document). Clicking the card opens the
+  **History detail dialog** (below), which holds Customize and the confirmed Delete. Uploaded images
+  are left out of thumbnails (they're auth-gated); Unsplash photos show.
 - **Asset list items:** `surface-variant` rows with 1px `border` separator; ingestion status indicator
   (processing / ready / error) as a small pill — never color alone, always paired with icon and label.
-- **Template picker:** Horizontal scroll row of 2-3 card layout thumbnails. Selected state = 2px `accent`
-  border + `shadow-light`. Hover = `shadow-light`. Never auto-select — user must choose explicitly.
+- **Template picker:** A 3-column grid of card layout thumbnails (Photo-led, Statement, Quote), drawn in
+  the workspace's colors, each with a mono label underneath. Selected state = 2px `accent` border +
+  `shadow-light`. Hover = `shadow-light`. In Image card mode nothing is preselected (the user must
+  choose); LinkedIn post mode defaults to Photo-led.
 - **Card generation flow — guided in place, not a wizard** (Phase 1b, evolved from the build): the card
   has implicit steps (template → brief → generate → image → export), so the Generate page makes them
   legible *without* a multi-screen stepper, which would fight the North Star (the preview is the hero and
   cards are generated in quick succession). The left controls panel carries **numbered step markers** in
-  the mono eyebrow style — `STEP 1 · TEMPLATE`, `STEP 2 · BRIEF` — where a completed step shows an
-  `accent` check and the current step is outlined in `accent`. The two **finishing actions live on the card
+  the mono eyebrow style: a small numbered circle followed by `TEMPLATE` or `BRIEF`. A completed step's
+  circle fills with `accent` and shows a check, the current step's circle is outlined in `accent`, and an
+  upcoming step is a muted `surface-variant` circle. An optional **Preset** select sits above step 1
+  when the workspace has saved card presets. The two **finishing actions live on the card
   itself** (right column, under the preview): *Add an image* (photo-led; image selection is parallel and
   available while copy still streams) and *Export*. Once the card is ready but image-less, the *Add an
   image* button is outlined in `accent` to mark it as the suggested next step. Wizards remain reserved for
   genuine one-time setup (Workspace Setup), not for the in-tool creative loop.
 - **Unsplash image picker:** Panel slides in from the right over the Generate page. Search input at top,
   masonry grid of results below. Selected image = `accent` ring. Attribution line ("Photo by X on
-  Unsplash") rendered automatically — non-negotiable, required by Unsplash license.
+  Unsplash") rendered automatically — non-negotiable, required by Unsplash license. The search starts
+  from the model's suggested keywords. An **Upload** button takes your own JPG, PNG, or WebP; owners
+  then get **Save to brand images** ("Saved ✓" once done). The workspace's **Brand images** sit in
+  their own row above the search results. Empty, searching (skeleton tiles), no-results, and
+  can't-reach-Unsplash states are all inline in the panel.
 - **Card preview panel:** Sits on `--preview-bg` surround. The card itself is `radius-xl` + `shadow-preview`.
   Streaming copy appears token by token directly in the preview — no separate text output area.
   The finishing actions (Add/Change image · Edit text · Export) sit in one wrapping row under the card.
@@ -203,10 +223,23 @@ foreground/background pairs for contrast independently per theme.
     past brand cards (4:5 thumbnails + the extracted style note + remove) and an "Add example card"
     upload that shows an extracting state. Persists immediately (like the logo); capped at 5 ("N of 5")
     and demo-disabled. The notes steer generated copy via a trusted prompt block (DECISIONS #23).
+  - **Brand images:** a grid of the workspace's own images (capped at 24, "N of 24"), each with an
+    inline-editable caption and a trash button revealed on hover (confirmed). "Add image" uploads;
+    the image picker's Brand images row and its "Save to brand images" both feed this list.
+  - **Brand fonts:** upload `.ttf` files (capped at 8) under a family name typed first ("Give the font
+    a name first" if empty). Each row previews the font in itself. Uploaded families join the font
+    selects in Brand identity and render on cards and exported PDFs.
+  - **Card presets:** a create form (name, the `TemplatePicker`, and an accent row of "Default" plus
+    the palette swatches) and a list of saved presets showing name, accent dot, and layout tag
+    (capped at 8; at the cap the form is replaced by a limit notice). Presets appear in the Image card
+    **Preset** select.
+  - Every remove or delete in Settings goes through a **confirm dialog** (below).
 - **Templates page (Phase 5) — bring your own branded file.** A nav entry (`LayoutTemplate`):
   upload/list/delete `.docx`/`.pptx` templates (rows show format + placeholder count), then **Use** one
   → a fill view with a field per `{{placeholder}}` (labelled by tag name) plus an optional **"Draft
-  with AI"** (a brief populates the fields, still editable) → **Download**. The output keeps the
+  with AI"** (a brief populates the fields, still editable) or **"Fill from a document"** (upload a
+  .docx, .pptx, .pdf, .txt, or .md under 10 MB and the fields are filled from it) → **Download**. A
+  template with no placeholders says so and downloads unchanged. The output keeps the
   template's *own* styling — we only swap text — so it's never re-skinned with Folio or `brand_profile`
   (DECISIONS #24). Renders download immediately (not stored). Upload/delete are demo-disabled via the
   shared `DemoNotice`; empty state prompts a first upload. The one fidelity caveat (a `.pptx` tag with
@@ -216,15 +249,49 @@ foreground/background pairs for contrast independently per theme.
   workspaces (active check), then **New workspace** and **Manage workspaces**. Switching persists the
   active id (survives reload); create/manage are demo-aware. Built on a Folio `dropdown-menu` wrapper
   over Radix (`z-dropdown`, surface/border/`shadow-heavy`, matching the Dialog).
-- **Generation loading state:** Skeleton shimmer on card text areas only (warm, not blue). Image slot
-  shows a neutral placeholder until Unsplash result loads. No full-page spinners.
-- **Ingestion progress indicator:** Compact status bar in the Asset Manager when a new document is being
-  chunked and embedded. Shows "processing" → "ready" — never blocks the rest of the UI.
+- **Generation loading state:** Text streams in place with a thin blinking caret (text post, LinkedIn
+  caption, document draft under a "Drafting" eyebrow). The card shows a quiet drafting card
+  ("Writing…") until its copy is final; then, while the exact export image renders, the export button
+  briefly reads "Preparing…" over the live preview. While generating, the Generate button becomes
+  **Stop**. List pages (History, Assets) and the image picker use pulsing skeleton tiles or rows. No
+  full-page spinners.
+- **Ingestion progress indicator:** A small status pill on each asset row: **Processing** (spinner, the
+  list polls until it settles) → **Ready**, or **Error** with the reason in `destructive` text under the
+  filename and a **Retry** action. Never blocks the rest of the UI. Long lists page in 30 at a time
+  behind a **Load more** button (History pages in 24).
 - **Workspace brand color application:** A **Settings toggle (default on)** overrides the `--accent`
   token with the active workspace's primary brand color for subtle UI tinting on active nav items and
   selected states (applied via `useAppearance` → `applyAccentTint`, which also derives `--accent-strong`
   / `--ring` / `--accent-foreground`). Cosmetic only — never affects semantic tokens
   (success/warning/destructive). Resolved in [DECISIONS.md](./DECISIONS.md) #20.
+- **Retrieved context panel:** a quiet bordered panel under the Generate preview (and inside the History
+  detail dialog) showing which brand chunks fed the generation. Header: "Retrieved context" plus a mono
+  "N chunks · Nms" count. Each row: source filename, a mono kind tag (`VOICE`, `POSTS`, `PILLARS`...),
+  a page number for PDFs, then either a mono similarity score with a thin score bar or a **Pinned** marker
+  (voice and pillar chunks, always included and listed first), and a short excerpt. Footer: embedding model and `k`. Before the
+  first generation it shows one muted line explaining what will appear.
+- **History detail dialog:** opened by clicking a History card. Header: the brief, then a mono
+  "type · model · date" line. Body: the artifact (card, post text, or document) and the Retrieved
+  context panel. Footer actions by type: Customize, Download PNG, and Copy caption (cards and LinkedIn
+  posts), Copy text (text posts), the format download row (documents), and **Delete** (owners only,
+  confirmed).
+- **Confirm dialog:** every delete or remove asks first. A centered `surface` dialog with a title naming
+  the item (`Delete “competitors.md”?`), one line on the consequence, then **Cancel** and a
+  `destructive` action labeled with the verb ("Delete asset", "Remove image"). If the action fails, the
+  dialog stays open with the error inline.
+- **Demo notice:** in the demo session, read-only pages (Assets, Templates, Settings) open with a
+  `surface-variant` banner, a lock icon, and one muted paragraph explaining what's read-only. Elsewhere,
+  demo-blocked controls are simply disabled (native tooltip "Disabled in the demo"). The sidebar shows a
+  "Demo session" eyebrow under the user name.
+- **Sign in page:** a two-column split at `lg` and up. Left: the Folio mark, a mono eyebrow, the headline
+  "Your brand's voice. Retrieved, not invented.", a short paragraph, and a sample Verdure card. Right:
+  "Sign in" with **Explore as demo** as the primary button, an "or sign in" divider, Email and Password
+  fields, and a secondary **Sign in** button. Errors appear in an inline alert above the fields. Below
+  `lg` the left panel is hidden. There is no public sign-up.
+- **Folio mark:** a 32px rounded `foreground` tile with a `background`-colored "F" (Plus Jakarta Sans
+  600), beside "Folio" with a `STUDIO` eyebrow under it. The collapsed sidebar shows only the tile.
+  Because it uses `foreground` / `background`, it inverts in dark mode. The favicon
+  (`client/public/favicon.svg`) is the same F on a magenta `#C2185B` tile.
 
 ---
 

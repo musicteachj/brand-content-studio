@@ -1,5 +1,7 @@
 # Phase 3 — "LinkedIn Post" objective (slice plan)
 
+> **Update (2026-10-27):** merged into `dev` as PR #6. The `dev → main` release and its tag haven't happened yet; releases were deferred to one release closer to deploy. The status note below is kept as written at the time.
+>
 > **Status: built + verified on `feat/3-post-pack`.** Server gate (ruff + mypy + 43 pytest) and
 > client gate (tsc + eslint + prettier + build + 27 vitest) green; **live acceptance run passed**
 > (one brief → a streamed caption + a distilled, coherent card in Verdure brand; image attach into

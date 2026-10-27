@@ -1,5 +1,7 @@
 # Phase 2 — Document output (slice plan)
 
+> **Update (2026-10-27):** merged into `dev` as PR #5. The `dev → main` release and its tag haven't happened yet; releases were deferred to one release closer to deploy. The status note below is kept as written at the time.
+>
 > **Status: built + verified on `feat/2-documents`.** Both slices (2a docx+PDF one-pager, 2b pptx
 > short-deck) landed on the one branch (2b layered on 2a's uncommitted work). Server gate (ruff + mypy +
 > 39 pytest) and client gate (tsc + eslint + prettier + build + 25 vitest) green; **live acceptance run

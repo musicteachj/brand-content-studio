@@ -3,7 +3,7 @@
 > MongoDB collections + vector-store schema for Brand Content Studio. Follows [DECISIONS.md](./DECISIONS.md).
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [PLAN.md](./PLAN.md)
 
-Database: `brand_content` (dev: `brand_content_dev`). Six collections (`users`, `workspaces`, `assets`, `generations`, `templates`, `usage`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
+Database: `brand_content` (set by `DATABASE_NAME`; the test suite uses `brand_content_test`). Six collections (`users`, `workspaces`, `assets`, `generations`, `templates`, `usage`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
 
 ---
 
@@ -154,6 +154,7 @@ Uploaded branded `.docx`/`.pptx` templates (Phase 5). The template's own styling
 |---|---|---|
 | `_id` | ObjectId | |
 | `workspace_id` | ObjectId | → `workspaces._id` |
+| `owner_id` | ObjectId | → `users._id`, the uploader |
 | `name` | str | sanitized upload filename |
 | `format` | enum | `docx` \| `pptx` |
 | `storage_key` | str | the uploaded template file |
@@ -192,6 +193,6 @@ Not Mongo — Chroma (dev) / Qdrant (prod). One logical record per chunk:
 | text | the chunk content (stored in payload/document) |
 
 - **Chroma:** collection per workspace `ws_{workspace_id}`.
-- **Qdrant:** single collection `brand-content-studio`; isolation via **indexed** payload filter `workspace_id`.
+- **Qdrant (planned for production, not implemented yet; `qdrant_store.py` is a stub):** single collection `brand-content-studio`; isolation via **indexed** payload filter `workspace_id`.
 
-Identical payloads across both backends → switching `vector_store_backend` is config-only.
+The Qdrant store is designed to use identical payloads, so once it exists, switching `vector_store_backend` is config-only.
