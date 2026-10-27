@@ -41,6 +41,24 @@ disagreed with the code (see their diffs), the phase plan headers no longer say 
 `server/.env.example` lists the optional settings it was missing. This version table no longer marks
 `0.6.0` to `0.8.0` as planned. No code changes.
 
+### Security: zod 4, satori 0.33.5, and a patched fflate clear new client advisories
+
+Two advisories published against libraries the client ships turned CI's `audit` job red on every branch:
+zod before 4.6.6 can exhaust memory validating oversized constrained collections (GHSA-mrhx-c7xc-m3w5, high),
+and satori before 0.33.5 can produce improperly escaped SVG (GHSA-wx4j-mvgx-mqwp, moderate). The client now
+uses `zod` ^4.6.7 with `@hookform/resolvers` ^5.9.2 (the version that supports zod 4) and `satori` ^0.33.5, the
+smallest jump that carries the fix. Every satori release pins `fflate` 0.7.3, which has its own advisory
+(GHSA-px8p-9vwx-vf98, moderate, fixed in 0.7.5), so `client/package.json` now overrides satori's `fflate` to
+^0.7.5. zod is used only by the brand identity form's schema; its one deprecated call (`z.ZodIssueCode.custom`)
+is now `code: "custom"`. Two new tests run the schema through `zodResolver`, the way the form uses it, and check
+that a valid form passes with trimmed color names and that each error lands on its own field; they pass on
+both the old and new versions, so the form behaves the same. Cards were rendered through the production path
+(`renderCardSvg` and resvg) before and after the upgrade for all three layouts, with and without a photo and
+with an accent override: layout, line breaks, colors, and glyph fallbacks are unchanged, and the only
+differences are anti-aliasing (about 2% of pixels); the `fflate` override changes no pixels. The lazily loaded
+card renderer grows by about 31 KB and the main bundle by about 23 KB. Gate: tsc, eslint, prettier, build, and
+vitest 186 (+2); `npm audit` is clean for the shipped bundle, the client dev tooling, and the root scripts.
+
 ### Changed: desktop-first, with a sidebar that collapses on narrow screens
 
 The app is now explicitly desktop-first (DECISIONS #39): the supported minimum width is 1024 px, and there is no phone layout. Until now the sidebar was a fixed 256 px at every width, so a 390 px window left about 130 px for the page. Below Tailwind's `lg` (64rem, 1024 px at the default font size), the sidebar now starts collapsed (icon-only, 68 px) and follows the window across the breakpoint; its toggle still works at any width. Collapsed, the sidebar now keeps Sign out (an icon under your initials, which show your name on hover); it used to hide it. Below `sm` (640 px), the top bar's "New generation" button shows only its icon (it was cut off at the window's edge), keeping its accessible name, and a long workspace name in the top bar truncates instead of pushing the buttons off screen. `DESIGN.md` notes the collapse. jsdom has no `matchMedia`, so the test setup now provides one that reports a wide window (tests that render the whole app need it); `SideNav.test.tsx` stubs its own. Gate: vitest 184 (+4: expanded when wide, collapsed and still expandable when narrow, Sign out when collapsed, and following a resize both ways). Verified in the browser at 390, 820, and 1280 px on the Dashboard, Generate, and Settings: the sidebar is 68, 68, and 256 px, nothing scrolls sideways, and the top bar fits, also with a 52-character workspace name; resizing a window from 1280 to 900 px and back collapses and re-expands it.
