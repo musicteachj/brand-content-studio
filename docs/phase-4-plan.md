@@ -1,5 +1,7 @@
 # Phase 4 — Brand setup & learning (slice plan)
 
+> **Update (2026-10-27):** merged into `dev` as PRs #7, #8, and #9. The `dev → main` release and its tag haven't happened yet; releases were deferred to one release closer to deploy. The status note below is kept as written at the time.
+>
 > **Status: PR-A (4a + 4b) + PR-B (4c auto-extract) merged to `dev` (PRs #7, #8). PR-C (4c
 > exemplar steering) built on `feat/4c-exemplars`.** PR-C gates green (ruff + mypy + 72 pytest;
 > tsc + eslint + prettier + build + 42 vitest). Pending PR-C: live verify (real vision call) →

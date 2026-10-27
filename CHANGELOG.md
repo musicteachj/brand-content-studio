@@ -12,14 +12,34 @@ mapped to build phases (see [`docs/PLAN.md`](./docs/PLAN.md)); `1.0.0` is reserv
 | `0.3.0` | Phase 1.5 — customization |
 | `0.4.0` | Phase 2 — document output |
 | `0.5.0` | Phase 3 — "LinkedIn Post" objective (caption + card) |
-| `0.6.0` | Phase 4 — brand setup & learning *(planned)* |
-| `0.7.0` | Phase 5 — on-brand templates *(planned)* |
-| `0.8.0` | Phase 6 — robustness & limits *(planned)* |
+| `0.6.0` | Phase 4 — brand setup & learning |
+| `0.7.0` | Phase 5 — on-brand templates |
+| `0.8.0` | Phase 6 — robustness & limits |
 | `1.0.0` | first public deploy |
 
 Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §7).
+Phases 1a through 6 (`0.1.0` to `0.8.0`) are all merged into `dev` and recorded under [Unreleased] below;
+none has been merged to `main` or tagged yet, so `v0.0.0` is still the only release.
 
 ## [Unreleased]
+
+### Docs: README, plan, design system, and reference docs brought up to date
+
+The docs had drifted from the code since June. The README now describes what the app does today (all four
+Generate modes, Templates, the brand tools, demo mode), has six current screenshots (`docs/screenshots/`,
+about 780 KB), gives setup steps that work (two `npm install`s, the Python 3.12 virtual environment, the
+`.env` keys, "Explore as demo", no public sign-up), and lists the quality checks and the production image.
+`docs/PLAN.md` marks Phases 3 to 6 as merged with their PR numbers and adds an "After Phase 6" section for the
+follow-up features, the July audit, the October QA fixes, and the upgrades. `docs/DESIGN.md` matches the
+app again: corrected token values (secondary text `#5F666D`, a solid focus ring, `accent-strong`,
+`destructive-foreground`; the soft, ring, and shadow accent variables it listed don't exist), current
+component behavior (History card actions, the template picker grid, step markers, loading states, asset
+status pills), and the features it was missing (brand images, brand fonts, card presets, Fill from a
+document, the retrieved context panel, the History detail dialog, confirm dialogs, demo notices, the sign in
+page, and the Folio mark). ARCHITECTURE, DATA_MODEL, WORKFLOW, and DECISIONS are corrected where they
+disagreed with the code (see their diffs), the phase plan headers no longer say their PRs are pending, and
+`server/.env.example` lists the optional settings it was missing. This version table no longer marks
+`0.6.0` to `0.8.0` as planned. No code changes.
 
 ### Changed: desktop-first, with a sidebar that collapses on narrow screens
 

@@ -1,5 +1,7 @@
 # Phase 1.5 — Customization (slice plan)
 
+> **Update (2026-10-27):** merged into `dev` as PR #4. The `dev → main` release and its tag haven't happened yet; releases were deferred to one release closer to deploy. The status note below is kept as written at the time.
+>
 > **Status: built + verified on `feat/1.5-customization`** — all four slices + History hydration landed;
 > server gate (ruff + mypy + 31 pytest) and client gate (tsc + eslint + prettier + build + 20 vitest) green;
 > review gate Tier 2 done (`/code-review` high: 1 fixed — CardThumb accent parity; `/security-review` full:

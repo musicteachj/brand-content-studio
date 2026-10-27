@@ -18,13 +18,18 @@ A slice may touch two or three views, but we build only the **minimum view a sli
 
 | Phase | Views built / touched |
 |---|---|
-| 0 — Scaffold | AppShell + SideNav, Login (demo button) — minimal shell only |
-| 1a — Text posts | Workspace Setup (name + asset upload steps), Asset Manager, Generate (text mode + Retrieval Debug Panel), Content History (basic), Dashboard (basic) |
-| 1b — Image cards | Generate (card mode: template picker, Image Picker panel, Card Preview, export); Content History thumbnails render cards |
-| 1.5 — Customization | Generate enhancements (inline edit, image/layout swap, accent toggle); Settings (quiet page, slot in here) |
-| 2 — Documents | Document output controls in Generate / a documents view |
+| 0: Scaffold | AppShell + SideNav, Login (demo button) — minimal shell only |
+| 1a: Text posts | Workspace Setup (name + asset upload steps), Asset Manager, Generate (text mode + Retrieval Debug Panel), Content History (basic), Dashboard (basic) |
+| 1b: Image cards | Generate (card mode: template picker, Image Picker panel, Card Preview, export); Content History thumbnails render cards |
+| 1.5: Customization | Generate enhancements (inline edit, image/layout swap, accent toggle); Settings (quiet page, slot in here) |
+| 2: Documents | Document output controls in Generate / a documents view |
+| 3: LinkedIn post | Generate (LinkedIn post mode: card beside an editable caption); History shows post packs |
+| 4: Brand setup | TopBar workspace switcher; Settings: Workspaces, Brand identity editor, Learn from an image, Example cards |
+| 5: Templates | Templates page (upload, fill panel, Draft with AI); Settings: Card presets; Image card Preset select |
+| 6: Robustness | History and Assets "Load more"; asset Error + Retry; stream Stop and stalled-stream states |
+| After 6 | Settings: Brand images and Brand fonts; image picker Brand images + Save to brand images; Templates: Fill from a document; zero-workspace Dashboard; confirm dialogs; desktop-first sidebar collapse |
 | Deploy | none (infra only) |
-| Last | Landing page |
+| Last | Landing page (mocked, not built yet) |
 
 ---
 
@@ -51,9 +56,10 @@ feat/*      ●●        ●●              ●●                short-lived 
 ```
 
 - **`main`** — stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each phase on `main`: `v0.0.0` (scaffold), `v0.1.0` (Phase 1a), `v0.2.0` (1b), etc. — matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md).
+  In practice the per-phase releases were deferred to one release closer to deploy (see [`phase-4-plan.md`](./phase-4-plan.md)): Phases 1a to 6 are all on `dev`, and `main` is still at `v0.0.0`.
 - **`dev`** — integration branch (where we are now). Feature branches merge here; it should always at least build.
 - **`feat/<phase>-<slice>`** — short-lived, branched off `dev`, one per feature. Examples: `feat/0-scaffold`, `feat/1a-ingestion`, `feat/1a-text-generation`, `feat/1b-card-export`.
-- Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
+- Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `qa/`.
 
 **Flow:** branch off `dev` → build the slice → PR into `dev` → at phase boundary, PR `dev` → `main` + tag.
 
@@ -119,7 +125,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] The phase/slice acceptance criterion is demonstrably met.
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
-- **Squash-merge** `feat/*` → `dev` to keep `dev` history readable; use a merge commit for `dev` → `main` so release points are visible.
+- **Merge commits** for `feat/*` (and other branches) → `dev`, so each PR's own commits stay in history (every PR so far was merged this way); `dev` → `main` is a merge commit too, so release points are visible.
 - **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5). No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Pushing the Docker image on merge to `main` comes with the deploy phase.
 
 ---
@@ -128,6 +134,6 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 
 **A slice is done when:** its tests are green, it's wired to the real endpoint, it covers the design's loading/empty/error states, and its acceptance bullet is met.
 
-**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged.
+**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged (that release step has been deferred so far; see §3).
 
 **Any push is allowed only after:** the §5 review gate (`/code-review` + `/security-review`, findings addressed) and explicit push approval.
