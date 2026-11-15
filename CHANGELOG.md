@@ -23,6 +23,10 @@ none has been merged to `main` or tagged yet, so `v0.0.0` is still the only rele
 
 ## [Unreleased]
 
+### Security: follow-redirects 1.16.3 and a patched minimatch
+
+A new advisory against `follow-redirects` 1.16.0 to 1.16.1 (GHSA-mrwp-f3q8-3g9p, high: custom credentials could follow a redirect) failed the CI `audit` job on `dev` and every branch from it. It's a transitive dependency of `axios`; `npm update follow-redirects` moves it to 1.16.3, a lockfile-only change. As with the 1.16.1 fix, axios only uses it in Node, not in the browser bundle, so the shipped app never ran the affected code, but the gate stays strict. A second advisory, against `minimatch` before 11.0.1 (GHSA-g3hv-75wg-m249, moderate: a denial of service through glob patterns), failed the blocking "Client dev tooling" audit step. It reaches the client only through the ESLint tooling (`@typescript-eslint/typescript-estree`, which asks for minimatch 10, and even the newest `typescript-eslint` has no fix), so `client/package.json` now overrides that package's `minimatch` to ^11.0.1, the same way it overrides satori's `fflate`. Drop the override once `typescript-eslint` moves to minimatch 11. Gate: lint, prettier, vitest 186, build, and `npm audit` (with and without `--omit=dev`) clean for the client and the root.
+
 ### Docs: README, plan, design system, and reference docs brought up to date
 
 The docs had drifted from the code since June. The README now describes what the app does today (all four
