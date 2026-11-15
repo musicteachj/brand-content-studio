@@ -23,6 +23,10 @@ none has been merged to `main` or tagged yet, so `v0.0.0` is still the only rele
 
 ## [Unreleased]
 
+### Security: follow-redirects 1.16.3
+
+A new advisory against `follow-redirects` 1.16.0 to 1.16.1 (GHSA-mrwp-f3q8-3g9p, high: custom credentials could follow a redirect) failed the CI `audit` job on `dev` and every branch from it. It's a transitive dependency of `axios`; `npm update follow-redirects` moves it to 1.16.3, a lockfile-only change. As with the 1.16.1 fix, axios only uses it in Node, not in the browser bundle, so the shipped app never ran the affected code, but the gate stays strict. Gate: vitest 186, build, `npm audit --omit=dev` clean for the client and the root.
+
 ### Docs: README, plan, design system, and reference docs brought up to date
 
 The docs had drifted from the code since June. The README now describes what the app does today (all four
