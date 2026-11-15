@@ -60,6 +60,9 @@
   "overrides": {
     "satori": {
       "fflate": "^0.7.5"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.1"
     }
   },
   "engines": {
