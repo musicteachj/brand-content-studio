@@ -51,7 +51,7 @@ Screenshots use the "Verdure Materials" demo brand and a made-up user.
 - **Templates:** bring your own branded .docx or .pptx and fill its placeholders by hand, with "Draft with AI",
   or from an uploaded document. The output keeps the template's own styling.
 - **Brand setup in Settings:** palette, fonts (curated list or your own .ttf uploads), voice summary, logo,
-  "Learn from an image" (Claude proposes a palette, fonts, and voice from an uploaded card or guideline page),
+  "Learn from an image" (Claude proposes a palette, fonts, and voice from an uploaded logo or guideline page),
   example cards that steer the copy style, brand images, and card presets.
 - **Workspaces:** one per brand, with a switcher in the top bar.
 - **Light and dark themes**, plus an optional tint that dresses the app in the active brand's color.
@@ -121,6 +121,8 @@ works right away. The API's interactive docs are at http://localhost:8000/docs i
 | `OPENAI_API_KEY` | Embeddings: ingesting assets (including the seed) and retrieval at generation time |
 | `UNSPLASH_ACCESS_KEY` | Optional. Without it, image search shows an error; uploads still work |
 | `JWT_SECRET_KEY` | Token signing. In production it must be at least 32 characters and not the default |
+| `AI_MODEL` | Optional. The Claude model, `claude-sonnet-5-5` by default. Requests are shaped for Sonnet 5.5 (DECISIONS #40), so if an older `.env` still sets `claude-sonnet-4-6`, update the line or remove it |
+| `AI_EFFORT` | Optional. How much the model thinks before writing: `low` (default), `medium`, or `high` |
 
 Keep `VECTOR_STORE_BACKEND=chroma` and `STORAGE_BACKEND=local`; the Qdrant and S3 options aren't implemented yet.
 
@@ -134,7 +136,7 @@ From the repo root:
 ```bash
 npm run lint        # eslint + ruff
 npm run typecheck   # tsc + mypy
-npm test            # vitest + pytest (integration tests run when Mongo and Chroma are up)
+npm test            # vitest + pytest (integration tests run when Mongo is up; the vector store is faked)
 npm run build       # client production build
 npm run ci          # all of the above
 ```
