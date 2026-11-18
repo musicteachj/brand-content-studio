@@ -2,7 +2,7 @@
 
 Two surfaces, mirroring the existing generate/serve split:
   - generate (`/api/workspaces/{id}/generate/document`) — SSE: stream the draft as
-    prose, resolve the typed `DocumentModel` via tool-use, build the branded files,
+    prose, resolve the typed `DocumentModel` via structured output, build the branded files,
     persist, then emit the format keys. Same `{text} → {meta} → [DONE]` frame shape
     as /text and /card; same hybrid retrieval and same empty-corpus block.
   - download (`/api/workspaces/{id}/generations/{gid}/download/{fmt}`) — auth-gated,
@@ -58,7 +58,7 @@ async def generate_document(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream the document draft for the live preview, then resolve the structured
-    model via tool-use, render the branded files, and emit their format keys."""
+    model via structured output, render the branded files, and emit their format keys."""
     ensure_ready_corpus(workspace)
     namespace, brand_profile, voice_summary, _ = build_brand_context(workspace)
     archetype = payload.archetype.value

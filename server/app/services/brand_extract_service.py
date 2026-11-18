@@ -2,13 +2,14 @@
 
   1. `extract_palette` — Pillow quantizes the uploaded image to its dominant
      colors and returns exact hexes (deterministic, no network — unit-testable).
-  2. `BrandExtractService.propose` — a forced, strict Claude **vision** tool-use
-     call (the image + the detected hexes as hints) returns a *proposed* brand
-     profile: named/role-assigned colors + a voice summary + best-effort fonts.
+  2. `BrandExtractService.propose`: one Claude **vision** call with structured
+     output (JSON matching the strict schema; the image + the detected hexes as
+     hints) returns a *proposed* brand profile: named/role-assigned colors + a
+     voice summary + best-effort fonts.
 
 The proposal is returned to the client for review and is **never auto-applied**
-(it lands via the existing brand PATCH once the user accepts). Mirrors the
-tool-use pattern in `generation_service` (ARCHITECTURE gotcha #8)."""
+(it lands via the existing brand PATCH once the user accepts). The request
+shape is shared with `ai_service` through `claude_calls` (DECISIONS #40)."""
 from __future__ import annotations
 
 import base64
@@ -16,7 +17,6 @@ import io
 from typing import Any, cast
 
 from anthropic import AsyncAnthropic
-from anthropic.types import MessageParam, ToolChoiceToolParam, ToolParam
 from PIL import Image
 from pydantic import ValidationError
 
@@ -31,9 +31,11 @@ from app.prompts.brand_extract import (
     build_extract_system,
     build_extract_user,
 )
+from app.services import claude_calls
 from app.services.brand_fonts import curated_family
 
-EXTRACT_MAX_TOKENS = 800
+# A ceiling with room for adaptive thinking and Sonnet 5.x's larger token counts.
+EXTRACT_MAX_TOKENS = 4000
 _PALETTE_MAX = 6
 _THUMB = 200  # downscale before quantizing — speed, and averages out JPEG noise
 
@@ -58,7 +60,7 @@ def extract_palette(data: bytes, max_colors: int = _PALETTE_MAX) -> list[str]:
 
 
 def build_extract_response(detected_hexes: list[str], tool_result: dict[str, Any]) -> BrandExtractResponse:
-    """Shape the tool-use result into the typed proposal. Colors with an invalid
+    """Shape the structured-output result into the typed proposal. Colors with an invalid
     hex are dropped (one bad value mustn't lose the whole proposal), and the
     palette falls back to the detected hexes if none survive. Fonts keep only
     curated families (canonical spelling), so a style description like "Clean
@@ -97,7 +99,7 @@ class BrandExtractService:
 
     async def propose(self, data: bytes, media_type: str) -> BrandExtractResponse:
         detected = extract_palette(data)
-        result = await self._vision_tool_call(
+        result = await self._vision_structured_call(
             system=build_extract_system(),
             user=build_extract_user(detected),
             image_b64=base64.standard_b64encode(data).decode("ascii"),
@@ -107,8 +109,8 @@ class BrandExtractService:
         return build_extract_response(detected, result)
 
     async def propose_exemplar_note(self, data: bytes, media_type: str) -> str:
-        """One vision tool-use call → a short style note for an uploaded card."""
-        result = await self._vision_tool_call(
+        """One vision call with structured output → a short style note for an uploaded card."""
+        result = await self._vision_structured_call(
             system=build_exemplar_system(),
             user=build_exemplar_user(),
             image_b64=base64.standard_b64encode(data).decode("ascii"),
@@ -117,36 +119,16 @@ class BrandExtractService:
         )
         return str(result.get("style_note", "")).strip()
 
-    async def _vision_tool_call(
+    async def _vision_structured_call(
         self, system: str, user: str, image_b64: str, media_type: str, tool: dict[str, Any]
     ) -> dict[str, Any]:
-        message = await self.client.messages.create(
-            model=settings.ai_model,
-            max_tokens=EXTRACT_MAX_TOKENS,
-            system=system,
-            tools=[cast(ToolParam, tool)],
-            tool_choice=cast(ToolChoiceToolParam, {"type": "tool", "name": tool["name"]}),
-            messages=cast(
-                "list[MessageParam]",
-                [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": image_b64,
-                                },
-                            },
-                            {"type": "text", "text": user},
-                        ],
-                    }
-                ],
-            ),
+        content: list[dict[str, Any]] = [
+            {
+                "type": "image",
+                "source": {"type": "base64", "media_type": media_type, "data": image_b64},
+            },
+            {"type": "text", "text": user},
+        ]
+        return await claude_calls.structured_call(
+            self.client, system=system, content=content, tool=tool, max_tokens=EXTRACT_MAX_TOKENS
         )
-        for block in message.content:
-            if block.type == "tool_use":
-                return dict(block.input)  # type: ignore[arg-type]
-        raise RuntimeError(f"Model did not return the {tool['name']} tool call.")

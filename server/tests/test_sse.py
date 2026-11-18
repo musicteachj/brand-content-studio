@@ -72,3 +72,21 @@ async def test_sse_response_passes_through_a_domain_error_event_then_done():
     body = await _collect(sse_response(produce(), context="ctx"))
     assert 'data: {"error": "No brand context could be retrieved for this brief."}\n\n' in body
     assert body.endswith(DONE)
+
+
+@pytest.mark.asyncio
+async def test_sse_response_reports_a_model_decline_readably_then_done():
+    """A decline isn't a server fault (DECISIONS #40): the user gets the plain
+    message, not the redacted "Something went wrong" with a ref."""
+    from app.services.claude_calls import DECLINED_MESSAGE, ModelDeclined
+
+    async def produce():
+        yield {"text": "partial"}
+        raise ModelDeclined("general_harms")
+
+    body = await _collect(sse_response(produce(), context="ctx"))
+    frames = [line for line in body.split("\n\n") if line]
+    assert frames[0] == 'data: {"text": "partial"}'
+    assert frames[1] == frame({"error": DECLINED_MESSAGE}).strip()
+    assert "ref:" not in body
+    assert frames[-1] == "data: [DONE]"

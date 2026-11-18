@@ -91,7 +91,7 @@ class TextOutput(BaseModel):
 
 
 class CardFields(BaseModel):
-    """The structured card copy, obtained via Anthropic tool-use (not parsed from
+    """The structured card copy, obtained via structured output (not parsed from
     the stream — ARCHITECTURE gotcha #8)."""
 
     eyebrow: str = ""

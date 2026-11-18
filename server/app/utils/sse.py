@@ -13,7 +13,7 @@ from collections.abc import AsyncGenerator
 
 from fastapi.responses import StreamingResponse
 
-from app.utils.errors import client_error
+from app.utils.errors import UserFacingError, client_error
 
 # no-cache/keep-alive + disable proxy buffering so tokens flush live.
 SSE_HEADERS = {
@@ -42,6 +42,10 @@ def sse_response(events: AsyncGenerator[dict, None], *, context: str) -> Streami
         try:
             async for event in events:
                 yield frame(event)
+        except UserFacingError as exc:
+            # An expected failure (a model decline, DECISIONS #40) is said plainly
+            # instead of the redacted "Something went wrong".
+            yield frame({"error": exc.message})
         except Exception as exc:
             yield frame({"error": client_error(exc, context=context)})
         finally:

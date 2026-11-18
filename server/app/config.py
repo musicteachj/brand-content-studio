@@ -53,7 +53,11 @@ class Settings(BaseSettings):
 
     # AI — generation (Anthropic)
     anthropic_api_key: SecretStr = SecretStr("")
-    ai_model: str = "claude-sonnet-4-6"
+    ai_model: str = "claude-sonnet-5-5"
+    # How much the model thinks before it writes (DECISIONS #40). "low" is the
+    # recommended start for content generation and extraction; raise it with an
+    # env change if quality looks thin.
+    ai_effort: Literal["low", "medium", "high"] = "low"
 
     # AI — embeddings (OpenAI)
     openai_api_key: SecretStr = SecretStr("")

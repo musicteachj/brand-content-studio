@@ -64,7 +64,7 @@ def _clip(value: object, limit: int) -> str:
 
 
 def build_document_output(archetype: str, extracted: dict) -> dict:
-    """Shape a tool-use result into the persisted document `output`. `formats` is
+    """Shape a structured-output result into the persisted document `output`. `formats` is
     empty here: the files are built and their keys attached after the generation
     id exists (the storage key is derived from it)."""
     sections: list[dict] = []
