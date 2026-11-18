@@ -3,7 +3,7 @@
 A post_pack is built in two coherent steps from ONE retrieval:
   1. CAPTION — reuse `prompts/text_post.py` to stream the full LinkedIn post caption.
   2. DISTILL — take that finished caption and distill the matching **card** (the
-     visual hook) via a forced tool-use call, reusing `image_card.CARD_FIELDS_TOOL`.
+     visual hook) via a structured-output call, reusing `image_card.CARD_FIELDS_TOOL`.
      The card is the post's hook, not a copy of the caption — so this prompt asks
      the model to compress, not preserve wording.
 
@@ -32,7 +32,7 @@ _TEMPLATE_SHAPE = {
     ),
 }
 
-_DISTILL_SYSTEM = """You turn a finished LinkedIn post into the matching social CARD by calling the provided tool. The card is the post's visual HOOK — the single strongest idea, compressed to a few words — not a re-statement of the whole post.
+_DISTILL_SYSTEM = """You turn a finished LinkedIn post into the matching social CARD, returned as JSON in the required format. The card is the post's visual HOOK (the single strongest idea, compressed to a few words), not a re-statement of the whole post.
 
 Rules:
 - Distill, don't copy: pull the sharpest hook from the post into the headline; keep the brand's voice.
@@ -57,6 +57,6 @@ def build_distill_user(brief: str, template: CardTemplate, caption: str) -> str:
             caption.strip(),
             "</post>",
             "",
-            "Call the card_fields tool with the distilled card fields and suggested image keywords.",
+            "Return the distilled card fields and suggested image keywords.",
         ]
     )

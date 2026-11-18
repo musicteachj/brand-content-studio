@@ -103,7 +103,7 @@ async def generate_card(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Stream card copy for the live typing effect, then resolve the structured
-    fields + image keywords via a forced tool-use call (ARCHITECTURE gotcha #8).
+    fields + image keywords via a structured-output call (ARCHITECTURE gotcha #8).
     Frame shapes mirror /text: `{text}` deltas → terminal `{meta}` → `[DONE]`."""
     ensure_ready_corpus(workspace)
     namespace, _, voice_summary, exemplar_guidance = build_brand_context(workspace)
@@ -171,7 +171,7 @@ async def generate_post(
 ):
     """The "LinkedIn Post" objective (Phase 3): stream the post caption for the
     live typing effect, then distill the matching card from that caption via a
-    forced tool-use call. One brief, one retrieval → caption + card. Frame shapes
+    structured-output call. One brief, one retrieval → caption + card. Frame shapes
     mirror /text and /card: `{text}` deltas → terminal `{meta}` → `[DONE]`."""
     ensure_ready_corpus(workspace)
     namespace, _, voice_summary, exemplar_guidance = build_brand_context(workspace)
@@ -196,7 +196,7 @@ async def generate_post(
             yield {"error": "The model returned an empty response. Try again."}
             return
 
-        # 2) Distill the matching card from the finished caption (tool-use).
+        # 2) Distill the matching card from the finished caption (structured output).
         extracted = await service.extract_card_fields(
             post_pack.build_distill_system(),
             post_pack.build_distill_user(payload.brief, payload.template_id, caption),

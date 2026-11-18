@@ -2,9 +2,11 @@
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
@@ -25,6 +27,7 @@ from app.routes import (
     workspaces,
 )
 from app.spa import mount_spa
+from app.utils.errors import UserFacingError
 from app.utils.ratelimit import limiter
 
 logging.basicConfig(level=logging.INFO)
@@ -142,6 +145,18 @@ app = FastAPI(
 app.state.limiter = limiter
 # slowapi's handler is typed for RateLimitExceeded; Starlette wants Exception.
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+
+async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """An expected failure on a non-streaming route, such as a model decline on
+    template fill, brand extract, or an example-card note (DECISIONS #40), answers
+    with its readable `detail` instead of a 500. The streaming routes send it in
+    their SSE error frame instead."""
+    err = cast(UserFacingError, exc)
+    return JSONResponse(status_code=err.status_code, content={"detail": err.message})
+
+
+app.add_exception_handler(UserFacingError, _user_facing_error_handler)
 
 app.add_middleware(
     CORSMiddleware,

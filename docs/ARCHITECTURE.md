@@ -11,7 +11,7 @@
 |---|---|---|
 | Frontend | React 19 + Vite 8 + TS, Tailwind 4 + shadcn/ui (Radix), Zustand, TanStack Query, react-hook-form + zod, lucide-react; Node 24 | Smart Resume Builder |
 | Backend | Python 3.12, FastAPI (Starlette 1.x) + Motor (async MongoDB) + Pydantic v2 | Employee Management System |
-| Generation | Claude `claude-sonnet-4-6` via `AsyncAnthropic`, streamed over SSE | EMS `ai_service.py` |
+| Generation | Claude `claude-sonnet-5-5` via `AsyncAnthropic`, streamed over SSE (DECISIONS #40) | EMS `ai_service.py` |
 | Embeddings | OpenAI `text-embedding-3-small` (1536-dim) behind `Embedder` protocol | new |
 | Vector store | Chroma behind `VectorStore` protocol (the only implemented backend); Qdrant planned for prod, `qdrant_store.py` is a stub that raises `NotImplementedError` | new |
 | RAG orchestration | Hand-rolled (SDKs + vector-store client directly); `langchain-text-splitters` (standalone) for chunking; pdfplumber | new |
@@ -136,7 +136,7 @@ The panel (DESIGN: "precise, trustworthy tooling — no glow") lists each source
 - **RAG eval harness:** a small fixture set (8–10 briefs → expected-to-retrieve chunk ids) measures retrieval hit-rate, so retrieval quality is a number we can tune (chunk size, k, hybrid weighting), not a vibe.
 
 ### Image card (Phase 1b — proves the design system)
-- Same (hybrid) retrieval. Card copy streams as **natural text** into a lightweight **React** preview for the live "typing" effect; the final **structured fields** (`eyebrow/headline/body/cta/hashtag`) come from an Anthropic **tool-use** call (a typed schema — cleaner than parsing `<<markers>>` mid-stream). The terminal `meta` carries `suggested_keywords` + retrieval data.
+- Same (hybrid) retrieval. Card copy streams as **natural text** into a lightweight **React** preview for the live "typing" effect; the final **structured fields** (`eyebrow/headline/body/cta/hashtag`) come from a **structured-output** call (JSON matching a strict schema, DECISIONS #40; cleaner than parsing `<<markers>>` mid-stream). The terminal `meta` carries `suggested_keywords` + retrieval data.
 - **Image selection is a parallel step** (does not block copy): client feeds Claude's `suggested_keywords` to the Unsplash proxy, user picks one (or uploads). Mandatory attribution is attached.
 - Each archetype (`cards/PhotoLed|Statement|Quote`) is authored in **Satori's flexbox/CSS subset** with **workspace fonts/colors only** (brand fonts loaded as font **buffers**). The *same* Satori definition produces both the locked final preview and the export: `useCardExport` runs Satori → SVG → `@resvg/resvg-wasm` → exact **1080×1350 PNG**, attribution baked in. **Preview == export by construction.** (The streaming "typing" preview can be a plain React card; the final/exported card is Satori.)
 
@@ -191,7 +191,7 @@ Generations are **persisted server-side at stream end**; `PATCH` is for the Phas
 5. **Demo corpus quality = the demo.** A thin corpus produces generic output and makes RAG look pointless. The rich Verdure corpus (see [demo-corpus/](./demo-corpus/)) is a real Phase 1a deliverable.
 6. **Embedding dim 1536.** Pin `embedding_dim` in config and at collection creation in both stores. Store `embedding_model` + `embedding_dim` on the workspace so a model change forces a re-ingest rather than mixing dims (which silently corrupts similarity).
 7. **Workspace isolation enforced server-side.** Every query passes `workspace_id`; the Qdrant shared collection makes the payload filter the only tenant boundary. Index `workspace_id`, never query unfiltered, and keep a cross-leak pytest (`test_query_is_workspace_scoped`).
-8. **Card structured output.** Get the final card fields via Anthropic **tool-use** (a typed schema), not by parsing streamed JSON/markers mid-flight. Stream natural text for the live typing effect; read fields + `suggested_keywords` from the completed response.
+8. **Card structured output.** Get the final card fields via **structured output** (`output_config.format` with a strict schema; a forced `tool_choice` is rejected by Claude Sonnet 5.5, DECISIONS #40), not by parsing streamed JSON/markers mid-flight. Stream natural text for the live typing effect; read fields + `suggested_keywords` from the completed response.
 9. **Untrusted ingested content.** Treat uploaded brand docs as untrusted: delimit retrieved chunks in the prompt as data-not-instructions (see §5), and cap PDF **size / page-count / parse-time** to avoid a malicious-file DoS.
 10. **Empty / thin corpus.** A workspace with no ready chunks must degrade gracefully — block generation with a clear "ingest assets first" state rather than calling Claude with no brand context.
 11. **Demo seed protection.** In `is_demo` context, block every change to the seeded workspace (workspace, brand, logo, fonts, presets, templates, assets, image uploads; see Security and limits) so visitors can't break the seeded Verdure corpus. The UI disables those controls and shows a demo notice; the server enforces it with `require_not_demo`.

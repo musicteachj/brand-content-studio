@@ -95,7 +95,7 @@ Copy the EMS user model. Seed exactly one demo user.
 | `output` | object | discriminated by `type`, see below |
 | `retrieved_chunk_ids` | str[] | vector-store ids `{asset_id}:{chunk_index}` |
 | `retrieval_meta` | object[] | snapshot for the debug panel + re-open survival (see ARCHITECTURE §5) |
-| `model` | str | `"claude-sonnet-4-6"` |
+| `model` | str | `"claude-sonnet-5-5"` (rows saved before DECISIONS #40 keep `"claude-sonnet-4-6"`) |
 | `embedding_query_model` | str | `"text-embedding-3-small"` |
 | `created_at` / `updated_at` | datetime | |
 

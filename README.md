@@ -63,7 +63,7 @@ Screenshots use the "Verdure Materials" demo brand and a made-up user.
 - **Frontend:** React 19 + Vite 8 + TypeScript, Tailwind CSS 4 + shadcn/ui (Radix), Zustand, TanStack Query,
   react-hook-form + zod, lucide-react. Cards are rendered in the browser with Satori and resvg-wasm.
 - **Backend:** Python 3.12, FastAPI + Motor (async MongoDB) + Pydantic v2, slowapi rate limiting.
-- **AI:** Claude `claude-sonnet-4-6` (`AsyncAnthropic`, streamed over SSE) for generation, brand extraction from
+- **AI:** Claude `claude-sonnet-5-5` (`AsyncAnthropic`, streamed over SSE) for generation, brand extraction from
   images, and template drafting; OpenAI `text-embedding-3-small` for embeddings.
 - **RAG:** hand-rolled ingestion (standalone `langchain-text-splitters` for chunking, no full framework) and a
   vector store behind a swappable interface: **Chroma** today. A Qdrant store for production is planned but not
