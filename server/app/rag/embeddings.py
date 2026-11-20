@@ -65,7 +65,15 @@ async def embed_metered(texts: list[str], *, line: MeteredLine) -> list[list[flo
     if not texts:
         await line.settle_unbilled("not_attempted")
         return []
-    embedder = get_embedder()
+    try:
+        embedder = get_embedder()
+    except openai.OpenAIError as exc:
+        # No usable key: the SDK refuses to build a client, so no request was made.
+        await line.settle_unbilled("client_unavailable")
+        logger.warning("Embedding client unavailable: %s", type(exc).__name__)
+        raise LiveAIUnavailable(
+            log_detail=f"Embedding client unavailable: {type(exc).__name__}"
+        ) from exc
     line.mark_started()
     try:
         vectors, tokens = await asyncio.to_thread(embedder.embed_with_usage, texts)

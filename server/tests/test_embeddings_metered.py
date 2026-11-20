@@ -18,7 +18,7 @@ from app.database import get_database
 from app.main import app
 from app.models.common import utcnow
 from app.models.user import UserInDB
-from app.rag.embeddings import embed_metered
+from app.rag.embeddings import embed_metered, get_embedder
 from app.services import storage_service
 from app.services.ai_meter import embedding_line, reserve_action
 from app.services.ai_service import GenerationService
@@ -110,6 +110,32 @@ async def test_openai_timeouts_keep_the_reservation(test_db, fake_embedder, exc)
     (call,) = await _calls(test_db)
     assert call["status"] == "settled" and call["outcome"] == "canceled_or_unknown"
     assert call["actual_micros"] == call["reserved_micros"] > 0
+
+
+async def test_a_missing_openai_key_settles_to_zero_and_reads_plainly(test_db, monkeypatch):
+    """Empty key (as in CI and the local production compose): the SDK refuses to build a
+    client, no request is made, so the line is unbilled and the visitor sees the friendly copy."""
+    from pydantic import SecretStr
+
+    from app.services import ai_clients
+
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr(""))
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    # The autouse fixture swaps in a fake; this test needs the real embedder.
+    monkeypatch.setattr("app.rag.embeddings.get_embedder", get_embedder)
+    ai_clients.get_openai.cache_clear()
+    get_embedder.cache_clear()
+    try:
+        action, line = await _line(test_db, ["hello there"])
+        with pytest.raises(LiveAIUnavailable) as raised:
+            async with action:
+                await embed_metered(["hello there"], line=line)
+    finally:
+        ai_clients.get_openai.cache_clear()
+        get_embedder.cache_clear()
+    assert raised.value.message == LIVE_AI_UNAVAILABLE_COPY
+    (call,) = await _calls(test_db)
+    assert call["status"] == "settled" and call["actual_micros"] == 0
 
 
 def _user() -> UserInDB:

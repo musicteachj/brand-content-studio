@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
 from app.config import settings
 from app.services import ai_clients, claude_calls
@@ -12,19 +13,32 @@ from app.services.ai_service import GenerationService
 from app.services.brand_extract_service import BrandExtractService
 
 
-def test_one_shared_anthropic_client_with_no_retries():
+@pytest.fixture
+def dummy_keys(monkeypatch):
+    """A built client needs a key; CI runs with empty ones. Use a dummy (never a real
+    key) and start and end with no cached clients."""
+    monkeypatch.setattr(settings, "anthropic_api_key", SecretStr("sk-ant-dummy-not-real"))
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-dummy-not-real"))
+    ai_clients.get_anthropic.cache_clear()
+    ai_clients.get_openai.cache_clear()
+    yield
+    ai_clients.get_anthropic.cache_clear()
+    ai_clients.get_openai.cache_clear()
+
+
+def test_one_shared_anthropic_client_with_no_retries(dummy_keys):
     client = ai_clients.get_anthropic()
     assert client is ai_clients.get_anthropic()
     assert client.max_retries == 0
     assert client.timeout.read == settings.ai_request_timeout_s and client.timeout.connect == 5.0
 
 
-def test_the_services_use_the_shared_client():
+def test_the_services_use_the_shared_client(dummy_keys):
     assert GenerationService().client is ai_clients.get_anthropic()
     assert BrandExtractService().client is ai_clients.get_anthropic()
 
 
-def test_openai_client_has_no_retries_and_a_short_timeout():
+def test_openai_client_has_no_retries_and_a_short_timeout(dummy_keys):
     client = ai_clients.get_openai()
     assert client is ai_clients.get_openai()
     assert client.max_retries == 0 and client.timeout == settings.embedding_timeout_s
@@ -43,7 +57,7 @@ def test_requests_carry_no_server_side_fallback():
 
 
 @pytest.mark.asyncio
-async def test_close_ai_clients_closes_and_clears_the_cache():
+async def test_close_ai_clients_closes_and_clears_the_cache(dummy_keys):
     anthropic = ai_clients.get_anthropic()
     openai = ai_clients.get_openai()
     await ai_clients.close_ai_clients()
