@@ -23,6 +23,10 @@ none has been merged to `main` or tagged yet, so `v0.0.0` is still the only rele
 
 ## [Unreleased]
 
+### Security: real client IPs behind a load balancer, and longer keep-alive
+
+uvicorn moves from 0.24.0 to 0.54.0, the newest release, because `FORWARDED_ALLOW_IPS` only accepts CIDR networks from 0.31.0 on (earlier versions compared the peer to the string, so a VPC range never matched and every visitor shared the load balancer's rate-limit key). The Dockerfile `CMD` now passes `--proxy-headers`, `--timeout-keep-alive 130` (above the ALB's 120 s idle timeout, so it never reuses a connection uvicorn closed) and `--timeout-graceful-shutdown 25` (a clean stop inside the 30 s container window), with one worker; trusted proxies come from the `FORWARDED_ALLOW_IPS` environment variable, not a flag. A new `validate_serving_settings` runs first in the lifespan and, in production only, refuses to boot unless `FORWARDED_ALLOW_IPS` is set to valid IPs or CIDRs, rejecting `*` and any `/0` network (a wildcard trusts a forged leftmost `X-Forwarded-For`). New tests cover the rightmost-untrusted-entry rule, forged entries, untrusted peers, the validator, and the Dockerfile flags. Gate: ruff, mypy, pytest 350 passed.
+
 ### Docs: README settings and corrections
 
 The README's settings table now lists the optional `AI_MODEL` (default `claude-sonnet-5-5`, with a note to update an older `.env` that still sets `claude-sonnet-4-6`) and `AI_EFFORT` (default `low`), added in the Sonnet 5.5 move. Two corrections: "Learn from an image" reads a logo or a guideline page (not a card; example cards are their own feature), and the test suite's integration tests need only Mongo, since the vector store is faked. No code changes.

@@ -1,4 +1,5 @@
 """Application settings (pydantic-settings). Loads from server/.env."""
+import ipaddress
 from pathlib import Path
 from typing import Literal
 
@@ -22,6 +23,11 @@ class Settings(BaseSettings):
     # production-only checks (the JWT secret, docs off, HSTS).
     environment: Literal["development", "production"] = "development"
     cors_origins: list[str] = ["http://localhost:5173"]
+    # Proxies whose X-Forwarded-For uvicorn may trust: comma-separated IPs or CIDRs.
+    # uvicorn reads FORWARDED_ALLOW_IPS from the environment itself (the Dockerfile
+    # never passes it on the command line); this field only lets the production
+    # check below see and vet the same value.
+    forwarded_allow_ips: str = "127.0.0.1"
 
     # MongoDB
     mongodb_url: SecretStr = SecretStr("mongodb://localhost:27017")  # may carry credentials
@@ -109,6 +115,38 @@ class Settings(BaseSettings):
                 "in production."
             )
         return self
+
+
+def validate_serving_settings(s: Settings) -> None:
+    """Production-only checks on how the app is served, run once at the start of the
+    lifespan. They live here and not in the import-time validator above so the hourly
+    cleanup job can import the settings without the web app's serving config."""
+    if s.environment != "production":
+        return
+    if "forwarded_allow_ips" not in s.model_fields_set:
+        raise ValueError(
+            "FORWARDED_ALLOW_IPS must be set in production, to the load balancer's "
+            "CIDR (for example the VPC range), so the rate limiter sees real client IPs."
+        )
+    entries = [e.strip() for e in s.forwarded_allow_ips.split(",") if e.strip()]
+    if not entries:
+        raise ValueError("FORWARDED_ALLOW_IPS is empty; list the trusted proxy IPs or CIDRs.")
+    for entry in entries:
+        if entry == "*":
+            raise ValueError(
+                "FORWARDED_ALLOW_IPS must not be '*': it would trust a forged X-Forwarded-For."
+            )
+        try:
+            network = ipaddress.ip_network(entry, strict=False)
+        except ValueError:
+            raise ValueError(
+                f"FORWARDED_ALLOW_IPS entry {entry!r} is not an IP address or CIDR."
+            ) from None
+        if network.prefixlen == 0:
+            raise ValueError(
+                f"FORWARDED_ALLOW_IPS entry {entry!r} trusts every address; use the "
+                "load balancer's CIDR."
+            )
 
 
 settings = Settings()

@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.config import settings
+from app.config import settings, validate_serving_settings
 from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
 from app.rag.vector_store import get_vector_store
 from app.routes import (
@@ -122,6 +122,7 @@ class SecurityHeadersMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_serving_settings(settings)
     await connect_to_mongo()
     await ensure_indexes()
     get_vector_store()  # instantiate the configured backend (chroma/qdrant)

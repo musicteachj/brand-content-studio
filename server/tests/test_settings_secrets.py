@@ -3,7 +3,7 @@ secret check (SEC-06), and the API docs being off in production."""
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from app.config import DEFAULT_JWT_SECRET, Settings, settings
+from app.config import DEFAULT_JWT_SECRET, Settings, settings, validate_serving_settings
 
 SECRETS = {
     "jwt_secret_key": "jwt-secret-value-that-is-long-enough-000",
@@ -163,3 +163,22 @@ def test_the_real_app_serves_no_docs_or_schema_in_production(tmp_path):
         capture_output=True, text=True, timeout=120,
     )
     assert out.returncode == 0 and out.stdout.strip() == "ok", out.stderr[-400:]
+
+
+@pytest.mark.parametrize("value", ["*", "0.0.0.0/0", "::/0", "not-an-ip", ""])
+def test_production_refuses_an_unsafe_forwarded_allow_ips(value):
+    with pytest.raises(ValueError):
+        validate_serving_settings(_settings(environment="production", forwarded_allow_ips=value))
+
+
+def test_production_requires_forwarded_allow_ips_to_be_set():
+    with pytest.raises(ValueError, match="FORWARDED_ALLOW_IPS"):
+        validate_serving_settings(_settings(environment="production"))
+
+
+def test_production_accepts_a_cidr_list():
+    validate_serving_settings(_settings(environment="production", forwarded_allow_ips="10.0.0.0/16,127.0.0.1"))
+
+
+def test_development_skips_the_serving_checks():
+    validate_serving_settings(_settings(environment="development", forwarded_allow_ips="*"))

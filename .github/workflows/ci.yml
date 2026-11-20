@@ -166,6 +166,7 @@ jobs:
             -e MONGODB_URL=mongodb://localhost:27017 \
             -e CHROMA_HOST=localhost -e CHROMA_PORT=8001 \
             -e JWT_SECRET_KEY=ci-test-secret-not-a-real-key-000000 \
+            -e FORWARDED_ALLOW_IPS=127.0.0.1 \
             brand-content-studio:ci
           # The Dockerfile's first probe fires one interval (30s) after start.
           for i in $(seq 1 40); do
