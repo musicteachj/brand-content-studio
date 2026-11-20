@@ -16,6 +16,7 @@ NOTE: no `from __future__ import annotations` here — it turns route annotation
 into ForwardRefs that FastAPI can't resolve through slowapi's @limiter.limit
 wrapper (bodies would 422). Keep annotations concrete in rate-limited routes."""
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 
 from fastapi import APIRouter, Depends, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -88,9 +89,11 @@ async def generate_text(
     async def produce() -> AsyncGenerator[dict, None]:
         try:
             parts: list[str] = []
-            async for delta in service.stream_text(system, user, line=action.lines[0]):
-                parts.append(delta)
-                yield {"text": delta}
+            # aclosing: a disconnect at a yield closes the model stream at once, first.
+            async with aclosing(service.stream_text(system, user, line=action.lines[0])) as stream:
+                async for delta in stream:
+                    parts.append(delta)
+                    yield {"text": delta}
 
             if not "".join(parts).strip():
                 yield {"error": _EMPTY_REPLY}
@@ -112,7 +115,7 @@ async def generate_text(
         finally:
             await action.finalize()
 
-    return sse_response(produce(), context=_STREAM_CONTEXT)
+    return sse_response(produce(), context=_STREAM_CONTEXT, on_close=action.finalize)
 
 
 @router.post("/card")
@@ -159,9 +162,12 @@ async def generate_card(
     async def produce() -> AsyncGenerator[dict, None]:
         try:
             parts: list[str] = []
-            async for delta in service.stream_copy(copy_system, copy_user, line=action.lines[0]):
-                parts.append(delta)
-                yield {"text": delta}
+            async with aclosing(
+                service.stream_copy(copy_system, copy_user, line=action.lines[0])
+            ) as stream:
+                async for delta in stream:
+                    parts.append(delta)
+                    yield {"text": delta}
 
             copy = "".join(parts).strip()
             if not copy:
@@ -198,7 +204,7 @@ async def generate_card(
         finally:
             await action.finalize()
 
-    return sse_response(produce(), context=_STREAM_CONTEXT)
+    return sse_response(produce(), context=_STREAM_CONTEXT, on_close=action.finalize)
 
 
 @router.post("/post")
@@ -246,11 +252,12 @@ async def generate_post(
         try:
             parts: list[str] = []
             # 1) Stream the caption (a full LinkedIn post) for the live typing effect.
-            async for delta in service.stream_text(
-                caption_system, caption_user, line=action.lines[0]
-            ):
-                parts.append(delta)
-                yield {"text": delta}
+            async with aclosing(
+                service.stream_text(caption_system, caption_user, line=action.lines[0])
+            ) as stream:
+                async for delta in stream:
+                    parts.append(delta)
+                    yield {"text": delta}
 
             caption = "".join(parts).strip()
             if not caption:
@@ -288,4 +295,4 @@ async def generate_post(
         finally:
             await action.finalize()
 
-    return sse_response(produce(), context=_STREAM_CONTEXT)
+    return sse_response(produce(), context=_STREAM_CONTEXT, on_close=action.finalize)

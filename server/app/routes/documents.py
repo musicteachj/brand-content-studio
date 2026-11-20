@@ -13,6 +13,7 @@ NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
 @limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
 """
 from collections.abc import AsyncGenerator
+from contextlib import aclosing
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -101,9 +102,13 @@ async def generate_document(
     async def produce() -> AsyncGenerator[dict, None]:
         try:
             parts: list[str] = []
-            async for delta in service.stream_document(copy_system, copy_user, line=action.lines[0]):
-                parts.append(delta)
-                yield {"text": delta}
+            # aclosing: a disconnect at a yield closes the model stream at once, first.
+            async with aclosing(
+                service.stream_document(copy_system, copy_user, line=action.lines[0])
+            ) as stream:
+                async for delta in stream:
+                    parts.append(delta)
+                    yield {"text": delta}
 
             draft = "".join(parts).strip()
             if not draft:
@@ -169,7 +174,7 @@ async def generate_document(
         finally:
             await action.finalize()
 
-    return sse_response(produce(), context="document generation")
+    return sse_response(produce(), context="document generation", on_close=action.finalize)
 
 
 @download_router.get("/{generation_id}/download/{fmt}")

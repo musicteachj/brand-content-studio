@@ -42,4 +42,42 @@ describe("readFrames", () => {
     await readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
     expect(onError).toHaveBeenCalledWith("Generation failed.");
   });
+
+  it("ignores heartbeat comments and keeps the stream alive", async () => {
+    const encode = (text: string) => new TextEncoder().encode(text);
+    const heartbeat = encode(": keep-alive\n\n");
+    // Each read resolves after 10 s, like the server's heartbeat while the model is silent.
+    const chunks = [
+      encode('data: {"text": "Hello "}\n\n'),
+      heartbeat,
+      heartbeat,
+      heartbeat,
+      heartbeat,
+      encode('data: {"text": "world"}\n\n'),
+      encode("data: [DONE]\n\n"),
+    ];
+    const reader = {
+      read: (): Promise<ReadResult> => {
+        const value = chunks.shift();
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve(value ? { done: false, value } : { done: true, value: undefined }),
+            10_000,
+          ),
+        );
+      },
+      cancel: vi.fn(),
+      releaseLock: vi.fn(),
+    };
+    const onText = vi.fn();
+    const onError = vi.fn();
+    const p = readFrames(fakeResponse(reader), { onText, onMeta: vi.fn(), onError });
+    // 40 s of heartbeats only, past STREAM_INACTIVITY_MS, between the two text frames.
+    await vi.advanceTimersByTimeAsync(70_000);
+    await p;
+    expect(STREAM_INACTIVITY_MS).toBeLessThan(40_000);
+    expect(onError).not.toHaveBeenCalled();
+    expect(reader.cancel).not.toHaveBeenCalled();
+    expect(onText.mock.calls).toEqual([["Hello "], ["world"]]);
+  });
 });
