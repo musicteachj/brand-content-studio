@@ -107,41 +107,41 @@ Deleted: `server/app/services/usage_service.py`, `server/tests/test_demo_ai_quot
 
 **Interfaces:** Produces the branch `feat/portfolio-demo-readiness`, cut from a `dev` that equals `origin/dev` after `docs/readme-ai-settings` is merged.
 
-- [ ] **Step 1: Confirm the start state**
+- [x] **Step 1: Confirm the start state**
 
 Run: `git status --short && git fetch origin && git rev-parse --short HEAD && git rev-list --count origin/dev..docs/readme-ai-settings && git rev-list --count dev..origin/dev`
 Expected: only `?? docs/superpowers/plans/2026-11-19-demo-sessions-and-deploy-readiness.md`; HEAD `acc0733`; `1`; `6` (or more if `origin/dev` moved; then recheck before continuing).
 
-- [ ] **Step 2: Review the docs branch (docs/WORKFLOW.md section 5, tier 1)**
+- [x] **Step 2: Review the docs branch (docs/WORKFLOW.md section 5, tier 1)**
 
 Run `/code-review medium` and `/security-review` (light) on `git diff origin/dev...docs/readme-ai-settings`. Fix nothing on this branch without a separate OK; note the outcome for the PR body.
 
-- [ ] **Step 3: Open the PR into dev**
+- [x] **Step 3: Open the PR into dev**
 
 Run: `gh pr list --head docs/readme-ai-settings --state all`. If none is open, prepare `gh pr create --base dev --head docs/readme-ai-settings --title "docs: README settings for the Sonnet 5.5 move, plus two corrections" --body-file <tmp>` with a body summarizing the commit and the review outcome.
 Stop: show the PR title and body, and wait for James's explicit OK before creating the PR.
 
-- [ ] **Step 4: Wait for CI**
+- [x] **Step 4: Wait for CI**
 
 Run: `gh pr checks <number> --watch`
 Expected: `client`, `server`, `docker`, and `audit` pass.
 
-- [ ] **Step 5: Merge with a merge commit**
+- [x] **Step 5: Merge with a merge commit**
 
 Stop: show the PR number and checks, and wait for James's explicit OK before merging.
 Run: `gh pr merge <number> --merge`
 
-- [ ] **Step 6: Bring local dev up to date**
+- [x] **Step 6: Bring local dev up to date**
 
 Run: `git checkout dev && git pull --ff-only origin dev && git rev-list --count dev..origin/dev`
 Expected: `0`, and `git log --oneline -3` shows the merge of `docs/readme-ai-settings`.
 
-- [ ] **Step 7: Create the work branch**
+- [x] **Step 7: Create the work branch**
 
 Stop: ask James for OK to create `feat/portfolio-demo-readiness` from `dev`.
 Run: `git checkout -b feat/portfolio-demo-readiness`
 
-- [ ] **Step 8: Write `CLAUDE.md` with exactly this content**
+- [x] **Step 8: Write `CLAUDE.md` with exactly this content**
 
 ```markdown
 # Folio (brand-content-studio)
@@ -171,7 +171,7 @@ Folio is one of James Littlefield's portfolio apps: a retrieval-augmented studio
 - Design: `../portfolio-infra/docs/design/2026-11-18-portfolio-apps-aws-deployment-design.md`
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
 
@@ -196,11 +196,11 @@ git commit -m "docs: plan the portfolio demo readiness work and add CLAUDE.md" -
 **Interfaces:**
 - Produces: `Settings.forwarded_allow_ips: str = "127.0.0.1"`; `def validate_serving_settings(s: Settings) -> None` in `app/config.py`, raising `ValueError` in production only. Called once in the lifespan before anything else. Task 9 adds checks to it. (Serving checks live here, not in the import-time validator, so the hourly cleanup job can run without the web app's settings.)
 
-- [ ] **Step 1: Pick the version**
+- [x] **Step 1: Pick the version**
 
 Run: `cd server && .venv/bin/pip index versions uvicorn`, then read the uvicorn release notes for the first release whose `forwarded_allow_ips` accepts IP networks (believed 0.31.0, "Improve ProxyHeadersMiddleware"). Pin the newest release at or above it. Starlette and FastAPI are unaffected (uvicorn is only the server).
 
-- [ ] **Step 2: Write the failing tests** (`server/tests/test_proxy_headers.py`)
+- [x] **Step 2: Write the failing tests** (`server/tests/test_proxy_headers.py`)
 
 ```python
 from httpx import ASGITransport, AsyncClient
@@ -256,23 +256,23 @@ def test_development_skips_the_serving_checks():
 
 `server/tests/test_dockerfile.py` reads `Dockerfile` as text and asserts the `CMD` JSON array contains `"--proxy-headers"`, `"--timeout-keep-alive", "130"`, and `"--timeout-graceful-shutdown", "25"`, and contains neither `"--forwarded-allow-ips"` nor `"--workers"`.
 
-- [ ] **Step 3: Run them to see them fail**
+- [x] **Step 3: Run them to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_proxy_headers.py tests/test_dockerfile.py tests/test_settings_secrets.py -q`
 Expected: the CIDR tests fail on uvicorn 0.24 (it compares the peer to `{"10.0.0.0/16"}` as a string, so the key stays `10.0.3.7`); the settings and Dockerfile tests fail on missing names and flags.
 
-- [ ] **Step 4: Upgrade and implement**
+- [x] **Step 4: Upgrade and implement**
 
 - Pin `uvicorn[standard]==<chosen>` with a comment naming the CIDR support. Run `.venv/bin/pip install -r requirements-dev.txt` and confirm `grep -n "ip_network" .venv/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py` finds the network parsing.
 - `validate_serving_settings`: in production, require `"forwarded_allow_ips" in s.model_fields_set` (uvicorn reads the same `FORWARDED_ALLOW_IPS` variable itself, so the value is never passed on the command line); split on commas; each entry must parse with `ipaddress.ip_address` or `ipaddress.ip_network(strict=False)`; refuse `*` and any network with `prefixlen == 0`.
 - Dockerfile `CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--timeout-keep-alive", "130", "--timeout-graceful-shutdown", "25"]`, with a comment: keep-alive above the ALB's 120 s idle timeout; trusted proxies come from `FORWARDED_ALLOW_IPS`.
 - `.env.example`: `# FORWARDED_ALLOW_IPS=127.0.0.1` with a comment (production: the VPC CIDR, never `*`).
 
-- [ ] **Step 5: Run the tests, then the gate**
+- [x] **Step 5: Run the tests, then the gate**
 
 Run: the Step 3 command (expected PASS), then G-server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 CHANGELOG: `### Security: real client IPs behind a load balancer, and longer keep-alive`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -293,7 +293,7 @@ Message: `fix(server): trust the load balancer by CIDR and keep connections aliv
 - Produces: `get_anthropic() -> AsyncAnthropic` and `get_openai() -> OpenAI` (each `functools.lru_cache(maxsize=1)`), `async def close_ai_clients() -> None`, `def stream_timeout() -> httpx.Timeout`. Settings: `ai_request_timeout_s: float = 60.0`, `ai_stream_read_timeout_s: float = 30.0`, `ai_stream_deadline_s: float = 90.0`, `embedding_timeout_s: float = 10.0` (D4).
 - `GenerationService` and `BrandExtractService` keep their zero-argument constructors (tests override them with `app.dependency_overrides`), but `self.client = get_anthropic()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 def test_one_shared_anthropic_client_with_no_retries():
@@ -319,12 +319,12 @@ In `test_claude_calls.py`, update the request-shape test to assert no `betas`/`f
 
 Add an autouse fixture `_no_real_network` to `conftest.py`: monkeypatch `httpx.AsyncClient.send` and `httpx.Client.send` to raise `AssertionError(f"real network call in a test: {request.url.host}")` unless the client's transport is an `httpx.ASGITransport` or `httpx.MockTransport`. This is the suite's guard against paid calls.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_ai_clients.py tests/test_claude_calls.py -q`
 Expected: FAIL (`ai_clients` missing; `betas` present).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - `get_anthropic()`: `AsyncAnthropic(api_key=..., max_retries=0, timeout=httpx.Timeout(settings.ai_request_timeout_s, connect=5.0))`.
 - `get_openai()`: `OpenAI(api_key=..., max_retries=0, timeout=settings.embedding_timeout_s)`.
@@ -332,11 +332,11 @@ Expected: FAIL (`ai_clients` missing; `betas` present).
 - `close_ai_clients()`: close whichever cached clients exist (`cache_info().currsize`), then `cache_clear()`. The lifespan calls it after `close_mongo_connection()`.
 - `.env.example`: the four timeout settings, commented, with defaults.
 
-- [ ] **Step 4: Run the tests, then the gate**
+- [x] **Step 4: Run the tests, then the gate**
 
 Run: Step 2 command (expected PASS), then G-server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Changed: one shared Claude client, explicit timeouts, no SDK retries, no fallback`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -376,7 +376,7 @@ Message: `fix(server): one Claude client and one OpenAI client, no SDK retries, 
 - Settings: `ai_monthly_budget_usd: Decimal = Decimal("10")`, `ai_pacing_multiplier: Decimal = Decimal("3")`, `ai_daily_floor_usd: Decimal = Decimal("0.50")`, `ai_visitor_budget_usd: Decimal = Decimal("0.15")`.
 - Documents: `ai_spend_days {_id: "YYYY-MM-DD", month: "YYYY-MM", total_micros}` (settled + open, never deleted); `ai_spend_calls {_id, day, month, visitor_id, provider, model, purpose, reserved_micros, actual_micros|null, status: "open"|"settled"|"swept", outcome, created_at, settled_at}`; `ai_spend_visitors {_id: visitor_id, total_micros}`. Indexes: `ai_spend_calls (status, created_at)`, `ai_spend_days month`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_ai_pricing.py`:
 ```python
@@ -431,12 +431,12 @@ async def test_a_zero_budget_refuses_without_touching_the_database(monkeypatch):
 
 `test_cleanup_job.py`: `run_cleanup` sweeps one stale reservation and prunes one settled call older than 35 days, returning `{"swept": 1, "pruned": 1}`.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_ai_pricing.py tests/test_ai_ledger.py tests/test_ai_meter.py tests/test_status.py tests/test_cleanup_job.py -q`
 Expected: FAIL with import errors.
 
-- [ ] **Step 3: Implement `reserve` with exactly this algorithm** (atomicity without a lock; the shapes follow `usage_service.consume_demo_ai_action`)
+- [x] **Step 3: Implement `reserve` with exactly this algorithm** (atomicity without a lock; the shapes follow `usage_service.consume_demo_ai_action`)
 
 ```text
 budget = usd_to_micros(settings.ai_monthly_budget_usd); if budget == 0: raise BudgetRefusal("off")   # no database access
@@ -460,11 +460,11 @@ update_one(filter, {$inc}) without upsert and return modified_count == 1
 
 `settle`: `find_one_and_update({_id: line.id, status: "open"}, {$set: {status: "settled", actual_micros, outcome, settled_at}})`; when it matched and `delta = actual - reserved != 0`, `$inc total_micros` by `delta` on the reservation's day doc and on the visitor doc (a missing visitor doc is fine: its session was cleaned up). `sweep_stale`: `update_many({status: "open", created_at: {$lt: now - STALE_AFTER}}, {$set: {status: "swept", outcome: "swept", settled_at: now}})`; the totals already hold the reserved amounts. Wire `ensure_ledger_indexes` into `ensure_indexes`.
 
-- [ ] **Step 4: Run the tests, then the gate**
+- [x] **Step 4: Run the tests, then the gate**
 
 Run: Step 2 command (expected PASS), then G-server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Added: an AI dollar ledger with daily pacing and a public status flag` (not wired to calls yet).
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -492,7 +492,7 @@ Message: `feat(server): add the AI dollar ledger with daily pacing and a public 
   - `NO_CONTEXT_COPY = "No brand context could be retrieved for this brief."` (the existing text, now a 409).
   - `FakeGenerationService` methods take `line`, call `line.mark_started()`, and settle with `FAKE_INPUT_TOKENS = 1_000`, `FAKE_OUTPUT_TOKENS = 200` (4,000 micros a call).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_ai_failures.py` (build SDK errors as `anthropic.AuthenticationError("x", response=httpx.Response(401, request=REQ), body={...})`):
 ```python
@@ -541,12 +541,12 @@ async def test_brand_extract_and_exemplars_reserve_for_owners(client, test_db): 
 ```
 `test_rate_limit.py`: the 429 body is `{"detail": RATE_LIMITED_COPY, "code": "rate_limited"}` (today slowapi answers `{"error": "Rate limit exceeded: ..."}`, extension.py:81-83, which the client can't show).
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_ai_failures.py tests/test_claude_calls.py tests/test_ai_routes_budget.py tests/test_rate_limit.py -q`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement `stream_text` with this structure** (`structured_call` is the same without the stream: settle right after `create` returns, then the decline, cap, and JSON checks)
+- [x] **Step 3: Implement `stream_text` with this structure** (`structured_call` is the same without the stream: settle right after `create` returns, then the decline, cap, and JSON checks)
 
 ```python
 line.mark_started()
@@ -585,7 +585,7 @@ finally:
 ```
 `_usage_tokens` reads `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens` (None as 0). If `usage.iterations` is present (a fallback ran despite the setting), price each iteration by its own model and sum, as the master plan's ledger rule says.
 
-- [ ] **Step 4: Rewire the routes**
+- [x] **Step 4: Rewire the routes**
 
 Each SSE route (text, card, post, document) does, in order, before returning `sse_response`: `ensure_ready_corpus`; build the brand context; `retrieve(...)` (unchanged until Task 6); `if not result.chunks: raise HTTPException(409, NO_CONTEXT_COPY)`; build every prompt; `action = await reserve_action(db, [...lines], visitor_id=ledger_visitor_id(current_user))`. The second line of a two-call action is estimated with the second prompt built from an empty copy, caption, or draft, plus `extra_input_tokens` equal to the first call's `max_tokens`. Inside `produce()`, pass `line=action.lines[i]` to each call and wrap the body in `try: ... finally: await action.finalize()`. Add `current_user: UserInDB = Depends(get_current_user)` to each route (FastAPI resolves it once per request).
 
@@ -593,11 +593,11 @@ Non-streaming routes (template AI fill, fill from a document, brand extract, exe
 
 Replace the slowapi handler with `_rate_limited_handler` returning `{"detail": RATE_LIMITED_COPY, "code": "rate_limited"}` with status 429 and the limiter's headers (`request.app.state.limiter._inject_headers(...)`). Remove `enforce_demo_ai_quota`, `usage_service.py`, `demo_daily_generation_limit`, and the `usage` index creation (keep the old-index drop at database.py:52-53).
 
-- [ ] **Step 5: Run the tests, then the gate**
+- [x] **Step 5: Run the tests, then the gate**
 
 Run: Step 2 command plus `tests/test_generate_route.py tests/test_documents.py tests/test_templates.py tests/test_brand_extract.py tests/test_exemplars.py` (expected PASS), then G-server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 CHANGELOG: `### Changed: every Claude call is reserved before it runs; refusals read plainly` (supersedes the daily count from DECISIONS #35).
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -622,7 +622,7 @@ Message: `feat(server): reserve every Claude call before it runs and refuse in p
   - `INGEST_PAUSED_COPY = "Ingestion is paused because today's AI budget is used up. Retry later."`
   - `FakeEmbedder.embed_with_usage` returns one deterministic 8-float vector per text and `sum(len(t) // 4 for t in texts)` tokens; an autouse conftest fixture installs it for every test.
 
-- [ ] **Step 1: Write the failing tests** (`test_embeddings_metered.py`)
+- [x] **Step 1: Write the failing tests** (`test_embeddings_metered.py`)
 
 ```python
 async def test_embedding_settles_from_the_reported_tokens(test_db): ...  # FakeEmbedder reports 1_000 tokens: actual 20 micros
@@ -634,20 +634,20 @@ async def test_a_zero_budget_spends_nothing_on_retrieval(client, test_db, monkey
 async def test_ingestion_is_refused_cleanly_when_the_budget_is_used(test_db, monkeypatch): ...  # asset status "error", message INGEST_PAUSED_COPY, embedder never called
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_embeddings_metered.py -q`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In each SSE route, before `retrieve`: `retrieval = await reserve_action(db, [embedding_line("retrieval", [payload.brief])], visitor_id=...)`, then `async with retrieval: result = await retrieve(..., line=retrieval.lines[0])`. Then the Task 5 reservation for the model calls (D3: two reservations, both before the response). Ingestion reserves `embedding_line("ingest", texts)` with `visitor_id=None`; a `BudgetRefusal` or `LiveAIUnavailable` marks the asset `error` with `INGEST_PAUSED_COPY` or `LIVE_AI_UNAVAILABLE_COPY`. The seed's corpus step reserves with `visitor_id=None` (it moves to the free fixture in Task 8).
 
-- [ ] **Step 4: Run the tests, then the gate**
+- [x] **Step 4: Run the tests, then the gate**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_embeddings_metered.py tests/test_retrieval.py tests/test_ingestion.py tests/test_ingestion_safety.py tests/test_reingest_and_demo.py tests/test_generate_route.py -q` (expected PASS), then G-server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Changed: embeddings go through the AI ledger too`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -666,7 +666,7 @@ Message: `feat(rag): meter every embedding call through the ledger`
 - Produces: `HEARTBEAT = ": keep-alive\n\n"`; `HEARTBEAT_INTERVAL_S = 10.0`; `sse_response(events: AsyncGenerator[dict, None], *, context: str, heartbeat_s: float = HEARTBEAT_INTERVAL_S) -> StreamingResponse`, returning a `_ClosingStreamingResponse`.
 - Why both pieces: Starlette cancels the generator on disconnect only for ASGI spec versions below 2.4 (responses.py:272-280; uvicorn 0.24 reports 2.3, h11_impl.py:212). From 2.4 on, `send` raises `OSError` instead (responses.py:267-271) and the generator would wait for garbage collection before its `finally` (and the settle) runs. The subclass closes it at once in both cases.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_sse.py`:
 ```python
@@ -690,12 +690,12 @@ async def test_a_disconnect_settles_the_reservation_at_the_reserved_amount(test_
 ```
 `client/src/lib/sse.test.ts`: `ignores heartbeat comments and keeps the stream alive` (frames `: keep-alive` between text frames; with fake timers past 30 s of heartbeats only, no "stalled" error).
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_sse.py tests/test_stream_disconnect.py -q` and `cd client && npx vitest run src/lib/sse.test.ts`
 Expected: server FAIL; the client test likely passes already (the parser drops non-JSON frames, sse.ts:126-137); keep it as a guard.
 
-- [ ] **Step 3: Implement with exactly this algorithm**
+- [x] **Step 3: Implement with exactly this algorithm**
 
 ```python
 class _ClosingStreamingResponse(StreamingResponse):
@@ -733,11 +733,11 @@ async def _with_heartbeats(frames: AsyncIterator[str], interval_s: float) -> Asy
 ```
 `sse_response` keeps its framing, its `UserFacingError` and redacted-error frames (now `{"error": message, "code": code}` when the error has a code), and the terminal `[DONE]`, and wraps the framed generator in `_with_heartbeats`.
 
-- [ ] **Step 4: Run the tests, then the gates**
+- [x] **Step 4: Run the tests, then the gates**
 
 Run: Step 2 commands (expected PASS), then G-server and G-client.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Fixed: streams send heartbeats and settle their cost when the visitor leaves`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -760,19 +760,19 @@ D2 is decided (James accepted it on 2026-11-19), so no stop is needed here. The 
 - Produces: `Settings.chroma_path: str = "./chroma"`; `VectorStore.count(workspace_id: str) -> int`; in `seed/seed_demo.py`: `EMBEDDINGS_FIXTURE: Path`, `def chunk_key(text: str) -> str` (sha256 hex of the UTF-8 text), `def corpus_chunks(namespace: str, asset_ids: Mapping[str, str]) -> list[Chunk]` (the seed's chunks for the five corpus files, no embedding), `def load_embeddings_fixture(path: Path = EMBEDDINGS_FIXTURE) -> dict[str, list[float]]` (checks `model == settings.embedding_model` and `dim == settings.embedding_dim`), `def write_embeddings_fixture(vectors: Mapping[str, list[float]], path: Path = EMBEDDINGS_FIXTURE) -> None`.
 - Fixture format: `{"model": "text-embedding-3-small", "dim": 1536, "encoding": "float32-le-base64", "embeddings": {"<chunk_key>": "<base64>"}}` (about 40 chunks, about 330 KB).
 
-- [ ] **Step 1: Add the fixture helpers with a test** (`test_seed_embeddings_fixture.py::test_chunk_key_is_stable_and_corpus_chunks_are_deterministic`); run it; expect PASS after implementing.
+- [x] **Step 1: Add the fixture helpers with a test** (`test_seed_embeddings_fixture.py::test_chunk_key_is_stable_and_corpus_chunks_are_deterministic`); run it; expect PASS after implementing.
 
-- [ ] **Step 2: Export the existing embeddings for free** (the dev Chroma server still runs here)
+- [x] **Step 2: Export the existing embeddings for free** (the dev Chroma server still runs here)
 
 Run `docker compose up -d`, then from `server/` a one-off script (not committed) that: builds `corpus_chunks` with placeholder asset IDs; connects with `chromadb.HttpClient(host="localhost", port=8001)`; for every collection, `get(include=["documents", "embeddings"])`; keeps each embedding whose `chunk_key(document)` matches a corpus chunk and whose length is 1536; calls `write_embeddings_fixture`; prints `found X of Y`.
 Expected: `found Y of Y`. If any chunk is missing, go to Step 3; otherwise skip it.
 
-- [ ] **Step 3 (only if Step 2 was incomplete): the paid build**
+- [x] **Step 3 (only if Step 2 was incomplete): the paid build**
 
 Stop: ask James for OK for one paid OpenAI call: embedding Y chunks (about 6,000 tokens) with `text-embedding-3-small` at $0.02 per million tokens, expected cost under $0.001, using his development OpenAI key (never a production key). Do not run without his explicit OK.
 Run: `cd server && .venv/bin/python -m seed.build_embeddings_fixture --yes` (the script prints the token estimate and cost and refuses to call without `--yes`).
 
-- [ ] **Step 4: Write the failing tests**
+- [x] **Step 4: Write the failing tests**
 
 `test_seed_embeddings_fixture.py::test_every_corpus_chunk_has_a_fixture_embedding` (offline: every `chunk_key` of `corpus_chunks` is present with dim 1536; this fails if the corpus or the chunker changes without a new fixture).
 `test_chroma_store.py` (real `PersistentClient` on `tmp_path`, 3-float vectors):
@@ -784,12 +784,12 @@ def test_telemetry_is_off(tmp_path): assert ChromaStore(path=str(tmp_path))._cli
 async def test_chroma_never_loads_its_default_embedding_model(tmp_path, monkeypatch): ...  # patch DefaultEmbeddingFunction.__init__ to raise; a round trip still works
 ```
 
-- [ ] **Step 5: Run to see them fail**
+- [x] **Step 5: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_chroma_store.py tests/test_seed_embeddings_fixture.py -q`
 Expected: FAIL (`ChromaStore` takes no path; no `count`).
 
-- [ ] **Step 6: Implement**
+- [x] **Step 6: Implement**
 
 - `ChromaStore.__init__(self, path: str | None = None)`: `chromadb.PersistentClient(path=path or settings.chroma_path, settings=chromadb.config.Settings(anonymized_telemetry=False, allow_reset=False))`; collections created with `embedding_function=None`; `health()` runs `heartbeat()` in a thread; `count()` returns `collection.count()`. Docstring: one process only (two copies must never open the same directory); `PersistentClient`'s own docstring calls it a development client (chromadb/__init__.py:207-208), accepted at this scale.
 - The seed's corpus step upserts with fixture vectors; a chunk missing from the fixture raises `SeedError("The embeddings fixture is out of date. Run python -m seed.build_embeddings_fixture (a paid run).")`.
@@ -797,11 +797,11 @@ Expected: FAIL (`ChromaStore` takes no path; no `count`).
 - CI: drop the `chroma` services, `CHROMA_HOST`/`CHROMA_PORT`, and "Wait for Chroma". Replace "Chroma client and server versions match" with a step named "No Chroma server anywhere" that fails if `grep -rn 'chromadb/chroma:' docker-compose*.yml Dockerfile .github/workflows` finds anything. Keep the four chromadb `--ignore-vuln` lines, rewording their reason: the package runs in-process only, with no server and no listener.
 - `requirements.txt`: replace the RCE comment with the in-process reasoning and "watch for a patched release" (5.10 item 4).
 
-- [ ] **Step 7: Run the tests, then the gate**
+- [x] **Step 7: Run the tests, then the gate**
 
 Run: Step 5 command (expected PASS); then `docker compose down --remove-orphans` (stops the old Chroma container; its volume is left alone), `docker compose up -d` (Mongo only), G-server. Then reseed dev with the dev server stopped: `npm run seed` (free: fixture vectors).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 CHANGELOG: `### Security: Chroma runs in-process; the Chroma server is gone` (note: other local workspaces must reingest their assets, a paid action).
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -835,7 +835,7 @@ Message: `feat(rag): run Chroma in-process and drop the Chroma server`
   - Seed: in production the demo user's `hashed_password` is the bcrypt hash of a random, discarded `secrets.token_urlsafe(32)`; an existing demo user whose hash still verifies against `DEMO_PASSWORD` is re-hashed.
   - Client: `getTurnstileToken(slot: HTMLElement, siteKey: string, action?: string): Promise<string>` in `client/src/lib/turnstile.ts` (a port of open-door/apps/web/src/lib/turnstile.ts: script loaded on press with `render=explicit`, 10 s script timeout, one single-use widget per start, `interaction-only` appearance, site key passed in rather than read from a meta tag); `useAppStatus()` in `client/src/api/status.ts` (react-query, `staleTime: 30_000`) returning `AppStatus { live_ai_available: boolean; live_ai_reason: "available" | "off" | "paused"; turnstile_site_key: string; password_login: boolean }`; `loginDemo(slot: HTMLElement | null)` sends `{ turnstile_token }` (empty when no token could be had, so the server's own refusal text shows).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_turnstile.py` (`httpx.MockTransport`): `test_a_token_passes_only_with_the_right_hostname_and_action`; `test_a_wrong_hostname_or_action_fails`; `test_cloudflare_trouble_is_unavailable` (parametrized: `internal-error`, HTTP 500, unreadable JSON, a network error, `invalid-input-secret`); `test_an_empty_token_fails_without_a_request`; `test_the_test_secrets_are_answered_locally` (pass secret with the dummy token passes; always-fail secret fails; pass secret with another token fails); `test_build_picks_the_local_verifier_only_for_test_secrets`.
 `test_demo_sessions.py`:
@@ -856,18 +856,18 @@ async def test_the_ledger_counts_spend_per_session(client, test_db): ...  # a te
 `test_status.py`: `turnstile_site_key == "1x00000000000000000000AA"` in development with blank keys; `password_login` false in production.
 Client `authFlow.test.tsx`: `sends the Turnstile token with the demo start` (mock `@/lib/turnstile` to resolve `"tok"`; MSW asserts the body); `hides the password sign-in when the server says so` (`password_login: false`). `turnstile.test.ts`: port the script-timeout and widget-callback tests from Open Door's suite if it has them; at minimum `rejects when the script never loads`.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_turnstile.py tests/test_demo_sessions.py tests/test_settings_secrets.py tests/test_security_headers.py tests/test_status.py -q` and `cd client && npx vitest run src/features/auth src/lib/turnstile.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says. Add `demo_sessions` to `TEST_COLLECTIONS`; index `demo_sessions.expires_at`. Move the `enabled_limiter` fixture from `test_rate_limit.py` into `conftest.py` (Tasks 9 and 14 share it); `test_rate_limit.py` now sends a token body and overrides the verifier, so its unseeded starts answer 503 until the limit's 429. `.env.example`: the Turnstile pair (blank means test keys in development), `APP_ORIGIN`, the two start limits. In `LoginPage.tsx`, the "Explore as demo" button passes a slot element rendered under it.
+- [x] **Step 3: Implement** as the Interfaces block says. Add `demo_sessions` to `TEST_COLLECTIONS`; index `demo_sessions.expires_at`. Move the `enabled_limiter` fixture from `test_rate_limit.py` into `conftest.py` (Tasks 9 and 14 share it); `test_rate_limit.py` now sends a token body and overrides the verifier, so its unseeded starts answer 503 until the limit's 429. `.env.example`: the Turnstile pair (blank means test keys in development), `APP_ORIGIN`, the two start limits. In `LoginPage.tsx`, the "Explore as demo" button passes a slot element rendered under it.
 
-- [ ] **Step 4: Run the tests, then the gates**
+- [x] **Step 4: Run the tests, then the gates**
 
 Run: Step 2 commands (expected PASS), then G-server and G-client. Smoke: `npm run dev`, press "Explore as demo": the test widget passes and the dashboard opens.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Security: visitor sessions behind a bot check; password sign-in closed in production`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -893,7 +893,7 @@ Message: `feat: visitor sessions behind Turnstile, 24-hour tokens, login closed 
   - `run_cleanup` also returns `expired_generations` and `expired_sessions`: for each visitor generation with `expires_at <= now`, delete its document files (`build_document_prefix`) first, then the records; then delete sessions with `expires_at <= now` and their `ai_spend_visitors` docs (`ai_ledger.delete_visitor`). Ledger day docs are never touched.
   - Indexes: `generations (workspace_id, session_id, created_at -1)`, `generations expires_at`, and (Task 11) the example key.
 
-- [ ] **Step 1: Write the failing tests** (`test_session_isolation.py`: two real sessions A and B on the demo workspace, with one example, one A text, one A card, one A document with files)
+- [x] **Step 1: Write the failing tests** (`test_session_isolation.py`: two real sessions A and B on the demo workspace, with one example, one A text, one A card, one A document with files)
 
 ```python
 async def test_visitors_see_only_their_own_work_and_the_examples(two_visitors): ...  # list and count for A: A's three + example; for B: the example only
@@ -911,18 +911,18 @@ async def test_cleanup_removes_expired_sessions_and_their_visitor_spend_but_not_
 def test_the_cleanup_job_never_imports_chroma(): ...  # subprocess: import app.jobs.cleanup; assert "chromadb" not in sys.modules
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_session_isolation.py tests/test_cleanup_job.py -q`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says. The PATCH route reads with `scope_filter` first: an example is 403, another visitor's is 404.
+- [x] **Step 3: Implement** as the Interfaces block says. The PATCH route reads with `scope_filter` first: an example is 403, another visitor's is 404.
 
-- [ ] **Step 4: Run the tests, then the gates**
+- [x] **Step 4: Run the tests, then the gates**
 
 Run: Step 2 command plus `tests/test_generations_patch.py tests/test_pagination.py tests/test_isolation.py tests/test_documents.py` (expected PASS), then G-server and G-client.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Security: each visitor's History is private; work is removed after 24 hours`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -949,7 +949,7 @@ D1 is decided (James accepted startup seeding inside the app process on 2026-11-
   - `GET /api/examples` (no auth, slowapi `60/minute`, cached in process for 60 s, `Cache-Control: public, max-age=60`): `ExamplesResponse(workspace_name: str, brand: BrandProfile subset {colors, fonts, accent_hex, voice_summary}, items: list[GenerationResponse])`, empty `items` when nothing is seeded (never a 500). `GET /api/examples/{generation_id}/download/{fmt}`: example document generations only, storage key rebuilt server-side, else 404.
 - `examples.json` (written by hand in this task, American English, no em dashes, facts only from `server/seed/verdure_corpus/`): `text-post` (type `text`, tone default, a LinkedIn post with hashtags); `card` (type `card`, template `statement`, accent `#C98A3D`, no image); `post-pack` (type `post_pack`, caption plus a `quote` card, no image); `document` (type `document`, archetype `one-pager`, three sections with bullets). Cards carry no image because History and the examples page render uploaded images only inside Generate (CardThumb.tsx:5-11).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_seed_self_healing.py` (real `test_db`, `FakeVectorStore` with `count`, a `tmp_path` `LocalStorage`, and a fixture loader patched to deterministic vectors for every corpus chunk):
 ```python
@@ -964,18 +964,18 @@ async def test_examples_are_marked_read_only_and_resolve_their_retrieval(seed_en
 `test_examples_api.py`: `test_examples_are_public_and_cached` (no Authorization header; 200; four items all `is_example`; `Cache-Control: public, max-age=60`); `test_an_example_document_downloads_without_signing_in` (pdf 200 `application/pdf`); `test_a_non_example_id_is_404`; `test_no_seed_means_an_empty_list`.
 `test_visitor_copy.py`: `test_no_em_dashes_in_visitor_copy_or_fixtures` scans `seed/fixtures/examples.json`, every `*_COPY` constant in `app/utils/errors.py` and `app/routes/*.py`, and `client/src/**/*.tsx` string literals added by this plan (`StartPage`, `ExamplesPage`, `PrivacyPage`, `GenerationError`), asserting `"\u2014" not in text` (the em dash code point, written as an escape). (Existing older copy is out of scope.)
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_seed_self_healing.py tests/test_examples_api.py tests/test_visitor_copy.py tests/test_seed_demo.py -q`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says.
+- [x] **Step 3: Implement** as the Interfaces block says.
 
-- [ ] **Step 4: Run the tests, then the gate**
+- [x] **Step 4: Run the tests, then the gate**
 
 Run: Step 2 command (expected PASS), then G-server. Stop the dev API, run `npm run seed` twice (second run: nothing repaired), then `npm run dev` and open `http://localhost:8000/api/examples`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Added: ready-made examples and a seed that repairs itself`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -998,7 +998,7 @@ Message: `feat(server): self-healing seed with read-only example generations`
   - `HistoryCard` gains `readOnly?: boolean` (no delete or edit actions) and `downloadUrl?: (fmt: DocumentFormat) => string`; `DocumentDownloadRow` and `documentDownload.ts` accept the same `downloadUrl` builder (default: the authed workspace URL). The examples page passes `` (fmt) => `/examples/${id}/download/${fmt}` ``.
   - Start page content: Folio's one-line pitch; a primary "Try it live" button (Turnstile slot beneath it; on success, the dashboard); right beside it, "See ready-made examples" (a link to `/examples` that needs no demo start and no bot check); when `live_ai_available` is false, a notice with `LIVE_AI_PAUSED_COPY` shown before the button, and the button reads "Explore the studio" instead; a strip of the four screenshots with alt text; the dev password form only when `password_login` is true.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `StartPage.test.tsx`:
 ```tsx
@@ -1016,18 +1016,18 @@ it("marks every item as an example and offers no edit or delete", ...)
 it("downloads a document example from the public URL", ...)
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd client && npx vitest run src/features/start src/features/examples`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says, following DESIGN.md tokens (no hardcoded hex) and the design skills named in docs/WORKFLOW.md section 2. Inject brand fonts from the examples response's `brand` with `injectBrandFontFaces`, as `HistoryPage` does.
+- [x] **Step 3: Implement** as the Interfaces block says, following DESIGN.md tokens (no hardcoded hex) and the design skills named in docs/WORKFLOW.md section 2. Inject brand fonts from the examples response's `brand` with `injectBrandFontFaces`, as `HistoryPage` does.
 
-- [ ] **Step 4: Run the tests, then the gate**
+- [x] **Step 4: Run the tests, then the gate**
 
 Run: Step 2 command (expected PASS), then G-client. Manual: `npm run dev`, signed out: `/` shows both paths; `/examples` renders the four examples and downloads the PDF.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Added: a start page with a free path to ready-made examples`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1053,7 +1053,7 @@ Message: `feat(client): start page and public examples as the free path`
   - `DemoNotice` default copy: "You're exploring a private demo. Brand settings and assets are read-only so every visitor sees the same sample brand. Generating posts, cards, and documents still works, and your work is removed after 24 hours."
   - The Generate page shows `LIVE_AI_PAUSED_COPY` and the examples link above the brief when `useAppStatus` says live AI is unavailable.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```tsx
 // auth.test.ts / StartPage.test.tsx
@@ -1071,18 +1071,18 @@ it("lets a visitor delete their own generation", ...)
 it("asks before a demo visitor signs out", ...)
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd client && npx vitest run src/stores src/lib src/features/generate/GenerationError.test.tsx src/features/history src/components/layout`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says.
+- [x] **Step 3: Implement** as the Interfaces block says.
 
-- [ ] **Step 4: Run the tests, then the gates**
+- [x] **Step 4: Run the tests, then the gates**
 
 Run: Step 2 command (expected PASS), then G-client and G-server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Added: a clear end to a demo, and refusals that point at the examples`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1109,7 +1109,7 @@ Message: `feat(client): demo-ended path, read-only examples, and refusals that p
   - `docker-compose.prod.yml`: a user-defined network `folio_local` with subnet `172.30.0.0/24`; `mongo` (mongo:7, no published port, volume `folio_mongo`); `app` (`build: .`, image `folio:local`, `ports: ["127.0.0.1:8000:8000"]`, volumes `folio_storage:/app/storage` and `folio_chroma:/app/chroma`, `read_only: true`, `tmpfs: [/tmp]`, `cap_drop: [ALL]`, `security_opt: ["no-new-privileges:true"]`, `mem_limit: 1024m`, `stop_grace_period: 30s`). Environment set inline: `ENVIRONMENT=production`, `APP_ORIGIN=http://localhost:8000`, `CORS_ORIGINS=["http://localhost:8000"]`, `FORWARDED_ALLOW_IPS=127.0.0.1,172.30.0.0/24`, `MONGODB_URL=mongodb://mongo:27017`, `TURNSTILE_SITE_KEY=1x00000000000000000000AA`, `TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA`, `AI_MONTHLY_BUDGET_USD=${AI_MONTHLY_BUDGET_USD:-0}`, `DEMO_STARTS_PER_HOUR=${DEMO_STARTS_PER_HOUR:-15}`, `ANTHROPIC_API_KEY=placeholder-never-called`, `OPENAI_API_KEY=` (empty), `JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY, for example with openssl rand -hex 32}`. Named volumes start owned by uid 10001 (copied from the image).
   - CI docker job: run the image with `--network host` and `-e MONGODB_URL=... -e JWT_SECRET_KEY=... -e APP_ORIGIN=http://localhost:8000 -e FORWARDED_ALLOW_IPS=127.0.0.1 -e TURNSTILE_SITE_KEY=<test> -e TURNSTILE_SECRET_KEY=<test> -e AI_MONTHLY_BUDGET_USD=0`; wait for `healthy`; assert `/api/health` is `ok` with `seed: true` (the seed ran from fixtures with no OpenAI key); `/api/examples` has 4 items; `POST /api/auth/login` is 404; the CSP header contains `https://challenges.cloudflare.com`; keep the bundle and 404 checks.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # test_health.py
@@ -1127,18 +1127,18 @@ async def test_an_unconfigured_key_reads_plainly(): ...
 def test_the_image_checks_liveness_and_sets_the_data_paths(): ...
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_health.py tests/test_storage_writable.py tests/test_unsplash.py tests/test_dockerfile.py -q`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says. `.env.example`: `DATABASE_NAME=folio` with a note that an existing local `.env` keeps its own value.
+- [x] **Step 3: Implement** as the Interfaces block says. `.env.example`: `DATABASE_NAME=folio` with a note that an existing local `.env` keeps its own value.
 
-- [ ] **Step 4: Run the tests, then the gates; build the image**
+- [x] **Step 4: Run the tests, then the gates; build the image**
 
 Run: Step 2 command (expected PASS), G-server, G-client, then `docker build -t folio:local .` (expected: success).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Changed: liveness and readiness checks, a smaller Mongo pool, and a local production run`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1166,24 +1166,24 @@ Message: `build: health checks, Mongo pool, write check, and a local production 
   - `client/index.html` gains `<meta name="description">`, `og:title` ("Folio, an on-brand content studio"), `og:description` ("A retrieval-augmented studio that writes on-brand LinkedIn posts, cards, and documents. Try it live, no sign-up."), `og:type` `website`, `og:url` `__APP_ORIGIN__/`, `og:image` `__APP_ORIGIN__/og-image.jpg`, `twitter:card` `summary_large_image`.
   - `mount_spa(app: FastAPI, dist_dir: Path, *, app_origin: str) -> None`: `index.html` is read once, `__APP_ORIGIN__` is replaced with `app_origin` (no trailing slash), and served from memory with `Cache-Control: no-cache` on both index paths.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `test_spa.py`: `test_index_html_carries_the_app_origin_in_link_previews` (the fixture index has `__APP_ORIGIN__`; the served HTML has `https://folio.example.com/og-image.jpg` and no placeholder, for `/`, `/index.html`, and a client route).
 `PrivacyPage.test.tsx`: `states the retention and names every processor` (the exact retention sentence; each of the six processor names); `is reachable signed out`.
 `sse.test.ts` and `authFlow.test.tsx`: the new network and demo-start texts; neither contains "server running".
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd server && .venv/bin/python -m pytest tests/test_spa.py -q` and `cd client && npx vitest run src/features/privacy src/lib/sse.test.ts src/features/auth`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement** as the Interfaces block says.
+- [x] **Step 3: Implement** as the Interfaces block says.
 
-- [ ] **Step 4: Run the tests, then the gates**
+- [x] **Step 4: Run the tests, then the gates**
 
 Run: Step 2 commands (expected PASS), then G-server and G-client.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 CHANGELOG: `### Added: a privacy and terms page, link previews, and plain error text`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1202,24 +1202,24 @@ Stop first for Step 4: confirm D6 with James.
 **Interfaces:**
 - Produces: a workflow `Security` with one job, name `Leaked secrets (gitleaks)`, ported from open-door/.github/workflows/security.yml:1-41 (same triggers: push to `main` and `dev`, every pull request, weekly `0 13 * * 1`, `workflow_dispatch`; the same concurrency rule; `permissions: contents: read`; checkout `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1` with `persist-credentials: false` and `fetch-depth: 0`; gitleaks 8.30.1 downloaded and checksum-verified; `./gitleaks git --redact --verbose --exit-code 1`). Folio's own dependency audit stays in ci.yml's `audit` job, which already runs weekly (ci.yml:10-11) with read-only permissions (ci.yml:19-20).
 
-- [ ] **Step 1: Pin every action in ci.yml**
+- [x] **Step 1: Pin every action in ci.yml**
 
 `actions/checkout@v7` becomes `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`; `actions/setup-node@v7` becomes `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0` (both from Open Door). For `actions/setup-python`, resolve the newest v7 tag: `gh api repos/actions/setup-python/releases/latest --jq .tag_name`, then `gh api repos/actions/setup-python/git/ref/tags/<tag> --jq .object.sha` (dereference an annotated tag with `gh api repos/actions/setup-python/git/tags/<sha> --jq .object.sha`), and pin `@<sha> # <tag>`. The docker actions are already pinned (ci.yml:146-147). Add `persist-credentials: false` to every checkout and `timeout-minutes` (15 for server and docker, 10 otherwise).
 
-- [ ] **Step 2: Add `security.yml`** as the Interfaces block says.
+- [x] **Step 2: Add `security.yml`** as the Interfaces block says.
 
-- [ ] **Step 3: Check the workflows**
+- [x] **Step 3: Check the workflows**
 
 Run: `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -color` (pulls a free image)
 Expected: no findings. Then `grep -rnE 'uses: [^@]+@v[0-9]' .github/workflows` finds nothing.
 
-- [ ] **Step 4: No `dependabot.yml`** (D6 decided by James on 2026-11-19: security fixes only, through the GitHub setting in master plan Phase 0, plus the weekly audits). Nothing to add; the step stays so numbering doesn't shift.
+- [x] **Step 4: No `dependabot.yml`** (D6 decided by James on 2026-11-19: security fixes only, through the GitHub setting in master plan Phase 0, plus the weekly audits). Nothing to add; the step stays so numbering doesn't shift.
 
 - [ ] **Step 5: Gitleaks over the full history after the first push**
 
 The first CI run on the pushed branch (Task 18) scans all history. If it flags a known placeholder (for example a test value in `ci.yml` or `tests/`), stop, show James each finding, and with his OK add a `.gitleaksignore` with those fingerprints only.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 CHANGELOG: `### Security: gitleaks in CI and every action pinned to a SHA`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1235,7 +1235,7 @@ Message: `ci: add gitleaks and pin every action to a SHA`
 
 **Interfaces:** none (documentation only). Every sentence follows the writing rules; new DECISIONS rows use no em dashes even though older rows do.
 
-- [ ] **Step 1: DECISIONS.md**
+- [x] **Step 1: DECISIONS.md**
 
 New rows, each with Area, Decision, Supersedes, Rationale, and file pointers:
 - #41 Public demo without accounts: Turnstile-checked demo start, per-IP limits, 24-hour sessions carried in the JWT, History scoped per session, examples read-only, login 404 in production, unusable demo password (supersedes the "Explore as demo" shared login of #9 and #15).
@@ -1246,24 +1246,24 @@ New rows, each with Area, Decision, Supersedes, Rationale, and file pointers:
 - #46 Deployment: one EC2 server managed by ECS behind an ALB, MongoDB Atlas M0, storage and Chroma on the retained data volume; health live and ready; uvicorn trust and keep-alive (supersedes #2's Fargate and #7's self-hosted Mongo), pointing at the portfolio-infra design.
 Update line 7 to "Rows run through #46 (2026-11-19)".
 
-- [ ] **Step 2: Superseded banners**
+- [x] **Step 2: Superseded banners**
 
 At the top of `docs/PLAN.md` and `docs/aws_infrastructure_plan.md`: "> **Superseded for deployment (2026-11-19).** The deployment now follows the portfolio-infra design (`../portfolio-infra/docs/design/2026-11-18-portfolio-apps-aws-deployment-design.md`) and this repo's `docs/superpowers/plans/2026-11-19-demo-sessions-and-deploy-readiness.md`. Kept for history."
 
-- [ ] **Step 3: `docs/DEPLOY.md`**
+- [x] **Step 3: `docs/DEPLOY.md`**
 
 Copy the "ECS reference for Phase 2" tables from the end of this plan, plus: the local production run (`export JWT_SECRET_KEY=$(openssl rand -hex 32)`, then `docker compose -f docker-compose.prod.yml up -d --build`), how to read the seed report in the logs, the restore note (attach the retained volume or a snapshot; startup reseeds what is missing at no cost), and "start the production database empty".
 
-- [ ] **Step 4: README, ARCHITECTURE, DATA_MODEL, WORKFLOW, CLAUDE.md**
+- [x] **Step 4: README, ARCHITECTURE, DATA_MODEL, WORKFLOW, CLAUDE.md**
 
 README: Mongo only in `docker compose`; the API seeds itself at startup (`SEED_ON_STARTUP=true` in `.env.example`) and `npm run seed` runs with the API stopped; Turnstile test keys are the default in development; the new settings table rows (every env name in Global Constraints, with defaults); the production image section points at `docs/DEPLOY.md`; the demo description (one click, private, 24 hours, examples). ARCHITECTURE: the ledger flow (reserve before the response, settle shielded), sessions, Chroma in-process, health checks. DATA_MODEL: `demo_sessions`, `ai_spend_days`, `ai_spend_calls`, `ai_spend_visitors`, the new generation fields (`session_id`, `expires_at`, `is_example`, `example_key`), `usage` removed. WORKFLOW section 5: five jobs including `Leaked secrets (gitleaks)`, and that adding it as a required check is a GitHub setting (master plan Phase 0). CLAUDE.md: `docker compose up -d` starts Mongo only; `npm run seed` with the API stopped; the local production run command.
 
-- [ ] **Step 5: Check the writing rules**
+- [x] **Step 5: Check the writing rules**
 
 Run (macOS grep has no `-P`, so Perl does the Unicode match): `git diff --name-only dev... | xargs perl -CSD -ne 'print "$ARGV:$.: $_" if /\x{2014}/; close ARGV if eof'` and `git diff dev... -- . ':!docs/superpowers/plans' | grep -nE '^\+.*\b(colour|behaviour|organisation|cancelled|licence)\b'`
 Expected: no output from either (identifiers such as Python's `CancelledError` don't match the lowercase pattern).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 CHANGELOG: `### Docs: demo readiness decisions and a deploy reference`.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1278,45 +1278,45 @@ Message: `docs: record the demo readiness decisions and the deploy reference`
 
 **Interfaces:** Consumes everything above. No paid calls: the budget is 0 and the Anthropic key is a placeholder.
 
-- [ ] **Step 1: Build and start**
+- [x] **Step 1: Build and start**
 
 Stop `npm run dev` (it holds port 8000). In one shell for the whole task: `export JWT_SECRET_KEY=$(openssl rand -hex 32)` (compose needs it for every command, `logs` and `stop` included). Run: `docker compose -f docker-compose.prod.yml up -d --build`, then `docker compose -f docker-compose.prod.yml logs app | grep -i seed`
 Expected: the app becomes `healthy`; the seed log lists what it created and no error.
 
-- [ ] **Step 2: Liveness and readiness**
+- [x] **Step 2: Liveness and readiness**
 
 Run: `curl -s localhost:8000/api/health/live` and `curl -s localhost:8000/api/health`; then `docker compose -f docker-compose.prod.yml stop mongo`, `curl -s -o /dev/null -w '%{http_code} %{time_total}\n' localhost:8000/api/health` and the live probe; then `docker compose -f docker-compose.prod.yml start mongo` and readiness again.
 Expected: live 200 throughout; readiness 200, then 503 in about 2 to 3 seconds with Mongo stopped, then 200 again; `docker inspect` shows the container stayed up.
 
-- [ ] **Step 3: Headers, closed routes, and the image**
+- [x] **Step 3: Headers, closed routes, and the image**
 
 Run: `curl -sI localhost:8000/ | grep -iE 'content-security-policy|x-content-type|x-frame|strict-transport'`; `curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:8000/api/auth/login -H 'content-type: application/json' -d '{"email":"demo@folio.studio","password":"demo-folio-2026"}'`; `curl -s -o /dev/null -w '%{http_code}\n' localhost:8000/docs/` then check the body is the SPA, not Swagger; the image secret scan from ci.yml:155-162 against `folio:local`.
 Expected: the CSP has `script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com` and `frame-src https://challenges.cloudflare.com`; nosniff, frame protection, and HSTS are present; login 404; no `.env` in the image.
 
-- [ ] **Step 4: One-click demo, free path, and the budget refusal (browser)**
+- [x] **Step 4: One-click demo, free path, and the budget refusal (browser)**
 
 In a normal window and a private window, open `http://localhost:8000/`: the status notice says live generation is paused (budget 0) before any bot check; "See ready-made examples" opens `/examples` with four examples and a downloadable PDF without starting a demo; "Explore the studio" shows the test widget, starts a demo, and lands on the dashboard; History shows the four examples with badges and no delete or edit; a generation attempt shows `LIVE_AI_PAUSED_COPY` with the examples link; `docker compose -f docker-compose.prod.yml logs app` shows no request to Anthropic or OpenAI.
 
-- [ ] **Step 5: Two visitors can't see or edit each other's work**
+- [x] **Step 5: Two visitors can't see or edit each other's work**
 
 Take each window's token from localStorage (`folio-auth`). Insert one text generation for visitor A with `docker compose -f docker-compose.prod.yml exec mongo mongosh folio --eval '<insert with A's session_id, expires_at in the future, the demo workspace_id and owner_id>'` (read the IDs from an example document first). Then with curl and each token: A's list and count include it, B's don't; B's GET, PATCH, and DELETE on its ID are 404; PATCH and DELETE on an example are 403 for both; A's DELETE succeeds.
 
-- [ ] **Step 6: A forged X-Forwarded-For does not change the rate-limit key**
+- [x] **Step 6: A forged X-Forwarded-For does not change the rate-limit key**
 
 Restart the app with `DEMO_STARTS_PER_HOUR=2`. From inside the container (peer 127.0.0.1, a trusted proxy here, standing in for the ALB) run a short `python -` script with `urllib` that posts three demo starts with `{"turnstile_token": "XXXX.DUMMY.TOKEN.XXXX"}` and `X-Forwarded-For: <random>, 203.0.113.9` (a different forged leftmost entry each time), then one with `X-Forwarded-For: 203.0.113.10`.
 Expected: 200, 200, 429, then 200.
 
-- [ ] **Step 7: Keep-alive and graceful stop**
+- [x] **Step 7: Keep-alive and graceful stop**
 
 Run a `python3` script on the host with `http.client.HTTPConnection("localhost", 8000)`: one request, `time.sleep(125)`, a second request on the same connection. Then `time docker compose -f docker-compose.prod.yml stop app`.
 Expected: the second request succeeds (the server held the connection past the ALB's 120 s); the stop takes under 30 s.
 
-- [ ] **Step 8: Data survives a restart; memory fits**
+- [x] **Step 8: Data survives a restart; memory fits**
 
 Don't open Chroma from a second process to count it (`docker compose exec app python ...` would be one); readiness and the seed report cover it. Record the example PDF's checksum: `docker compose -f docker-compose.prod.yml exec app sh -c 'sha256sum /app/storage/*/documents/*/document.pdf'`. Run `docker compose -f docker-compose.prod.yml restart app`, then `down` and `up -d` (volumes kept).
 Expected: after each, readiness is 200, the seed log says nothing was repaired, and the checksum is unchanged. Then `docker stats --no-stream` after browsing every page and downloading the examples: memory under 1024 MiB; record idle and peak. If `--read-only` broke anything (for example a library cache under `$HOME`), record the path and the fix (a tmpfs or `HOME=/tmp`) in `docs/DEPLOY.md`.
 
-- [ ] **Step 9: Clean up and record**
+- [x] **Step 9: Clean up and record**
 
 Run `docker compose -f docker-compose.prod.yml down -v` (local volumes only). Fill in "Verification results" below (each check: pass or the finding, memory numbers, the read-only result). Commit the plan update.
 Stop: show the diff summary and the proposed commit message, and wait for James's explicit OK before committing.
@@ -1338,7 +1338,21 @@ Stop: show the diff and the proposed commit message in `portfolio-infra`, and wa
 
 ## Verification results
 
-(Filled in during Task 18.)
+Run on 2026-11-20 against `folio:local` built from c314c7e, with `docker-compose.prod.yml` (project `folio-local`), live AI off (budget 0), a placeholder Anthropic key, an empty OpenAI key, and Cloudflare's always-pass Turnstile test keys. No paid call was made: the app log has no Anthropic or OpenAI request in any run. Full record: `.superpowers/sdd/2026-11-19-demo-sessions-and-deploy-readiness/task-18-report.md`.
+
+- **Step 1, build and start:** pass. The app was `healthy` about 15 s after start; the seed log listed all 18 items it created ("demo user" through "example document") and "repaired nothing", with no error.
+- **Step 2, liveness and readiness:** pass. Live 200 throughout. Readiness 200, then 503 in 2.02 s and 2.01 s with Mongo stopped (`{"status":"unavailable","mongo":false,...}`), then 200 on the first probe after `start mongo`. The container stayed up (same start time and PID, 0 restarts, still healthy).
+- **Step 3, headers, closed routes, and the image:** pass. The CSP has `script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com` and `frame-src https://challenges.cloudflare.com`; `nosniff`, `X-Frame-Options: DENY`, `frame-ancestors 'none'`, and HSTS are present. Password login is 404. `/docs/`, `/redoc`, and `/openapi.json` return the SPA's HTML (no Swagger, ReDoc, or schema). The CI image secret scan against `folio:local` found no secret files.
+- **Step 4, one-click demo, free path, and the budget refusal:** pass. The paused notice shows on the landing page before any bot check. "See ready-made examples" opens `/examples` with four examples, and the one-pager PDF downloads with no demo started (no token, no demo-login call). "Explore the studio" loads the Turnstile test widget, calls `/api/auth/demo-login` (200), and lands on the dashboard. History shows the four examples with Example badges and no edit or delete control. A text generation is refused with HTTP 429 and `LIVE_AI_PAUSED_COPY` plus the examples link. The second visitor (a separate browser context) got the same notice, its own session, and the same four examples.
+- **Step 5, two visitors:** pass. With one text generation inserted for visitor A's session: A's list and count include it (5), B's don't (4); B's GET, PATCH, and DELETE on it are 404; PATCH and DELETE on an example are 403 `example_read_only` for both; A's DELETE is 204, after which A's count is 4.
+- **Step 6, forged X-Forwarded-For:** pass. With `DEMO_STARTS_PER_HOUR=2`, from inside the container: 200, 200, 429 (`rate_limited`), then 200 for `203.0.113.10`. The log keys all three on `203.0.113.9`, ignoring the forged leftmost entries.
+- **Step 7, keep-alive and graceful stop:** pass. The second request on the same connection after 125 s idle returned 200, from the host and also directly against uvicorn inside the container. `stop app` took 1.6 s, exit code 0, with a clean uvicorn shutdown.
+- **Step 8, data survives a restart:** pass. The example PDF's sha256 (`d9cc52f6...0abe3`, matching the browser download) was unchanged after `restart app` and after `down` then `up -d`; readiness 200 and "created nothing, repaired nothing" after each.
+- **Memory:** idle 155 MiB (docker stats after a restart), about 190 MiB right after the first boot's seed, and a peak of 174 MiB (cgroup `memory.peak`) after browsing every page, every Generate mode, and downloading the examples. All well under the 1024 MiB limit; no OOM.
+- **Read-only root filesystem:** works with no change. Writes to `/app` and `$HOME` fail as intended, nothing was written to `/tmp`, `docker diff` is empty, and the log has no read-only or permission error. `docs/DEPLOY.md` needs no fix.
+- **Finding, card PNG export is broken in the production image (not a Task 18 regression; it predates this branch):** the card and post-pack "Download" buttons (on `/examples` and in History) produce no PNG. They show the raw text "Aborted(CompileError: WebAssembly.instantiate(): expected magic word 00 61 73 6d, found 3c 21 64 6f @+0). Build with -sASSERTIONS for more info." in an alert. Cause: `satori` 0.33.5 (commit 0bd3e78 on `dev`, 2026-10-27) pulls in `harfbuzzjs` 0.10.0, whose loader first fetches its wasm as a `data:` URI (blocked by the CSP's `connect-src`, which has no `data:`) and then falls back to `/hb.wasm`, which the Vite build doesn't ship, so the SPA fallback returns `index.html` (200, `text/html`). With the CSP bypassed in the browser the export still fails, so the missing `hb.wasm` asset is the root cause and the CSP is a second blocker. The .docx and PDF downloads work. Two fixes are needed before go-live: ship the wasm (or have the loader find it), and show friendly copy instead of the raw error.
+- **The PNG finding, fixed after verification (final-review fix wave, 2026-11-20):** `client/src/lib/harfbuzz.ts` hands harfbuzz its wasm through Vite's `?url`, so the build ships a hashed `/assets/hb-*.wasm` served from `'self'` as `application/wasm` (no CSP change). Export errors now read "We couldn't make the PNG just now. Try again, or reload the page." Re-verified in a browser against the production image booted read-only (`--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges`): both card examples on `/examples` download 1080x1350 PNGs with no alert. The CI docker job now boots read-only and checks the wasm asset.
+- **Step 9, cleanup:** `docker compose -f docker-compose.prod.yml down -v` removed only `folio_mongo`, `folio_storage`, `folio_chroma`, and the `folio_local` network. The other repos' containers and `brand_content_mongo` were untouched.
 
 ---
 
