@@ -9,6 +9,7 @@ call (JSON matching the strict card schema) to get the typed fields + image
 keywords, never parsed from the stream."""
 from __future__ import annotations
 
+import contextlib
 import re
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -43,19 +44,28 @@ class GenerationService:
     async def stream_text(
         self, system: str, user: str, *, line: MeteredLine
     ) -> AsyncGenerator[str, None]:
-        async for text in claude_calls.stream_text(
-            self.client, system=system, user=user, max_tokens=MAX_TOKENS, line=line
-        ):
-            yield text
+        # `aclosing` in all three streams: closing this wrapper must close the inner
+        # generator now, so the SDK stream is closed and the line settled before the
+        # close returns, not whenever the event loop finalizes it.
+        async with contextlib.aclosing(
+            claude_calls.stream_text(
+                self.client, system=system, user=user, max_tokens=MAX_TOKENS, line=line
+            )
+        ) as stream:
+            async for text in stream:
+                yield text
 
     async def stream_copy(
         self, system: str, user: str, *, line: MeteredLine
     ) -> AsyncGenerator[str, None]:
         """Stream short card copy as natural prose for the live typing effect."""
-        async for text in claude_calls.stream_text(
-            self.client, system=system, user=user, max_tokens=CARD_COPY_MAX_TOKENS, line=line
-        ):
-            yield text
+        async with contextlib.aclosing(
+            claude_calls.stream_text(
+                self.client, system=system, user=user, max_tokens=CARD_COPY_MAX_TOKENS, line=line
+            )
+        ) as stream:
+            async for text in stream:
+                yield text
 
     async def extract_card_fields(
         self, system: str, user: str, *, line: MeteredLine
@@ -72,10 +82,13 @@ class GenerationService:
     ) -> AsyncGenerator[str, None]:
         """Stream a full document as natural prose for the live drafting preview.
         Larger budget than card copy: a one-pager is longer than a card."""
-        async for text in claude_calls.stream_text(
-            self.client, system=system, user=user, max_tokens=DOC_COPY_MAX_TOKENS, line=line
-        ):
-            yield text
+        async with contextlib.aclosing(
+            claude_calls.stream_text(
+                self.client, system=system, user=user, max_tokens=DOC_COPY_MAX_TOKENS, line=line
+            )
+        ) as stream:
+            async for text in stream:
+                yield text
 
     async def extract_document_sections(
         self, system: str, user: str, *, line: MeteredLine

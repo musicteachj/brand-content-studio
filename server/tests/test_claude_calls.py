@@ -582,3 +582,24 @@ async def test_the_deadline_fires_during_a_thinking_only_stretch(monkeypatch):
     assert seen == []
     assert msgs.manager is not None and msgs.manager.exited
     assert (line.how, line.args) == ("reserved", {"outcome": "canceled_or_unknown"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["stream_text", "stream_copy", "stream_document"])
+async def test_closing_the_service_wrapper_closes_the_model_stream_at_once(method):
+    """The routes close the service generator with `aclosing`. That close must reach
+    `claude_calls.stream_text` (its finally closes the SDK stream) before it returns, not
+    whenever asyncio's async-generator finalizer gets to it."""
+    from contextlib import aclosing
+
+    from app.services.ai_service import GenerationService
+
+    msgs = _FakeMessages(reply=_message(_text("ab")), deltas=["a", "b"])
+    service = GenerationService.__new__(GenerationService)
+    service.client = _client(msgs)
+    line = RecordingLine()
+    gen = getattr(service, method)("sys", "brief", line=line)
+    async with aclosing(gen):
+        assert await gen.__anext__() == "a"
+        assert msgs.manager is not None and not msgs.manager.exited
+    assert msgs.manager.exited

@@ -121,21 +121,21 @@ export function useCardSvg(enabled: boolean, props: CardElementProps) {
       setError(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     setLoading(true);
     setError(null);
     renderCardSvg(props)
       .then((out) => {
-        if (!cancelled) setSvg(out);
+        if (!canceled) setSvg(out);
       })
       .catch((err) => {
-        if (!cancelled) setError(cardExportErrorMessage(err));
+        if (!canceled) setError(cardExportErrorMessage(err));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!canceled) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // `key` captures every input that changes the render; props is read inside.
     // eslint-disable-next-line react-hooks/exhaustive-deps

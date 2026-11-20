@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 
@@ -42,6 +43,17 @@ export function SideNav() {
   const [collapsed, setCollapsed] = useState(() => window.matchMedia(NARROW).matches);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  // End the visitor's session on the server first, then sign out here whatever the answer
+  // was: a failed call must not leave them stuck signed in.
+  async function endDemo() {
+    try {
+      await api.post("/auth/end-demo");
+    } catch {
+      // Signed out locally below; the session still lapses on its own within 24 hours.
+    }
+    logout();
+  }
 
   // Follow the window across the breakpoint; the toggle still works in between.
   useEffect(() => {
@@ -128,7 +140,7 @@ export function SideNav() {
               title="End your demo?"
               description="Signing out ends this demo. Your work stays private and is removed after 24 hours."
               confirmLabel="End demo"
-              onConfirm={async () => logout()}
+              onConfirm={endDemo}
               errorFallback="Couldn’t end the demo. Try again."
             />
           ) : (

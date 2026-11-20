@@ -34,3 +34,14 @@ async def get_active_session(
         {"_id": session_id, "expires_at": {"$gt": current}}
     )
     return doc
+
+
+async def end_session(
+    db: AsyncIOMotorDatabase, session_id: str, *, now: datetime | None = None
+) -> None:
+    """End a session now. The document stays, expired: the hourly cleanup removes it, its
+    spend allowance, and the visitor's generations (which keep their own `expires_at`)."""
+    current = now or datetime.now(timezone.utc)
+    await db.demo_sessions.update_one(
+        {"_id": session_id, "expires_at": {"$gt": current}}, {"$set": {"expires_at": current}}
+    )

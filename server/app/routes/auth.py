@@ -1,7 +1,7 @@
 """Auth routes: login (closed in production), the visitor demo start, me. No public signup."""
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from slowapi.util import get_remote_address
 
@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import get_database
 from app.models.user import DemoStartRequest, Token, UserInDB, UserLogin, UserResponse
 from app.services.auth_service import authenticate_user, get_demo_user
-from app.services.session_service import SESSION_TTL, create_session
+from app.services.session_service import SESSION_TTL, create_session, end_session
 from app.services.turnstile import TurnstileVerifier, Verdict, get_turnstile_verifier
 from app.utils.dependencies import get_current_user
 from app.utils.errors import DEMO_NOT_READY_COPY, BotCheckFailed, BotCheckUnavailable
@@ -99,3 +99,14 @@ async def me(current_user: UserInDB = Depends(get_current_user), db: AsyncIOMoto
         is_demo=current_user.is_demo,
         created_at=current_user.created_at,
     )
+
+
+@router.post("/end-demo", status_code=status.HTTP_204_NO_CONTENT)
+async def end_demo(
+    current_user: UserInDB = Depends(get_current_user), db: AsyncIOMotorDatabase = Depends(get_database)
+) -> Response:
+    """'End demo': the visitor's session expires now, so the token stops working at once
+    instead of lingering for 24 hours. Anyone else: nothing to end."""
+    if current_user.is_demo and current_user.session_id:
+        await end_session(db, current_user.session_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -196,6 +196,47 @@ async def test_owner_tokens_need_no_session(client, test_db):
     assert resp.json()["is_demo"] is False
 
 
+async def test_end_demo_expires_the_session_and_the_token_stops_working(client, test_db):
+    uid = await _seed_user(test_db, email="demo@x.com", is_demo=True)
+    session = await create_session(test_db, user_id=uid)
+    token = create_access_token({"user_id": str(uid), "email": "demo@x.com", "sid": session["_id"]})
+    assert (await client.get("/api/auth/me", headers=_bearer(token))).status_code == 200
+
+    before = datetime.now(timezone.utc)
+    resp = await client.post("/api/auth/end-demo", headers=_bearer(token))
+    assert resp.status_code == 204
+    assert resp.content == b""
+
+    _assert_demo_ended(await client.get("/api/auth/me", headers=_bearer(token)))
+    doc = await test_db.demo_sessions.find_one({"_id": session["_id"]})
+    assert doc is not None  # kept for the cleanup job
+    expires = doc["expires_at"].replace(tzinfo=timezone.utc)
+    assert before - timedelta(seconds=1) <= expires <= datetime.now(timezone.utc)
+
+
+async def test_end_demo_leaves_other_sessions_alone(client, test_db):
+    uid = await _seed_user(test_db, email="demo@x.com", is_demo=True)
+    mine = await create_session(test_db, user_id=uid)
+    other = await create_session(test_db, user_id=uid)
+    token = create_access_token({"user_id": str(uid), "email": "demo@x.com", "sid": mine["_id"]})
+    assert (await client.post("/api/auth/end-demo", headers=_bearer(token))).status_code == 204
+    kept = await test_db.demo_sessions.find_one({"_id": other["_id"]})
+    assert kept["expires_at"].replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
+
+
+async def test_end_demo_for_an_owner_is_a_harmless_204(client, test_db):
+    uid = await _seed_user(test_db, email="owner@x.com", is_demo=False)
+    token = create_access_token({"user_id": str(uid), "email": "owner@x.com"})
+    assert (await client.post("/api/auth/end-demo", headers=_bearer(token))).status_code == 204
+    assert (await client.get("/api/auth/me", headers=_bearer(token))).status_code == 200
+
+
+async def test_end_demo_needs_authentication(client):
+    assert (await client.post("/api/auth/end-demo")).status_code == 401
+    resp = await client.post("/api/auth/end-demo", headers=_bearer("not-a-token"))
+    assert resp.status_code == 401
+
+
 async def test_login_is_404_in_production_and_works_in_development(client, test_db, monkeypatch):
     await _seed_user(test_db, email="owner@x.com", is_demo=False)
     creds = {"email": "owner@x.com", "password": _PASSWORD}
