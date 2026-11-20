@@ -111,7 +111,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 - **Fix loop:** fix every finding, or consciously accept it with a one-line reason in the PR; re-run the relevant review after material changes. Use `/code-review --fix` only with an eyeball of the applied diff; `/simplify` for pure cleanup, not bug-hunting.
 - **Paper trail:** record the outcome in the PR description (e.g. "code-review: 2 fixed; security-review: clean").
 - **Where reviews run:** on the local diff before the first push of a branch (you must push before opening its PR); they may be re-run on the PR.
-- **CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every PR and push to `dev`/`main`, so the automated half stops depending on memory. Four jobs, all required checks on both branches: `client` (`eslint`, `prettier --check`, `tsc -b` + `vite build`, `vitest`), `server` (`ruff`, `mypy`, `pytest` against real Mongo + Chroma), `docker` (builds the production image, checks no `.env` was baked in, boots it against Mongo + Chroma and waits for its `HEALTHCHECK`), and `audit` (`pip-audit` + `npm audit`; advisories with no fixed release are allow-listed in the workflow with a reason). The `/code-review` + `/security-review` gate above stays manual.
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every PR and push to `dev`/`main`, so the automated half stops depending on memory. Four jobs, all required checks on both branches: `client` (`eslint`, `prettier --check`, `tsc -b` + `vite build`, `vitest`), `server` (`ruff`, `mypy`, `pytest` against real Mongo + Chroma), `docker` (builds the production image, checks no `.env` was baked in, boots it against Mongo + Chroma and waits for its `HEALTHCHECK`), and `audit` (`pip-audit` + `npm audit`; advisories with no fixed release are allow-listed in the workflow with a reason). A separate workflow, `.github/workflows/security.yml` (job `Leaked secrets (gitleaks)`), scans the whole git history for committed secrets on every PR, every push to `dev`/`main`, and weekly. Every action in both workflows is pinned to a commit SHA, every checkout sets `persist-credentials: false`, and every job has a `timeout-minutes`. The `/code-review` + `/security-review` gate above stays manual.
 
 ---
 
@@ -126,7 +126,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
 - **Merge commits** for `feat/*` (and other branches) → `dev`, so each PR's own commits stay in history (every PR so far was merged this way); `dev` → `main` is a merge commit too, so release points are visible.
-- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5). No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Pushing the Docker image on merge to `main` comes with the deploy phase.
+- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5); add `Leaked secrets (gitleaks)` to the required checks once it has run on the pushed branch. No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. Pushing the Docker image on merge to `main` comes with the deploy phase.
 
 ---
 
