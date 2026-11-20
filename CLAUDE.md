@@ -4,9 +4,10 @@ Folio is one of James Littlefield's portfolio apps: a retrieval-augmented studio
 
 ## Commands
 
-- Local databases: `docker compose up -d` (loopback only)
+- Local database: `docker compose up -d` starts MongoDB only (loopback only); Chroma runs inside the API
 - Dev servers: `npm run dev` (client on http://localhost:5173, API on http://localhost:8000)
-- Seed the demo: `npm run seed`
+- Seed the demo: `npm run seed` with the API stopped (one process per Chroma directory); with `SEED_ON_STARTUP=true` the API also seeds itself at startup
+- Run the production image locally: `export JWT_SECRET_KEY=$(openssl rand -hex 32)`, then `docker compose -f docker-compose.prod.yml up -d --build` (http://localhost:8000; see `docs/DEPLOY.md`)
 - Server checks, in `server/`: `.venv/bin/ruff check app tests`, `.venv/bin/mypy app`, `.venv/bin/python -m pytest -q`
 - Client checks, in `client/`: `npm run lint`, `npm run format`, `npm run build`, `npm test`
 - Everything: `npm run ci`

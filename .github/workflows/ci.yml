@@ -54,7 +54,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format
-      - run: npm run build # tsc -b && vite build — the gate that catches BUILD-01
+      - run: npm run build # tsc -b && vite build: the gate that catches BUILD-01
       - run: npm test
 
   server:

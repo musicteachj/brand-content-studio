@@ -3,7 +3,7 @@
 > MongoDB collections + vector-store schema for Brand Content Studio. Follows [DECISIONS.md](./DECISIONS.md).
 > Related: [ARCHITECTURE.md](./ARCHITECTURE.md) · [PLAN.md](./PLAN.md)
 
-Database: `brand_content` (set by `DATABASE_NAME`; the test suite uses `brand_content_test`). Six collections (`users`, `workspaces`, `assets`, `generations`, `templates`, `usage`). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
+Database: `folio` (set by `DATABASE_NAME`; a local `.env` from before the rename may keep `brand_content`, and the test suite uses its own test database). Nine collections (`users`, `workspaces`, `assets`, `generations`, `templates`, `demo_sessions`, `ai_spend_days`, `ai_spend_calls`, `ai_spend_visitors`; the `usage` collection is gone). Most documents carry UTC `created_at` / `updated_at`. Mongo `ObjectId` is serialized to `str` on the way out (EMS pattern). **Chunk vectors live in the vector store, never in Mongo.**
 
 ---
 
@@ -35,7 +35,7 @@ Copy the EMS user model. Seed exactly one demo user.
 | `name` | str | e.g. "Verdure Materials" |
 | `slug` | str | url-safe, unique per owner |
 | `brand_profile` | object | see below |
-| `vector_namespace` | str | = `str(_id)`; Chroma collection / Qdrant payload key |
+| `vector_namespace` | str | = `str(_id)`; the Chroma collection name suffix (`ws_{id}`) |
 | `embedding_model` | str | `"text-embedding-3-small"` |
 | `embedding_dim` | int | `1536` (pinned; a change forces re-ingest) |
 | `asset_count` | int | denormalized |
@@ -95,6 +95,10 @@ Copy the EMS user model. Seed exactly one demo user.
 | `output` | object | discriminated by `type`, see below |
 | `retrieved_chunk_ids` | str[] | vector-store ids `{asset_id}:{chunk_index}` |
 | `retrieval_meta` | object[] | snapshot for the debug panel + re-open survival (see ARCHITECTURE §5) |
+| `session_id` | str | the visitor session that made it; set only on a visitor's generations (never returned by the API) |
+| `expires_at` | datetime | the session's expiry; the hourly cleanup job removes the generation, its files first, after it. Set only on a visitor's generations |
+| `is_example` | bool | true for the four read-only ready-made examples (readable by everyone, never changed or deleted through the API) |
+| `example_key` | str | the example's stable key, set only on examples; the seed finds and repairs examples by it |
 | `model` | str | `"claude-sonnet-5-5"` (rows saved before DECISIONS #40 keep `"claude-sonnet-4-6"`) |
 | `embedding_query_model` | str | `"text-embedding-3-small"` |
 | `created_at` / `updated_at` | datetime | |
@@ -142,7 +146,9 @@ Copy the EMS user model. Seed exactly one demo user.
 
 `retrieval_meta` is **snapshotted onto the generation** so the debug panel and history re-open keep working even if assets are later deleted or re-ingested (vector ids may go stale; the snapshot preview survives).
 
-**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (history type filter). (An `(owner_id, created_at desc)` index used to back the demo quota count; `ensure_indexes` no longer creates it, since the quota moved to `usage`. An existing one is harmless.)
+**Indexes:** `(workspace_id, created_at desc)` (history); `(workspace_id, type)` (history type filter); `(workspace_id, session_id, created_at desc)` (a visitor's History); `expires_at` (the cleanup job; deliberately not a TTL index, so files go before records); unique `(workspace_id, example_key)` with a partial filter on `example_key` existing (one of each example per workspace). `ensure_indexes` drops the old global `example_key_1` index and the old `(owner_id, created_at desc)` quota index where they still exist.
+
+Every read and write goes through `generations_service.scope_filter`: the owner reaches the whole workspace, a visitor only their own `session_id` plus `is_example` documents.
 
 ---
 
@@ -165,25 +171,61 @@ Uploaded branded `.docx`/`.pptx` templates (Phase 5). The template's own styling
 
 ---
 
-## `usage`
+## `demo_sessions`
 
-The shared demo account's daily AI-call counter (SEC-02; DECISIONS #35). One document per account per UTC day. Every paid model route consumes one unit when the request is admitted (before body validation, so a request that then fails still counts), through one conditional upsert, so concurrent requests can't overshoot `demo_daily_generation_limit`. Non-demo accounts never get a document.
+One document per demo start (DECISIONS #41). The ID rides in the visitor's JWT as `sid`; a token is good only while its session exists and has not expired.
 
 | Field | Type | Notes |
 |---|---|---|
-| `_id` | str | `"<user_id>:<YYYY-MM-DD>"` (UTC day) |
-| `user_id` | ObjectId | → `users._id` |
-| `day` | str | `YYYY-MM-DD` |
-| `count` | int | AI actions admitted that day, never above the limit |
-| `expires_at` | datetime | start of the day + 2 days |
+| `_id` | str | random 43-character URL-safe ID |
+| `user_id` | ObjectId | → `users._id`, the demo user |
+| `created_at` | datetime | |
+| `expires_at` | datetime | `created_at` + 24 hours |
 
-**Indexes:** TTL on `expires_at` (`expireAfterSeconds: 0`), so old days drop out.
+**Indexes:** `expires_at` (not a TTL index: the cleanup job removes a session's work and spend with it).
+
+---
+
+## AI dollar ledger (DECISIONS #42)
+
+Three collections in integer micro-dollars (1 USD = 1,000,000). No TTL on spend; nothing here is the old `usage` collection.
+
+`ai_spend_days`: settled plus open spend for one UTC day.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | str | `YYYY-MM-DD` (UTC) |
+| `month` | str | the month the day belongs to (pacing reads one month of days) |
+| `total_micros` | int | settled + open reservations that day |
+
+`ai_spend_calls`: one document per reserved call.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | | the reservation's ID |
+| `day`, `month` | str | dated on the reservation's own day |
+| `visitor_id` | str \| null | the demo session ID; null for owner and seed calls |
+| `provider`, `model`, `purpose` | str | e.g. Anthropic, `claude-sonnet-5-5`, what the call was for |
+| `reserved_micros` | int | the worst-case cost taken before the call |
+| `actual_micros` | int \| null | the settled cost; null while open |
+| `status` | enum | `open` \| `settled` \| `swept` (charged by the sweeper after 10 minutes) |
+| `outcome` | str | how it ended (for example a billed success, `canceled_or_unknown`, `not_attempted`) |
+| `created_at` / `settled_at` | datetime | |
+
+`ai_spend_visitors`: a visitor session's running spend.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | str | the session ID (`demo_sessions._id`) |
+| `total_micros` | int | settled + open spend; a call is admitted while this is below `AI_VISITOR_BUDGET_USD` |
+
+**Indexes:** `ai_spend_calls (status, created_at)` (the sweeper and prune); `ai_spend_days month`. The cleanup job prunes closed (settled or swept) call records older than 35 days (day totals are kept) and deletes an expired session's `ai_spend_visitors` document.
 
 ---
 
 ## Vector store schema
 
-Not Mongo — Chroma (dev) / Qdrant (prod). One logical record per chunk:
+Not Mongo: Chroma, in-process on local disk (`CHROMA_PATH`), in development and in production (DECISIONS #44). One logical record per chunk:
 
 | Field | Value |
 |---|---|
@@ -192,7 +234,4 @@ Not Mongo — Chroma (dev) / Qdrant (prod). One logical record per chunk:
 | payload / metadata | `{ workspace_id, asset_id, filename, asset_kind, chunk_index, page? }` |
 | text | the chunk content (stored in payload/document) |
 
-- **Chroma:** collection per workspace `ws_{workspace_id}`.
-- **Qdrant (planned for production, not implemented yet; `qdrant_store.py` is a stub):** single collection `brand-content-studio`; isolation via **indexed** payload filter `workspace_id`.
-
-The Qdrant store is designed to use identical payloads, so once it exists, switching `vector_store_backend` is config-only.
+- **Chroma:** one collection per workspace, `ws_{workspace_id}`, pinned to 1536 dimensions and cosine. The seed rebuilds the demo workspace's collection from `server/seed/fixtures/verdure_embeddings.json` (32 chunks keyed by the sha256 of their text) when its count differs from the assets' total `chunk_count`.
