@@ -6,8 +6,8 @@ Three collections, integer micro-dollars, never a TTL on spend:
   actual_micros|null, status: open|settled|swept, outcome, created_at, settled_at}`.
 - `ai_spend_visitors {_id: visitor_id, total_micros}`: one demo session's spend.
 
-Atomicity needs no lock: each counter moves by one conditional `$inc` (the shapes follow
-`usage_service.consume_demo_ai_action`), so concurrent requests cannot overshoot. Pacing (UTC):
+Atomicity needs no lock: each counter moves by one conditional `$inc` (an upsert, with a
+plain conditional update after a lost creation race), so concurrent requests cannot overshoot. Pacing (UTC):
 `allowance_today = min(left, max(multiplier x left / days_left, floor))`, where `left` is the
 month's budget less everything dated before today. The month is never exceeded.
 """

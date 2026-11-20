@@ -152,8 +152,8 @@ async def client(test_db, monkeypatch, tmp_path):
     fake_gen = FakeGenerationService()
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[GenerationService] = lambda: fake_gen
-    # Demo-quota dependency resolves get_current_user directly; non-demo owner so
-    # it short-circuits (these tests mock get_workspace_or_404).
+    # The route resolves get_current_user directly (for the ledger); provide the
+    # owner (these tests mock get_workspace_or_404).
     app.dependency_overrides[get_current_user] = lambda: UserInDB(
         id=str(OWNER_OID), email="o@e.com", hashed_password="x", full_name="O", is_demo=False
     )

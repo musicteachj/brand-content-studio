@@ -7,7 +7,6 @@ from typing import cast
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -29,7 +28,7 @@ from app.routes import (
 )
 from app.services.ai_clients import close_ai_clients
 from app.spa import mount_spa
-from app.utils.errors import UserFacingError
+from app.utils.errors import RATE_LIMITED_COPY, UserFacingError
 from app.utils.ratelimit import limiter
 
 logging.basicConfig(level=logging.INFO)
@@ -147,8 +146,22 @@ app = FastAPI(
 # Rate limiting (SEC-02): per-route @limiter.limit decorators read the limiter off
 # app.state; the handler turns an exceeded limit into a 429.
 app.state.limiter = limiter
-# slowapi's handler is typed for RateLimitExceeded; Starlette wants Exception.
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+
+async def _rate_limited_handler(request: Request, exc: Exception) -> JSONResponse:
+    """An exceeded per-IP limit answers in plain words with a code the client can show,
+    instead of slowapi's `{"error": "Rate limit exceeded: ..."}`. The limiter's own
+    headers (such as Retry-After, when enabled) are kept."""
+    response = JSONResponse(
+        status_code=429, content={"detail": RATE_LIMITED_COPY, "code": "rate_limited"}
+    )
+    return cast(
+        JSONResponse,
+        request.app.state.limiter._inject_headers(response, request.state.view_rate_limit),
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limited_handler)
 
 
 async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONResponse:

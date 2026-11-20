@@ -24,6 +24,12 @@ LIVE_AI_UNAVAILABLE_COPY = (
     "Live generation isn't available right now. Browse the ready-made examples to see what "
     "Folio makes."
 )
+RATE_LIMITED_COPY = (
+    "Too many requests from your network just now. Wait a minute and try again, "
+    "or browse the ready-made examples."
+)
+# The brief matched nothing in the workspace's corpus: a 409 before any model call.
+NO_CONTEXT_COPY = "No brand context could be retrieved for this brief."
 
 
 class UserFacingError(Exception):

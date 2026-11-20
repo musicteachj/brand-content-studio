@@ -6,7 +6,7 @@ so "what are our limits?" is one file to read and tune, not six.
 Deliberately EXCLUDES domain/token caps that are inseparable from their logic:
 the Claude `*_MAX_TOKENS` budgets (`ai_service`, `brand_extract_service`), the
 template-shape caps (`template_service.MAX_PLACEHOLDERS` / `MAX_VALUE_LEN`), the
-rate-limit and demo-quota knobs (already centralized in `config.Settings`), and
+rate-limit and AI budget knobs (already centralized in `config.Settings`), and
 outbound HTTP client timeouts (`unsplash_service`).
 
 Imports nothing from `app`, so any module can import it without a cycle.

@@ -26,6 +26,7 @@ from app.services.workspace_service import (
 )
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
+from tests.fakes import settle_fake_usage
 
 # --- build_exemplar_guidance (pure) ----------------------------------------
 
@@ -93,7 +94,9 @@ PNG = bytes.fromhex(
 
 
 class _FakeExtract:
-    async def propose_exemplar_note(self, data: bytes, media_type: str) -> str:
+    async def propose_exemplar_note(self, data: bytes, media_type: str, *, line) -> str:
+        line.mark_started()
+        await settle_fake_usage(line)
         return "Punchy hook, one tight line, earthy photography."
 
 

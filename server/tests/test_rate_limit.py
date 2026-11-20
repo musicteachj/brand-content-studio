@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.database import get_database
 from app.main import app
+from app.utils.errors import RATE_LIMITED_COPY
 from app.utils.ratelimit import AUTH_RATE_LIMIT, limiter
 
 
@@ -44,5 +45,22 @@ async def test_auth_endpoint_is_rate_limited(enabled_limiter):
     assert set(statuses[:-1]) == {404}  # the rest reach the handler (no demo user seeded)
 
 
-# The demo daily quota itself (a per-account AI-call counter) is covered in
-# test_demo_ai_quota.py.
+@pytest.mark.asyncio
+async def test_a_rate_limited_request_reads_plainly(enabled_limiter):
+    """The 429 carries friendly copy and a code the client can show, not slowapi's
+    `{"error": "Rate limit exceeded: ..."}`."""
+    app.dependency_overrides[get_database] = lambda: _FakeDB()
+    per_min = int(AUTH_RATE_LIMIT.split("/")[0])
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as ac:
+            for _ in range(per_min):
+                await ac.post("/api/auth/demo-login")
+            resp = await ac.post("/api/auth/demo-login")
+    finally:
+        app.dependency_overrides.clear()
+    assert resp.status_code == 429
+    assert resp.json() == {"detail": RATE_LIMITED_COPY, "code": "rate_limited"}
+
+
+# Spend on the paid AI routes is bounded by the AI dollar ledger, covered in
+# test_ai_routes_budget.py.

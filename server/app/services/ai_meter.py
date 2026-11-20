@@ -63,6 +63,10 @@ class MeteredLine:
         )
         await self._close(cost, "ok")
 
+    async def settle_cost(self, actual_micros: int) -> None:
+        """A cost already summed by the caller (one Claude response priced per iteration)."""
+        await self._close(actual_micros, "ok")
+
     async def settle_tokens(self, tokens: int) -> None:
         """Embeddings: settle from the token count the API reported."""
         await self._close(embedding_cost_micros(self.reserved.model, tokens), "ok")

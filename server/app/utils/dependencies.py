@@ -5,11 +5,12 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.config import settings
 from app.database import get_database
 from app.models.user import UserInDB
-from app.services import usage_service
+from app.rag.vector_store import VectorStore
+from app.services import retrieval_service
 from app.services.auth_service import get_user_by_id
+from app.utils.errors import NO_CONTEXT_COPY
 from app.utils.security import decode_access_token
 
 security = HTTPBearer()
@@ -63,14 +64,25 @@ async def get_workspace_or_404(
 def ensure_ready_corpus(workspace: dict) -> None:
     """Block generation on an empty/thin corpus BEFORE the model is called
     (ARCHITECTURE gotcha #10). Called at the top of every /generate route body: a
-    plain guard (not a dependency) so it runs after the rate-limit/quota deps
-    (preserving their precedence) and stays a real HTTP 409, which is the client's
+    plain guard (not a dependency) so it runs after the rate-limit dependency
+    (preserving its precedence) and stays a real HTTP 409, which is the client's
     non-stream error path (never an in-stream frame)."""
     if int(workspace.get("ready_chunk_count", 0)) <= 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This workspace has no ingested brand assets yet. Ingest assets first.",
         )
+
+
+async def retrieve_context_or_409(
+    store: VectorStore, namespace: str, brief: str
+) -> retrieval_service.RetrievalResult:
+    """Retrieve brand context for a generate route's brief, or refuse with a 409 before
+    anything is reserved or streamed: never generate with no context."""
+    result = await retrieval_service.retrieve(store, namespace, brief, k=6)
+    if not result.chunks:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NO_CONTEXT_COPY)
+    return result
 
 
 def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> UserInDB:
@@ -84,20 +96,9 @@ def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> User
     return current_user
 
 
-async def enforce_demo_ai_quota(
-    current_user: UserInDB = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_database),
-) -> None:
-    """Cap the shared demo account's paid model calls per UTC day (SEC-02). Per-IP
-    rate limits don't bound aggregate demo spend across many visitors; this does.
-    Every paid route consumes one unit on admission, whether or not it saves
-    anything (known-gaps plan, step 1). Non-demo users are unaffected."""
-    if not current_user.is_demo:
-        return
-    if not await usage_service.consume_demo_ai_action(
-        db, current_user.id, settings.demo_daily_generation_limit
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="The demo's daily limit of AI actions has been reached. Try again tomorrow.",
-        )
+def ledger_visitor_id(user: UserInDB) -> str | None:
+    """Whose allowance an AI action is counted against in the dollar ledger, beside the
+    shared daily and monthly budget. None for everyone today; demo sessions get their own
+    ID (and a per-visitor cap) when they arrive."""
+    _ = user
+    return None

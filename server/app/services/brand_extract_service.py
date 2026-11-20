@@ -31,6 +31,8 @@ from app.prompts.brand_extract import (
 )
 from app.services import claude_calls
 from app.services.ai_clients import get_anthropic
+from app.services.ai_ledger import LineRequest
+from app.services.ai_meter import MeteredLine
 from app.services.brand_fonts import curated_family
 
 # A ceiling with room for adaptive thinking and Sonnet 5.x's larger token counts.
@@ -89,14 +91,52 @@ def build_extract_response(detected_hexes: list[str], tool_result: dict[str, Any
     return BrandExtractResponse(colors=colors, voice_summary=voice, fonts=fonts)
 
 
+def _vision_content(user: str, *, image_b64: str, media_type: str) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": image_b64},
+        },
+        {"type": "text", "text": user},
+    ]
+
+
+def _vision_line(purpose: str, system: str, user: str, tool: dict[str, Any]) -> LineRequest:
+    # The image counts as IMAGE_TOKEN_BOUND whatever its bytes, so a placeholder stands in.
+    return claude_calls.structured_line(
+        purpose,
+        system=system,
+        content=_vision_content(user, image_b64="", media_type="image/png"),
+        tool=tool,
+        max_tokens=EXTRACT_MAX_TOKENS,
+    )
+
+
+def brand_extract_line(data: bytes) -> LineRequest:
+    """The reservation for `BrandExtractService.propose` on this image."""
+    return _vision_line(
+        "brand_extract",
+        build_extract_system(),
+        build_extract_user(extract_palette(data)),
+        BRAND_EXTRACT_TOOL,
+    )
+
+
+def exemplar_note_line() -> LineRequest:
+    """The reservation for `BrandExtractService.propose_exemplar_note`."""
+    return _vision_line(
+        "exemplar_note", build_exemplar_system(), build_exemplar_user(), EXEMPLAR_NOTE_TOOL
+    )
+
+
 class BrandExtractService:
     """Instantiated per-request via FastAPI `Depends()` (zero-arg), matching the
-    `GenerationService` convention."""
+    `GenerationService` convention. Each method takes the ledger line its route reserved."""
 
     def __init__(self) -> None:
         self.client = get_anthropic()
 
-    async def propose(self, data: bytes, media_type: str) -> BrandExtractResponse:
+    async def propose(self, data: bytes, media_type: str, *, line: MeteredLine) -> BrandExtractResponse:
         detected = extract_palette(data)
         result = await self._vision_structured_call(
             system=build_extract_system(),
@@ -104,10 +144,11 @@ class BrandExtractService:
             image_b64=base64.standard_b64encode(data).decode("ascii"),
             media_type=media_type,
             tool=BRAND_EXTRACT_TOOL,
+            line=line,
         )
         return build_extract_response(detected, result)
 
-    async def propose_exemplar_note(self, data: bytes, media_type: str) -> str:
+    async def propose_exemplar_note(self, data: bytes, media_type: str, *, line: MeteredLine) -> str:
         """One vision call with structured output → a short style note for an uploaded card."""
         result = await self._vision_structured_call(
             system=build_exemplar_system(),
@@ -115,19 +156,25 @@ class BrandExtractService:
             image_b64=base64.standard_b64encode(data).decode("ascii"),
             media_type=media_type,
             tool=EXEMPLAR_NOTE_TOOL,
+            line=line,
         )
         return str(result.get("style_note", "")).strip()
 
     async def _vision_structured_call(
-        self, system: str, user: str, image_b64: str, media_type: str, tool: dict[str, Any]
+        self,
+        *,
+        system: str,
+        user: str,
+        image_b64: str,
+        media_type: str,
+        tool: dict[str, Any],
+        line: MeteredLine,
     ) -> dict[str, Any]:
-        content: list[dict[str, Any]] = [
-            {
-                "type": "image",
-                "source": {"type": "base64", "media_type": media_type, "data": image_b64},
-            },
-            {"type": "text", "text": user},
-        ]
         return await claude_calls.structured_call(
-            self.client, system=system, content=content, tool=tool, max_tokens=EXTRACT_MAX_TOKENS
+            self.client,
+            system=system,
+            content=_vision_content(user, image_b64=image_b64, media_type=media_type),
+            tool=tool,
+            max_tokens=EXTRACT_MAX_TOKENS,
+            line=line,
         )

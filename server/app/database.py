@@ -52,9 +52,6 @@ async def ensure_indexes() -> None:
     await database.assets.create_index([("workspace_id", 1), ("ingestion_status", 1)])
     await database.generations.create_index([("workspace_id", 1), ("created_at", -1)])
     await database.generations.create_index([("workspace_id", 1), ("type", 1)])
-    # The demo's daily AI-call counter (usage_service): drop each day's document
-    # once it's past `expires_at`.
-    await database.usage.create_index("expires_at", expireAfterSeconds=0)
     # Only the old quota count used this; drop it where it still exists.
     with contextlib.suppress(OperationFailure):
         await database.generations.drop_index("owner_id_1_created_at_-1")
