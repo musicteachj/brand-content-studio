@@ -75,6 +75,23 @@ describe("SideNav width", () => {
     expect(logout).toHaveBeenCalledOnce();
   });
 
+  it("asks before a demo visitor signs out", async () => {
+    const logout = vi.fn();
+    useAuthStore.setState({
+      logout,
+      user: { id: "d1", email: "d@x.io", full_name: "Demo", is_demo: true },
+    });
+    stubViewport(false);
+    renderNav();
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(logout).not.toHaveBeenCalled();
+    expect(await screen.findByRole("dialog", { name: "End your demo?" })).toHaveTextContent(
+      "Signing out ends this demo. Your work stays private and is removed after 24 hours.",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "End demo" }));
+    expect(logout).toHaveBeenCalledOnce();
+  });
+
   it("follows the window across the breakpoint", () => {
     const viewport = stubViewport(false);
     renderNav();

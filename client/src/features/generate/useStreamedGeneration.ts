@@ -7,6 +7,7 @@ export type Status = "idle" | "streaming" | "done" | "error";
 export interface StreamBaseState {
   status: Status;
   error: string | null;
+  errorCode: string | null;
 }
 
 export interface StreamConfig<TState extends StreamBaseState, TBody, TMeta> {
@@ -63,9 +64,9 @@ export function useStreamedGeneration<TState extends StreamBaseState, TBody, TMe
         {
           onText: (delta) => setState((s) => cfg.applyText(s, delta)),
           onMeta: (meta) => setState((s) => cfg.applyMeta(s, meta)),
-          onError: (message) => {
+          onError: (message, code) => {
             errored = true;
-            setState((s) => ({ ...s, status: "error", error: message }));
+            setState((s) => ({ ...s, status: "error", error: message, errorCode: code ?? null }));
           },
         },
         controller.signal,

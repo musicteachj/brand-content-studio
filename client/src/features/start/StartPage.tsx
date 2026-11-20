@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ArrowRight, PauseCircle } from "lucide-react";
-import { LIVE_AI_PAUSED_COPY, useAppStatus } from "@/api/status";
+import { AlertCircle, ArrowRight, Info, PauseCircle } from "lucide-react";
+import { DEMO_ENDED_COPY, LIVE_AI_PAUSED_COPY, useAppStatus } from "@/api/status";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { PasswordSignInForm } from "@/features/auth/PasswordSignInForm";
 import { useAuthActions } from "@/features/auth/useAuthActions";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth";
 
 /** The four screenshots under the pitch (copies of docs/screenshots in public/). */
 const SCREENSHOTS = [
@@ -42,6 +43,7 @@ type Flow = "demo" | "password";
  *  side with the ready-made examples (no demo start, no bot check). */
 export function StartPage() {
   const status = useAppStatus();
+  const demoEnded = useAuthStore((s) => s.endedReason === "ended");
   // Unknown until the status loads: the button reads "Try it live" and the form stays hidden,
   // so production never flashes a sign-in it has closed.
   const paused = status.data?.live_ai_available === false;
@@ -114,6 +116,16 @@ export function StartPage() {
               Folio turns a brand’s guidelines and past posts into on-brand LinkedIn posts, image
               cards, and documents.
             </p>
+
+            {demoEnded && (
+              <div
+                role="status"
+                className="mt-8 flex max-w-xl items-start gap-3 rounded-lg border border-border bg-surface-variant/50 p-4"
+              >
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <p className="text-sm text-foreground">{DEMO_ENDED_COPY}</p>
+              </div>
+            )}
 
             {paused && (
               <div

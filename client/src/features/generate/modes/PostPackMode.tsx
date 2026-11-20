@@ -73,6 +73,7 @@ export function PostPackMode() {
             imageDataUrl={gen.imageDataUrl}
             attribution={gen.image?.attribution ?? null}
             error={gen.error}
+            errorCode={gen.errorCode}
             hasImage={gen.image !== null}
             imageError={gen.imageError}
             onAddImage={() => setPickerOpen(true)}
@@ -85,6 +86,7 @@ export function PostPackMode() {
             value={captionDraft}
             onChange={setCaptionDraft}
             error={gen.error}
+            errorCode={gen.errorCode}
           />
         </div>
         <RetrievalDebugPanel retrieval={gen.retrieval} />

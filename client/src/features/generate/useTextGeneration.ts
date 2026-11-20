@@ -11,6 +11,7 @@ interface State {
   retrieval: Retrieval | null;
   generationId: string | null;
   error: string | null;
+  errorCode: string | null;
 }
 
 const INITIAL: State = {
@@ -19,6 +20,7 @@ const INITIAL: State = {
   retrieval: null,
   generationId: null,
   error: null,
+  errorCode: null,
 };
 
 /** Drives a single streamed text-post generation: accumulates tokens, captures the

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Check, Copy, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 
 interface Props {
@@ -14,9 +15,17 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   error: string | null;
+  errorCode?: string | null;
 }
 
-export function PostCaptionPanel({ status, streamingText, value, onChange, error }: Props) {
+export function PostCaptionPanel({
+  status,
+  streamingText,
+  value,
+  onChange,
+  error,
+  errorCode,
+}: Props) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -39,11 +48,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
         </p>
       )}
 
-      {status === "error" && (
-        <p role="alert" className="py-6 text-sm text-destructive">
-          {error ?? "Generation failed."}
-        </p>
-      )}
+      {status === "error" && <GenerationError message={error} code={errorCode} className="py-6" />}
 
       {status === "streaming" && (
         <div

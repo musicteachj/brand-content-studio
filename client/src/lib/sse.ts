@@ -3,7 +3,7 @@
 // (ARCHITECTURE gotcha #3). Decodes the EMS frame shape: `data: {json}\n\n`
 // terminated by `data: [DONE]`. Text and card generation share this reader and
 // frame shape (gotcha #3); only the terminal `meta` payload differs.
-import { useAuthStore } from "@/stores/auth";
+import { endSessionOn401, useAuthStore } from "@/stores/auth";
 import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
 /** Abort the read if no frame arrives within this window: a stalled stream
@@ -13,7 +13,7 @@ export const STREAM_INACTIVITY_MS = 30000;
 export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
   onMeta: (meta: Meta) => void;
-  onError: (message: string) => void;
+  onError: (message: string, code?: string) => void;
 }
 
 export interface TextStreamBody {
@@ -45,7 +45,7 @@ export interface PostPackStreamBody {
 async function openStream(
   url: string,
   body: unknown,
-  onError: (message: string) => void,
+  onError: (message: string, code?: string) => void,
   signal?: AbortSignal,
 ): Promise<Response | null> {
   const token = useAuthStore.getState().token;
@@ -69,13 +69,17 @@ async function openStream(
   if (!response.ok) {
     // Non-stream error (e.g. 409 empty corpus). Body is JSON {detail}.
     let detail = `Request failed (${response.status})`;
+    let code: string | undefined;
     try {
       const data = await response.json();
       if (typeof data?.detail === "string") detail = data.detail;
+      if (typeof data?.code === "string") code = data.code;
     } catch {
       /* ignore */
     }
-    onError(detail);
+    // The session is gone: end it here, as the axios interceptor does for other calls.
+    if (response.status === 401) endSessionOn401();
+    onError(detail, code);
     return null;
   }
 
@@ -133,6 +137,7 @@ export async function readFrames<Meta>(
           else if ("error" in payload)
             handlers.onError(
               typeof payload.error === "string" ? payload.error : "Generation failed.",
+              typeof payload.code === "string" ? payload.code : undefined,
             );
         } catch {
           /* ignore malformed frame */

@@ -20,7 +20,7 @@ export function HistoryCard({
   brand: BrandProfile | null;
   workspaceId: string | null;
   onOpen: (opener: HTMLElement) => void;
-  /** A ready-made example: tagged "Example" in place of its date, with no edit or delete
+  /** Forces the example treatment (examples are also detected from `gen.is_example`): tagged "Example" in place of its date, with no edit or delete
    *  (open its DetailDialog with `readOnly` too). Download and copy still work. */
   readOnly?: boolean;
   /** Where a document's formats download from (default: the workspace's authed route). */
@@ -45,7 +45,7 @@ export function HistoryCard({
           <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 eyebrow text-3xs">
             {isPost ? "post + card" : gen.type}
           </span>
-          {readOnly ? (
+          {readOnly || gen.is_example ? (
             <span className="ml-auto rounded-sm border border-border px-1.5 py-0.5 eyebrow text-3xs">
               Example
             </span>

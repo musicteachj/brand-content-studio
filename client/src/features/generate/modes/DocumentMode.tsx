@@ -42,6 +42,7 @@ export function DocumentMode() {
             workspaceId={workspaceId}
             brand={brand}
             error={gen.error}
+            errorCode={gen.errorCode}
           />
         )}
         <RetrievalDebugPanel retrieval={gen.retrieval} />

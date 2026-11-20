@@ -23,6 +23,7 @@ interface StreamState {
   generationId: string | null;
   retrieval: RetrievalEnvelope | null;
   error: string | null;
+  errorCode: string | null;
 }
 
 const initialStream = (templateId: CardTemplate): StreamState => ({
@@ -35,6 +36,7 @@ const initialStream = (templateId: CardTemplate): StreamState => ({
   generationId: null,
   retrieval: null,
   error: null,
+  errorCode: null,
 });
 
 /** Drives the "LinkedIn Post" objective: streams the caption live and captures the

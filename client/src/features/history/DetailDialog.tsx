@@ -10,7 +10,6 @@ import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
 import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
 import type { DocumentDownloadUrl } from "@/features/generate/documentDownload";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
-import { useAuthStore } from "@/stores/auth";
 import { useGenerateStore } from "@/stores/generate";
 import type { BrandProfile, Generation } from "@/types";
 import { documentOutput, formatDate, postText } from "./historyOutputs";
@@ -34,12 +33,11 @@ export function DetailDialog({
   onDeleted?: () => void;
   /** Where focus goes on close; ignored if it's gone (deleted, or navigated away). */
   returnFocusTo?: RefObject<HTMLElement | null>;
-  /** A ready-made example: no Customize and no Delete, signed in or not. */
+  /** Force the read-only treatment (the public examples page); `gen.is_example` implies it. */
   readOnly?: boolean;
   /** Where a document's formats download from (default: the workspace's authed route). */
   downloadUrl?: DocumentDownloadUrl;
 }) {
-  const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const navigate = useNavigate();
   const setHydrate = useGenerateStore((s) => s.setHydrate);
   const del = useDeleteGeneration(workspaceId);
@@ -59,6 +57,8 @@ export function DetailDialog({
 
   if (!gen) return null;
   const doc = documentOutput(gen);
+  // Examples are read-only for everyone; a visitor can edit and delete their own work.
+  const editable = !readOnly && !gen.is_example;
   const isPost = gen.type === "post_pack";
   // Re-opened from history: the timing/k envelope isn't persisted (only the
   // per-chunk snapshot is), so leave latency/k out rather than showing 0.
@@ -133,7 +133,7 @@ export function DetailDialog({
             <div className="flex items-center gap-2">
               {card ? (
                 <>
-                  {!readOnly && (
+                  {editable && (
                     <Button variant="secondary" size="sm" onClick={customize} disabled={!brand}>
                       <Sliders className="h-4 w-4" aria-hidden />
                       Customize
@@ -183,7 +183,7 @@ export function DetailDialog({
                 </span>
               )}
             </div>
-            {!isDemo && !readOnly && (
+            {editable && (
               <ConfirmDialog
                 trigger={
                   <Button

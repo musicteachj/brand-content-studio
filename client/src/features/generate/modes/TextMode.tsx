@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ControlsPanel } from "@/features/generate/ControlsPanel";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
@@ -32,7 +33,12 @@ export function TextMode() {
         />
       </div>
       <div className="flex flex-col gap-6">
-        <PostOutput status={gen.status} text={gen.text} error={gen.error} />
+        <PostOutput
+          status={gen.status}
+          text={gen.text}
+          error={gen.error}
+          errorCode={gen.errorCode}
+        />
         <RetrievalDebugPanel retrieval={gen.retrieval} />
       </div>
     </div>
@@ -43,10 +49,12 @@ function PostOutput({
   status,
   text,
   error,
+  errorCode,
 }: {
   status: "idle" | "streaming" | "done" | "error";
   text: string;
   error: string | null;
+  errorCode?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -73,9 +81,7 @@ function PostOutput({
         )}
 
         {status === "error" && (
-          <p role="alert" className="min-h-[120px] text-sm text-destructive">
-            {error ?? "Generation failed."}
-          </p>
+          <GenerationError message={error} code={errorCode} className="min-h-[120px]" />
         )}
 
         {(status === "streaming" || status === "done") && (

@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useActiveWorkspace } from "@/features/workspace/useActiveWorkspace";
-import { apiErrorMessage } from "@/lib/apiError";
+import { GenerationError } from "@/features/generate/GenerationError";
+import { apiErrorCode, apiErrorMessage } from "@/lib/apiError";
 import { useAuthStore } from "@/stores/auth";
 import type { Template } from "@/types";
 import { emptyValues, mergeFilled } from "./templateForm";
@@ -174,6 +175,7 @@ function FillPanel({
   const [brief, setBrief] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const docRef = useRef<HTMLInputElement>(null);
   const [fillingFromDoc, setFillingFromDoc] = useState(false);
 
@@ -183,10 +185,12 @@ function FillPanel({
     if (!file || !workspaceId) return;
     setFillingFromDoc(true);
     setError(null);
+    setErrorCode(null);
     try {
       const filled = await fillTemplateFromDocument(workspaceId, template.id, file);
       setValues(mergeFilled(template.placeholders, filled));
     } catch (err) {
+      setErrorCode(apiErrorCode(err));
       setError(
         apiErrorMessage(
           err,
@@ -201,10 +205,12 @@ function FillPanel({
   async function draftWithAI() {
     if (!brief.trim()) return;
     setError(null);
+    setErrorCode(null);
     try {
       const filled = await aiFill.mutateAsync({ templateId: template.id, brief });
       setValues(mergeFilled(template.placeholders, filled));
     } catch (err) {
+      setErrorCode(apiErrorCode(err));
       setError(apiErrorMessage(err, "AI draft failed. Fill the fields yourself or try again."));
     }
   }
@@ -213,6 +219,7 @@ function FillPanel({
     if (!workspaceId) return;
     setDownloading(true);
     setError(null);
+    setErrorCode(null);
     try {
       await renderTemplate(workspaceId, template, values);
     } catch (err) {
@@ -295,11 +302,7 @@ function FillPanel({
         </>
       )}
 
-      {error && (
-        <span role="alert" className="text-xs text-destructive">
-          {error}
-        </span>
-      )}
+      {error && <GenerationError message={error} code={errorCode} className="text-xs" />}
       <div>
         <Button onClick={download} loading={downloading}>
           Download {template.format.toUpperCase()}

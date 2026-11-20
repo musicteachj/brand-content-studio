@@ -9,6 +9,7 @@ import {
   templateUsesImage,
   type CardElementProps,
 } from "@/features/generate/cards/cardElement";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { ScaledCardBox } from "@/features/generate/cards/ScaledCardBox";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import {
@@ -32,6 +33,7 @@ interface Props {
   imageDataUrl: string | null;
   attribution: ImageAttribution | null;
   error: string | null;
+  errorCode?: string | null;
   hasImage: boolean;
   imageError: string | null;
   onAddImage: () => void;
@@ -110,6 +112,7 @@ export function CardPreview({
   imageDataUrl,
   attribution,
   error,
+  errorCode,
   hasImage,
   imageError,
   onAddImage,
@@ -176,9 +179,7 @@ export function CardPreview({
           {status === "idle" && <IdlePlaceholder />}
           {status === "error" && (
             <div className="flex aspect-4/5 items-center justify-center bg-surface p-8 text-center">
-              <p role="alert" className="text-sm text-destructive">
-                {error ?? "Generation failed."}
-              </p>
+              <GenerationError message={error} code={errorCode} />
             </div>
           )}
           {status === "streaming" && (

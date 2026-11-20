@@ -12,9 +12,11 @@ interface AuthState {
   token: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  /** Why the visitor was signed out: "ended" after a 401 on a demo session. Not persisted. */
+  endedReason: "ended" | null;
   /** Token and user land together, so a reload can never find one without the other. */
   setSession: (token: string, user: AuthUser) => void;
-  logout: () => void;
+  logout: (reason?: "ended") => void;
 }
 
 type PersistedAuth = Pick<AuthState, "token" | "user">;
@@ -37,8 +39,10 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       isAuthenticated: false,
-      setSession: (token, user) => set({ token, user, isAuthenticated: true }),
-      logout: () => set({ token: null, user: null, isAuthenticated: false }),
+      endedReason: null,
+      setSession: (token, user) => set({ token, user, isAuthenticated: true, endedReason: null }),
+      logout: (reason) =>
+        set({ token: null, user: null, isAuthenticated: false, endedReason: reason ?? null }),
     }),
     {
       name: "folio-auth",
@@ -55,3 +59,13 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+/** A 401 signs the visitor out. For a demo session it also says why, so the start page can
+ *  show that the demo ended; an owner's 401 signs out as before. */
+export function endSessionOn401() {
+  const { user, logout, isAuthenticated } = useAuthStore.getState();
+  // Already signed out: a burst of parallel 401s must not erase the ended reason, and a
+  // 401 on the start page must not touch state.
+  if (!isAuthenticated) return;
+  logout(user?.is_demo ? "ended" : undefined);
+}

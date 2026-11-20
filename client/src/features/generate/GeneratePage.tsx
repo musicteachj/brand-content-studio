@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { FileType, Image as ImageIcon, Megaphone, Type } from "lucide-react";
+import { Link } from "react-router-dom";
+import { FileType, Image as ImageIcon, Megaphone, PauseCircle, Type } from "lucide-react";
+import { LIVE_AI_PAUSED_COPY, useAppStatus } from "@/api/status";
 import { EmptyCorpus } from "@/features/generate/EmptyCorpus";
 import { CardMode } from "@/features/generate/modes/CardMode";
 import { DocumentMode } from "@/features/generate/modes/DocumentMode";
@@ -27,6 +29,8 @@ const MODE_TITLE: Record<Mode, string> = {
 
 export function GeneratePage() {
   const { workspace } = useActiveWorkspace();
+  const status = useAppStatus();
+  const liveAiUnavailable = status.data?.live_ai_available === false;
   // Re-opened from History "Customize" → land directly in the matching mode.
   const hydrate = useGenerateStore((s) => s.hydrate);
   const [mode, setMode] = useState<Mode>(
@@ -74,6 +78,21 @@ export function GeneratePage() {
           })}
         </div>
       </header>
+
+      {liveAiUnavailable && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-border bg-surface-variant/50 p-4"
+        >
+          <PauseCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+          <p className="text-sm text-foreground">
+            {LIVE_AI_PAUSED_COPY}{" "}
+            <Link to="/examples" className="font-medium underline underline-offset-2">
+              Browse the ready-made examples
+            </Link>
+          </p>
+        </div>
+      )}
 
       {mode === "post" && <PostPackMode />}
       {mode === "text" && <TextMode />}

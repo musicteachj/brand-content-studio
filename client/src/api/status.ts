@@ -16,6 +16,9 @@ export interface AppStatus {
 export const LIVE_AI_PAUSED_COPY =
   "Live generation is paused right now. Browse the ready-made examples to see what Folio makes.";
 
+/** The server's DEMO_ENDED_COPY, shown on the start page after a demo session's 401. */
+export const DEMO_ENDED_COPY = "Your demo session ended. Start a new one any time.";
+
 export const appStatusQuery = {
   queryKey: ["app-status"],
   queryFn: async () => (await api.get<AppStatus>("/status")).data,

@@ -5,8 +5,8 @@ import { http, HttpResponse } from "msw";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App";
-import { appStatusQuery, LIVE_AI_PAUSED_COPY, type AppStatus } from "@/api/status";
-import { useAuthStore, type AuthUser } from "@/stores/auth";
+import { appStatusQuery, DEMO_ENDED_COPY, LIVE_AI_PAUSED_COPY, type AppStatus } from "@/api/status";
+import { endSessionOn401, useAuthStore, type AuthUser } from "@/stores/auth";
 import { setupMswServer } from "@/test/msw/lifecycle";
 import { server } from "@/test/msw/server";
 
@@ -66,6 +66,38 @@ describe("StartPage", () => {
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     // Nothing is checked until the visitor asks for the live demo.
     expect(turnstileCalls).toHaveLength(0);
+  });
+
+  it("a 401 logs out and shows the demo ended banner", async () => {
+    useAuthStore.getState().setSession("t", {
+      id: "d1",
+      email: "demo@folio.studio",
+      full_name: "Demo Visitor",
+      is_demo: true,
+    });
+    useAuthStore.getState().logout("ended");
+    renderApp();
+    expect(await screen.findByRole("status")).toHaveTextContent(DEMO_ENDED_COPY);
+    expect(screen.getByRole("button", { name: "Try it live" })).toBeInTheDocument();
+  });
+
+  it("keeps the demo ended banner after a second 401", async () => {
+    useAuthStore.getState().setSession("t", {
+      id: "d1",
+      email: "demo@folio.studio",
+      full_name: "Demo Visitor",
+      is_demo: true,
+    });
+    endSessionOn401();
+    endSessionOn401();
+    renderApp();
+    expect(await screen.findByRole("status")).toHaveTextContent(DEMO_ENDED_COPY);
+  });
+
+  it("shows no banner on a plain visit", async () => {
+    renderApp();
+    await screen.findByRole("button", { name: "Try it live" });
+    expect(screen.queryByText(DEMO_ENDED_COPY)).not.toBeInTheDocument();
   });
 
   it("shows the studio in four described screenshots", async () => {

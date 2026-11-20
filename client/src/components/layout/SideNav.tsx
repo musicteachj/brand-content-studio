@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 
@@ -57,6 +58,18 @@ export function SideNav() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={user?.is_demo ? undefined : () => logout()}
+      aria-label="Sign out"
+      title={collapsed ? "Sign out" : undefined}
+      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <LogOut className="h-[18px] w-[18px]" aria-hidden />
+    </button>
+  );
 
   return (
     <aside
@@ -109,15 +122,18 @@ export function SideNav() {
               {user?.is_demo && <span className="mt-0.5 eyebrow">Demo session</span>}
             </div>
           )}
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Sign out"
-            title={collapsed ? "Sign out" : undefined}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <LogOut className="h-[18px] w-[18px]" aria-hidden />
-          </button>
+          {user?.is_demo ? (
+            <ConfirmDialog
+              trigger={signOutButton}
+              title="End your demo?"
+              description="Signing out ends this demo. Your work stays private and is removed after 24 hours."
+              confirmLabel="End demo"
+              onConfirm={async () => logout()}
+              errorFallback="Couldn’t end the demo. Try again."
+            />
+          ) : (
+            signOutButton
+          )}
         </div>
 
         <button

@@ -12,8 +12,9 @@ interface S {
   text: string;
   gid: string | null;
   error: string | null;
+  errorCode: string | null;
 }
-const INITIAL: S = { status: "idle", text: "", gid: null, error: null };
+const INITIAL: S = { status: "idle", text: "", gid: null, error: null, errorCode: null };
 type Meta = { generation_id: string };
 type Body = { brief: string };
 

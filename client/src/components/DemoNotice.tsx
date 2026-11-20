@@ -1,6 +1,6 @@
 import { Lock } from "lucide-react";
 
-/** Explains why controls are disabled for the seeded demo user. Shown wherever
+/** Explains why controls are disabled for a demo visitor. Shown wherever
  *  the demo is read-only (Assets, Settings) so a disabled button is never
  *  unexplained. */
 export function DemoNotice({ message }: { message?: string }) {
@@ -9,7 +9,7 @@ export function DemoNotice({ message }: { message?: string }) {
       <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       <p className="text-sm text-muted-foreground">
         {message ??
-          "You're exploring as a demo, so this area is read-only to keep the seeded Verdure workspace intact. Generating posts, cards, and documents still works."}
+          "You're exploring a private demo. Brand settings and assets are read-only so every visitor sees the same sample brand. Generating posts, cards, and documents still works, and your work is removed after 24 hours."}
       </p>
     </div>
   );

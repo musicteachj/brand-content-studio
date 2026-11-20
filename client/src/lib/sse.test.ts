@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFrames, STREAM_INACTIVITY_MS } from "./sse";
+import { useAuthStore } from "@/stores/auth";
+import { readFrames, STREAM_INACTIVITY_MS, streamTextGeneration } from "./sse";
 
 type Reader = ReadableStreamDefaultReader<Uint8Array>;
 type ReadResult = ReadableStreamReadResult<Uint8Array>;
@@ -40,7 +41,7 @@ describe("readFrames", () => {
     };
     const onError = vi.fn();
     await readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
-    expect(onError).toHaveBeenCalledWith("Generation failed.");
+    expect(onError).toHaveBeenCalledWith("Generation failed.", undefined);
   });
 
   it("ignores heartbeat comments and keeps the stream alive", async () => {
@@ -79,5 +80,68 @@ describe("readFrames", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(reader.cancel).not.toHaveBeenCalled();
     expect(onText.mock.calls).toEqual([["Hello "], ["world"]]);
+  });
+});
+
+describe("stream errors", () => {
+  it("passes the error code from an error frame", async () => {
+    const frame = new TextEncoder().encode(
+      'data: {"error": "Paused.", "code": "live_ai_paused"}\n\n',
+    );
+    let sent = false;
+    const reader = {
+      read: (): Promise<ReadResult> =>
+        sent
+          ? Promise.resolve({ done: true, value: undefined })
+          : ((sent = true), Promise.resolve({ done: false, value: frame })),
+      cancel: vi.fn(),
+      releaseLock: vi.fn(),
+    };
+    const onError = vi.fn();
+    await readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
+    expect(onError).toHaveBeenCalledWith("Paused.", "live_ai_paused");
+  });
+
+  it("passes the code from a non-OK response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ detail: "Slow down.", code: "rate_limited" }, { status: 429 }),
+      ),
+    );
+    const onError = vi.fn();
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      {
+        onText: vi.fn(),
+        onMeta: vi.fn(),
+        onError,
+      },
+    );
+    expect(onError).toHaveBeenCalledWith("Slow down.", "rate_limited");
+    vi.unstubAllGlobals();
+  });
+
+  it("a 401 on a stream ends the demo session", async () => {
+    useAuthStore
+      .getState()
+      .setSession("t", { id: "d1", email: "d@x.io", full_name: "D", is_demo: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ detail: "ended", code: "demo_ended" }, { status: 401 })),
+    );
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      {
+        onText: vi.fn(),
+        onMeta: vi.fn(),
+        onError: vi.fn(),
+      },
+    );
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().endedReason).toBe("ended");
+    vi.unstubAllGlobals();
   });
 });
