@@ -4,7 +4,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+// The locked-SVG hook and the rasterizer are stubbed so a test can put the
+// preview into any export state without running Satori or resvg.
+const exportState = vi.hoisted(() => ({
+  svg: { svg: null as string | null, error: null as string | null, loading: false },
+  pngError: null as unknown,
+}));
+vi.mock("@/features/generate/useCardExport", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/generate/useCardExport")>();
+  return {
+    ...actual,
+    useCardSvg: () => exportState.svg,
+    svgToPng: async () => {
+      if (exportState.pngError) throw exportState.pngError;
+      return new Blob(["png"], { type: "image/png" });
+    },
+  };
+});
+
 import { CardPreview } from "./CardPreview";
+import { CARD_EXPORT_FAILED_COPY, CardExportError } from "./cardExportError";
 import { makeBrandProfile } from "@/test/factories";
 
 let container: HTMLDivElement;
@@ -50,6 +69,8 @@ function buttonWith(label: string): HTMLButtonElement | undefined {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  exportState.svg = { svg: null, error: null, loading: false };
+  exportState.pngError = null;
 });
 
 describe("CardPreview — remove image (ARCH-04)", () => {
@@ -66,5 +87,34 @@ describe("CardPreview — remove image (ARCH-04)", () => {
     expect(buttonWith("remove")).toBeUndefined();
     // ...but still offers to add one.
     expect(buttonWith("add an image")).toBeTruthy();
+  });
+});
+
+describe("CardPreview: export errors read plainly", () => {
+  function alerts(): string[] {
+    return [...container.querySelectorAll('[role="alert"]')].map((el) => el.textContent ?? "");
+  }
+
+  it("shows the locked-SVG error next to the disabled Export button", () => {
+    exportState.svg = { svg: null, error: CARD_EXPORT_FAILED_COPY, loading: false };
+    render();
+    expect(buttonWith("export png")?.disabled).toBe(true);
+    expect(alerts()).toContain(CARD_EXPORT_FAILED_COPY);
+  });
+
+  it("maps a raw export failure to the plain constant", async () => {
+    exportState.svg = { svg: "<svg/>", error: null, loading: false };
+    exportState.pngError = new Error("Aborted(CompileError: WebAssembly.instantiate())");
+    render();
+    await act(async () => buttonWith("export png")!.click());
+    expect(alerts()).toEqual([CARD_EXPORT_FAILED_COPY]);
+  });
+
+  it("keeps a curated export message", async () => {
+    exportState.svg = { svg: "<svg/>", error: null, loading: false };
+    exportState.pngError = new CardExportError("Could not load the workspace brand fonts.");
+    render();
+    await act(async () => buttonWith("export png")!.click());
+    expect(alerts()).toEqual(["Could not load the workspace brand fonts."]);
   });
 });

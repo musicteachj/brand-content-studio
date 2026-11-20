@@ -145,8 +145,14 @@ jobs:
         # As production runs it, with live AI off (a zero budget) and Cloudflare's
         # always-pass Turnstile test keys (allowed because APP_ORIGIN is loopback).
         # No AI key at all: the startup seed restores the demo from its fixtures.
+        # Hardened like the ECS task (docs/DEPLOY.md): read-only root filesystem with a
+        # /tmp tmpfs, no capabilities, no privilege escalation. The two data directories
+        # get volumes, as in production (Docker gives a new volume the image directory's
+        # owner, uid 10001), or the app's startup write check refuses to boot.
         run: |
           docker run -d --name bcs --network host \
+            --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -v /app/storage -v /app/chroma \
             -e MONGODB_URL=mongodb://localhost:27017 \
             -e JWT_SECRET_KEY=ci-test-secret-not-a-real-key-000000 \
             -e APP_ORIGIN=http://localhost:8000 \
@@ -196,6 +202,18 @@ jobs:
             || { echo "no enforcing Content-Security-Policy on the SPA" >&2; exit 1; }
           echo "$csp" | grep -q "https://challenges.cloudflare.com" \
             || { echo "the CSP does not allow Turnstile (https://challenges.cloudflare.com)" >&2; exit 1; }
+      - name: Card export's harfbuzz wasm ships as a served asset
+        # Satori's text shaper (harfbuzz) loads its wasm by URL. src/lib/harfbuzz.ts
+        # points it at a hashed /assets/hb-<hash>.wasm; without that it fetched a bare
+        # hb.wasm, got index.html back, and every card PNG export failed.
+        run: |
+          wasm=$(docker exec bcs sh -c 'cat /app/dist/assets/*.js' \
+            | grep -oE '/assets/hb-[A-Za-z0-9_-]+\.wasm' | sort -u || true)
+          n=$(printf '%s' "$wasm" | grep -c . || true)
+          test "$n" = 1 || { echo "expected one /assets/hb-*.wasm in the built JS, found $n: $wasm" >&2; exit 1; }
+          type=$(curl -sf -o /dev/null -w '%{content_type}' "http://127.0.0.1:8000$wasm")
+          echo "$wasm -> $type"
+          test "$type" = application/wasm || { echo "harfbuzz wasm served as $type" >&2; exit 1; }
       - name: Container logs
         if: failure()
         run: docker logs bcs || true

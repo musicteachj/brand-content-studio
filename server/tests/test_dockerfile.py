@@ -61,8 +61,10 @@ def test_the_image_checks_liveness_and_sets_the_data_paths():
     assert env["ENVIRONMENT"] == "production"
 
     # Both data directories exist in the image, owned by the runtime uid, so a new named
-    # volume mounted there starts with that owner.
+    # volume mounted there starts with that owner. Only those two: the app code stays
+    # root-owned, so the runtime user can't rewrite it.
     assert re.search(r"mkdir -p /app/storage /app/chroma", text)
     assert re.search(r"useradd [^\n]*--uid 10001", text)
-    assert "chown -R app:app /app" in text
+    assert "chown app:app /app/storage /app/chroma" in text
+    assert "chown -R" not in text
     assert re.search(r"^USER app$", text, re.MULTILINE)

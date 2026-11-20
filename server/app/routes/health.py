@@ -1,12 +1,12 @@
 """Liveness and readiness.
 
 - `GET /api/health/live`: the process is up and serving. It never touches a database,
-  so a Mongo outage can't get a running container restarted (the image's HEALTHCHECK
-  probes this one).
+  so a Mongo outage can't get a running container restarted or pulled from the load
+  balancer (the image's HEALTHCHECK and the ALB target health check both probe this one).
 - `GET /api/health`: readiness. Mongo answers a ping, the vector store answers, and,
   when the seed runs at startup, the seed succeeded. Each check gets about two seconds;
-  any failure is a 503 with the same keys, so a load balancer stops sending visitors
-  to an instance that can't serve them.
+  any failure is a 503 with the same keys, so a deploy smoke test catches an instance
+  that can't serve visitors (docs/DEPLOY.md).
 
 Both stay under `/api`: the SPA's catch-all (spa.py) owns every other path."""
 import asyncio

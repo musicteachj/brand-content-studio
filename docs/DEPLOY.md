@@ -74,7 +74,7 @@ The job deletes visitor files strictly: a file that fails to delete keeps its re
 - [ ] `APP_ORIGIN` is the real https origin. Production accepts Turnstile test keys only when `APP_ORIGIN` is a loopback origin, so a wrong `APP_ORIGIN` could let the bot check pass with the public dummy token.
 - [ ] `FORWARDED_ALLOW_IPS` is the VPC CIDR (never `*` or a `/0` network). A `docker run` of the image without it refuses to boot, by design.
 - [ ] Exactly one Folio task runs, with stop-then-start deploys. Chroma is in-process, so two copies must never share the data directory.
-- [ ] The task definition uses a read-only root filesystem with a `/tmp` tmpfs. The image currently leaves `/app` owned by the app user, so the read-only root filesystem is what protects the code.
+- [ ] The task definition uses a read-only root filesystem with a `/tmp` tmpfs (defense in depth: the app code is already root-owned in the image, and CI boots the image read-only).
 - [ ] The production database starts empty; the seed fills it at startup, for free.
 - [ ] The Anthropic Folio workspace and the OpenAI project have their own spend limits, and real Turnstile keys are in SSM.
 - [ ] After a deploy, the smoke tests pass: `GET /` 200, `GET /api/health` 200, `POST /api/auth/login` 404.
