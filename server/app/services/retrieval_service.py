@@ -11,7 +11,9 @@ import time
 from dataclasses import dataclass, field
 
 from app.config import settings
+from app.rag.embeddings import embed_metered
 from app.rag.vector_store import RetrievedChunk, VectorStore
+from app.services.ai_meter import MeteredLine
 
 PINNED_KINDS = ["voice", "pillars"]
 # Voice + pillars are small, curated docs that must *both* always be injected
@@ -59,14 +61,20 @@ def _meta_item(chunk: RetrievedChunk, pinned: bool) -> dict:
     }
 
 
-async def retrieve(store: VectorStore, namespace: str, query: str, k: int = 6) -> RetrievalResult:
+async def retrieve(
+    store: VectorStore, namespace: str, query: str, k: int = 6, *, line: MeteredLine
+) -> RetrievalResult:
     start = time.perf_counter()
 
     # The pinned fetch and the semantic query are independent — overlap them so
     # the embedding round-trip doesn't add to time-to-first-token.
+    async def _semantic() -> list[RetrievedChunk]:
+        (vector,) = await embed_metered([query], line=line)
+        return await store.query(namespace, query, vector, k=k)
+
     fundamentals, semantic = await asyncio.gather(
         store.get_by_kinds(namespace, PINNED_KINDS, limit=PINNED_LIMIT),
-        store.query(namespace, query, k=k),
+        _semantic(),
     )
 
     # Pinned fundamentals first, in the store's order (deterministic — not set

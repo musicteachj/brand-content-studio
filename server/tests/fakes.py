@@ -36,19 +36,50 @@ def _tokens(text: str) -> set[str]:
     return set(_WORD.findall(text.lower()))
 
 
+class FakeEmbedder:
+    """Drop-in for the OpenAI embedder: one deterministic 8-float vector per text and a
+    token count of `len // 4` per text. Records every call so a test can assert none ran."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def embed_with_usage(self, texts: list[str]) -> tuple[list[list[float]], int]:
+        self.calls.append(list(texts))
+        vectors = [[float((len(t) + i) % 7) / 7 for i in range(8)] for t in texts]
+        return vectors, sum(len(t) // 4 for t in texts)
+
+
+class NullLine:
+    """A ledger line that records nothing, for tests of pure retrieval that need a `line`."""
+
+    def mark_started(self) -> None: ...
+
+    async def settle_tokens(self, tokens: int) -> None: ...
+
+    async def settle_unbilled(self, outcome: str) -> None: ...
+
+
 class FakeVectorStore:
     """In-memory VectorStore: {namespace: {chunk_id: Chunk}}."""
 
     def __init__(self) -> None:
         self._data: dict[str, dict[str, Chunk]] = {}
 
-    async def upsert_chunks(self, workspace_id: str, chunks: list[Chunk]) -> int:
+    async def upsert_chunks(
+        self, workspace_id: str, chunks: list[Chunk], embeddings: list[list[float]] | None = None
+    ) -> int:
         ns = self._data.setdefault(workspace_id, {})
         for c in chunks:
             ns[c["id"]] = c
         return len(chunks)
 
-    async def query(self, workspace_id: str, query: str, k: int = 6) -> list[RetrievedChunk]:
+    async def query(
+        self,
+        workspace_id: str,
+        query: str,
+        query_embedding: list[float] | None = None,
+        k: int = 6,
+    ) -> list[RetrievedChunk]:
         ns = self._data.get(workspace_id, {})
         q = _tokens(query)
         scored: list[RetrievedChunk] = []

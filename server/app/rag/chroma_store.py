@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 
 from app.config import settings
-from app.rag.embeddings import get_embedder
 from app.rag.vector_store import Chunk, RetrievedChunk
 
 
@@ -17,8 +16,8 @@ class ChromaStore:
         import chromadb
 
         self._client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
-        # Embedder is built lazily (get_embedder is cached) so booting / health
-        # checks don't require an OpenAI key — only ingest/query do.
+        # The store never embeds: callers pass vectors in, so every embedding call is
+        # metered by the caller (see app/rag/embeddings.py).
 
     def _collection(self, workspace_id: str):
         return self._client.get_or_create_collection(
@@ -26,13 +25,14 @@ class ChromaStore:
             metadata={"hnsw:space": "cosine"},
         )
 
-    async def upsert_chunks(self, workspace_id: str, chunks: list[Chunk]) -> int:
+    async def upsert_chunks(
+        self, workspace_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> int:
         if not chunks:
             return 0
 
         def _do() -> int:
             col = self._collection(workspace_id)
-            embeddings = get_embedder().embed_documents([c["text"] for c in chunks])
             col.upsert(
                 ids=[c["id"] for c in chunks],
                 documents=[c["text"] for c in chunks],
@@ -43,12 +43,13 @@ class ChromaStore:
 
         return await asyncio.to_thread(_do)
 
-    async def query(self, workspace_id: str, query: str, k: int = 6) -> list[RetrievedChunk]:
+    async def query(
+        self, workspace_id: str, query: str, query_embedding: list[float], k: int = 6
+    ) -> list[RetrievedChunk]:
         def _do() -> list[RetrievedChunk]:
             col = self._collection(workspace_id)
-            qvec = get_embedder().embed_query(query)
             res = col.query(
-                query_embeddings=[qvec],
+                query_embeddings=[query_embedding],
                 n_results=k,
                 include=["documents", "metadatas", "distances"],
             )

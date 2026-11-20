@@ -74,7 +74,13 @@ async def generate_document(
     archetype = payload.archetype.value
     workspace_oid = workspace["_id"]
     workspace_id = str(workspace_oid)
-    result = await retrieve_context_or_409(get_vector_store(), namespace, payload.brief)
+    result = await retrieve_context_or_409(
+        get_vector_store(),
+        namespace,
+        payload.brief,
+        db=db,
+        visitor_id=ledger_visitor_id(current_user),
+    )
     copy_system = document_prompt.build_copy_system(voice_summary)
     copy_user = document_prompt.build_copy_user(
         payload.brief, payload.archetype, payload.tone, result.chunks

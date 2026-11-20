@@ -12,7 +12,7 @@ import pytest_asyncio
 from app.rag.loaders import Section
 from app.services.ingestion_service import build_chunks
 from app.utils.ratelimit import limiter
-from tests.fakes import FakeVectorStore
+from tests.fakes import FakeEmbedder, FakeVectorStore
 
 # The suite reuses one process (and one in-memory limiter), so cumulative requests
 # to an endpoint would otherwise trip the SEC-02 limits. Disable rate limiting for
@@ -131,3 +131,11 @@ def _no_real_network(monkeypatch):
         httpx.AsyncClient, "send", _guarded(httpx.AsyncClient.send, transport_of)
     )
     monkeypatch.setattr(httpx.Client, "send", _guarded(httpx.Client.send, transport_of))
+
+
+@pytest.fixture(autouse=True)
+def fake_embedder(monkeypatch) -> FakeEmbedder:
+    """Every embedding in the suite goes to a deterministic fake, never OpenAI."""
+    embedder = FakeEmbedder()
+    monkeypatch.setattr("app.rag.embeddings.get_embedder", lambda: embedder)
+    return embedder

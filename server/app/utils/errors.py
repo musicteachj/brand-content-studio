@@ -28,6 +28,8 @@ RATE_LIMITED_COPY = (
     "Too many requests from your network just now. Wait a minute and try again, "
     "or browse the ready-made examples."
 )
+# Ingestion needs embeddings, and today's AI budget has none left.
+INGEST_PAUSED_COPY = "Ingestion is paused because today's AI budget is used up. Retry later."
 # The brief matched nothing in the workspace's corpus: a 409 before any model call.
 NO_CONTEXT_COPY = "No brand context could be retrieved for this brief."
 

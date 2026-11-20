@@ -16,10 +16,17 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import settings
+from app.rag.embeddings import embed_metered
 from app.rag.loaders import load_sections
 from app.rag.vector_store import get_vector_store
+from app.services.ai_meter import embedding_line, reserve_action
 from app.services.ingestion_service import build_chunks
-from app.services.storage_service import build_image_key, build_storage_key, build_template_key, get_storage
+from app.services.storage_service import (
+    build_image_key,
+    build_storage_key,
+    build_template_key,
+    get_storage,
+)
 from app.services.template_service import discover_placeholders
 from app.utils.security import get_password_hash
 
@@ -139,7 +146,11 @@ async def _ingest_corpus(db, workspace: dict) -> None:
             filename=filename,
             sections=sections,
         )
-        count = await store.upsert_chunks(namespace, chunks)
+        texts = [c["text"] for c in chunks]
+        corpus_call = await reserve_action(db, [embedding_line("seed_corpus", texts)], visitor_id=None)
+        async with corpus_call:
+            vectors = await embed_metered(texts, line=corpus_call.lines[0])
+        count = await store.upsert_chunks(namespace, chunks, vectors)
         await db.assets.insert_one(
             {
                 "_id": asset_oid,

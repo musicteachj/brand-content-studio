@@ -30,8 +30,18 @@ class RetrievedChunk(TypedDict):
 
 @runtime_checkable
 class VectorStore(Protocol):
-    async def upsert_chunks(self, workspace_id: str, chunks: list[Chunk]) -> int: ...
-    async def query(self, workspace_id: str, query: str, k: int = 6) -> list[RetrievedChunk]: ...
+    async def upsert_chunks(
+        self, workspace_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> int:
+        """Store `chunks` with their precomputed vectors (stores never embed)."""
+        ...
+
+    async def query(
+        self, workspace_id: str, query: str, query_embedding: list[float], k: int = 6
+    ) -> list[RetrievedChunk]:
+        """Nearest chunks to `query_embedding`. `query` is the text it came from."""
+        ...
+
     async def get_by_kinds(
         self, workspace_id: str, kinds: list[str], limit: int = 8
     ) -> list[RetrievedChunk]:

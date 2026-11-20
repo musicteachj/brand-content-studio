@@ -9,6 +9,7 @@ from app.database import get_database
 from app.models.user import UserInDB
 from app.rag.vector_store import VectorStore
 from app.services import retrieval_service
+from app.services.ai_meter import embedding_line, reserve_action
 from app.services.auth_service import get_user_by_id
 from app.utils.errors import NO_CONTEXT_COPY
 from app.utils.security import decode_access_token
@@ -75,11 +76,23 @@ def ensure_ready_corpus(workspace: dict) -> None:
 
 
 async def retrieve_context_or_409(
-    store: VectorStore, namespace: str, brief: str
+    store: VectorStore,
+    namespace: str,
+    brief: str,
+    *,
+    db: AsyncIOMotorDatabase,
+    visitor_id: str | None,
 ) -> retrieval_service.RetrievalResult:
     """Retrieve brand context for a generate route's brief, or refuse with a 409 before
-    anything is reserved or streamed: never generate with no context."""
-    result = await retrieval_service.retrieve(store, namespace, brief, k=6)
+    the model calls are reserved or anything is streamed: never generate with no context.
+
+    The brief's embedding is reserved and settled in its own ledger action first (a budget
+    refusal is a plain 429 here, before any OpenAI call)."""
+    retrieval = await reserve_action(
+        db, [embedding_line("retrieval", [brief])], visitor_id=visitor_id
+    )
+    async with retrieval:
+        result = await retrieval_service.retrieve(store, namespace, brief, k=6, line=retrieval.lines[0])
     if not result.chunks:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NO_CONTEXT_COPY)
     return result

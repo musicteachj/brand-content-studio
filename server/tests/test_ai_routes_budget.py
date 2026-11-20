@@ -145,6 +145,11 @@ async def _calls(db) -> list[dict]:
     return await db.ai_spend_calls.find({}).sort("created_at", 1).to_list(None)
 
 
+async def _model_calls(db) -> list[dict]:
+    """The ledger rows for Claude calls only (the brief's embedding is a separate row)."""
+    return [c for c in await _calls(db) if c["purpose"] != "retrieval"]
+
+
 PAID = ["text", "card", "post", "document", "ai-fill", "fill-from-document", "brand-extract", "exemplars"]
 
 
@@ -176,20 +181,27 @@ async def test_a_zero_budget_refuses_every_paid_route_before_any_call(client, te
 async def test_each_paid_route_settles_every_call(client, test_db, route, purposes):
     resp = await _post(client, route)
     assert resp.status_code == 200, resp.text
-    calls = await _calls(test_db)
+    all_calls = await _calls(test_db)
+    # The four Generate routes also embed the brief (its own action, settled from the fake's tokens).
+    retrievals = [c for c in all_calls if c["purpose"] == "retrieval"]
+    assert len(retrievals) == (1 if route in ("text", "card", "post", "document") else 0)
+    calls = [c for c in all_calls if c["purpose"] != "retrieval"]
     assert sorted(c["purpose"] for c in calls) == sorted(purposes)
-    for c in calls:
+    for c in all_calls:
         assert c["status"] == "settled" and c["outcome"] == "ok"
-        assert c["actual_micros"] == FAKE_CALL_MICROS
         assert c["visitor_id"] is None
+    for c in calls:
+        assert c["actual_micros"] == FAKE_CALL_MICROS
     day = await test_db.ai_spend_days.find_one({})
-    assert day["total_micros"] == FAKE_CALL_MICROS * len(purposes)
+    assert day["total_micros"] == FAKE_CALL_MICROS * len(purposes) + sum(
+        c["actual_micros"] for c in retrievals
+    )
 
 
 async def test_text_generation_settles_its_one_call(client, test_db):
     resp = await client.post(f"{WS}/generate/text", json=TEXT_BODY)
     assert resp.status_code == 200
-    calls = await _calls(test_db)
+    calls = await _model_calls(test_db)
     assert len(calls) == 1
     assert calls[0]["status"] == "settled" and calls[0]["actual_micros"] == FAKE_CALL_MICROS
 
@@ -197,7 +209,7 @@ async def test_text_generation_settles_its_one_call(client, test_db):
 async def test_card_generation_settles_both_calls(client, test_db):
     resp = await client.post(f"{WS}/generate/card", json=CARD_BODY)
     assert resp.status_code == 200
-    calls = await _calls(test_db)
+    calls = await _model_calls(test_db)
     assert [c["actual_micros"] for c in calls] == [FAKE_CALL_MICROS, FAKE_CALL_MICROS]
     assert all(c["status"] == "settled" for c in calls)
 
@@ -212,7 +224,8 @@ async def test_an_empty_copy_releases_the_unused_fields_call(client, test_db):
     fields = by_purpose["card_fields"]
     assert (fields["status"], fields["actual_micros"], fields["outcome"]) == ("settled", 0, "not_attempted")
     day = await test_db.ai_spend_days.find_one({})
-    assert day["total_micros"] == FAKE_CALL_MICROS
+    retrieval = next(c for c in await _calls(test_db) if c["purpose"] == "retrieval")
+    assert day["total_micros"] == FAKE_CALL_MICROS + retrieval["actual_micros"]
 
 
 async def test_the_fields_call_reserves_room_for_the_whole_copy(client, test_db):
@@ -227,7 +240,7 @@ async def test_the_fields_call_reserves_room_for_the_whole_copy(client, test_db)
 
 
 @pytest.mark.parametrize("route", ["text", "card", "post", "document"])
-async def test_no_retrieved_context_is_a_409_before_any_reservation(client, test_db, monkeypatch, route):
+async def test_no_retrieved_context_is_a_409_before_any_model_reservation(client, test_db, monkeypatch, route):
     empty = FakeVectorStore()
     monkeypatch.setattr(generate_mod, "get_vector_store", lambda: empty)
     monkeypatch.setattr(documents_mod, "get_vector_store", lambda: empty)
@@ -235,7 +248,8 @@ async def test_no_retrieved_context_is_a_409_before_any_reservation(client, test
     assert resp.status_code == 409
     assert resp.json()["detail"] == NO_CONTEXT_COPY
     assert client.fake_gen.calls == []
-    assert await _calls(test_db) == []
+    # Only the brief's embedding ran (settled); no Claude call was reserved.
+    assert [c["purpose"] for c in await _calls(test_db)] == ["retrieval"]
 
 
 async def test_brand_extract_is_closed_to_the_demo(client, test_db):

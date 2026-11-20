@@ -72,7 +72,13 @@ async def generate_text(
 ):
     ensure_ready_corpus(workspace)
     namespace, _, voice_summary, exemplar_guidance = build_brand_context(workspace)
-    result = await retrieve_context_or_409(get_vector_store(), namespace, payload.brief)
+    result = await retrieve_context_or_409(
+        get_vector_store(),
+        namespace,
+        payload.brief,
+        db=db,
+        visitor_id=ledger_visitor_id(current_user),
+    )
     system = text_post.build_system(voice_summary, exemplar_guidance)
     user = text_post.build_user(payload.brief, payload.tone, payload.length, result.chunks)
     action = await reserve_action(
@@ -125,7 +131,13 @@ async def generate_card(
     ensure_ready_corpus(workspace)
     namespace, _, voice_summary, exemplar_guidance = build_brand_context(workspace)
     template_id = payload.template_id.value
-    result = await retrieve_context_or_409(get_vector_store(), namespace, payload.brief)
+    result = await retrieve_context_or_409(
+        get_vector_store(),
+        namespace,
+        payload.brief,
+        db=db,
+        visitor_id=ledger_visitor_id(current_user),
+    )
     copy_system = image_card.build_copy_system(voice_summary, exemplar_guidance)
     copy_user = image_card.build_copy_user(
         payload.brief, payload.template_id, payload.tone, result.chunks
@@ -206,7 +218,13 @@ async def generate_post(
     ensure_ready_corpus(workspace)
     namespace, _, voice_summary, exemplar_guidance = build_brand_context(workspace)
     template_id = payload.template_id.value
-    result = await retrieve_context_or_409(get_vector_store(), namespace, payload.brief)
+    result = await retrieve_context_or_409(
+        get_vector_store(),
+        namespace,
+        payload.brief,
+        db=db,
+        visitor_id=ledger_visitor_id(current_user),
+    )
     caption_system = text_post.build_system(voice_summary, exemplar_guidance)
     caption_user = text_post.build_user(payload.brief, payload.tone, Length.medium, result.chunks)
     distill_system = post_pack.build_distill_system()
