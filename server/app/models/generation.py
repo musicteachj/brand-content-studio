@@ -229,6 +229,9 @@ class GenerationResponse(BaseModel):
     embedding_query_model: str
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # A ready-made example: readable by everyone, edited or deleted by no one. A visitor's
+    # session ID and expiry stay on the document and are never returned.
+    is_example: bool = False
 
 
 class GenerationPage(BaseModel):

@@ -52,6 +52,13 @@ async def ensure_indexes() -> None:
     await database.assets.create_index([("workspace_id", 1), ("ingestion_status", 1)])
     await database.generations.create_index([("workspace_id", 1), ("created_at", -1)])
     await database.generations.create_index([("workspace_id", 1), ("type", 1)])
+    # A visitor's History: their own session's work, newest first.
+    await database.generations.create_index(
+        [("workspace_id", 1), ("session_id", 1), ("created_at", -1)]
+    )
+    # The cleanup job finds expired visitor work by expiry (not a TTL index: the job
+    # removes each generation's files before its record).
+    await database.generations.create_index("expires_at")
     # Only the old quota count used this; drop it where it still exists.
     with contextlib.suppress(OperationFailure):
         await database.generations.drop_index("owner_id_1_created_at_-1")

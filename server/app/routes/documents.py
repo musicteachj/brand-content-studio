@@ -38,6 +38,7 @@ from app.utils.dependencies import (
     ensure_ready_corpus,
     get_current_user,
     get_workspace_or_404,
+    history_scope,
     ledger_visitor_id,
     retrieve_context_or_409,
 )
@@ -160,6 +161,8 @@ async def generate_document(
                 retrieved_chunk_ids=result.chunk_ids,
                 retrieval_meta=result.meta,
                 gen_id=generation_oid,
+                session_id=current_user.session_id,
+                expires_at=current_user.session_expires_at,
             )
 
             yield {
@@ -182,15 +185,19 @@ async def download_document(
     generation_id: str,
     fmt: str,
     workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Download a generated document file. Ownership is enforced by
-    `get_workspace_or_404`; the storage key is rebuilt server-side, so a tampered
-    stored key can never widen access (the path-traversal guard backs it up)."""
+    `get_workspace_or_404`, and a demo visitor reaches only their own session's documents
+    and the examples (another visitor's is a 404); the storage key is rebuilt server-side,
+    so a tampered stored key can never widen access (the path-traversal guard backs it up)."""
     if fmt not in _DOC_MEDIA:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown format.")
 
-    doc = await generations_service.get_generation(db, workspace["_id"], generation_id)
+    doc = await generations_service.get_generation(
+        db, workspace["_id"], generation_id, session_id=history_scope(current_user)
+    )
     if not doc or doc.get("type") != "document":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     formats = (doc.get("output") or {}).get("formats") or {}

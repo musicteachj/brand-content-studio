@@ -35,6 +35,7 @@ export function makeGeneration(overrides: Partial<Generation> = {}): Generation 
     embedding_query_model: "text-embedding-test",
     created_at: null,
     updated_at: null,
+    is_example: false,
     ...overrides,
   };
 }

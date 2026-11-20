@@ -68,7 +68,9 @@ class StorageBackend(Protocol):
     async def read(self, key: str) -> bytes: ...
     def local_path(self, key: str) -> str: ...  # for sync parsers (pdfplumber)
     async def delete(self, key: str) -> None: ...
-    async def delete_prefix(self, prefix: str) -> None: ...
+    # `strict=True` raises when anything under the prefix couldn't be removed; the default
+    # is best effort (errors ignored), for request paths where a leftover file is harmless.
+    async def delete_prefix(self, prefix: str, *, strict: bool = False) -> None: ...
 
 
 class LocalStorage:
@@ -100,11 +102,19 @@ class LocalStorage:
         except ValueError:
             pass
 
-    async def delete_prefix(self, prefix: str) -> None:
+    async def delete_prefix(self, prefix: str, *, strict: bool = False) -> None:
         base = self._resolve(prefix)
-        if base.is_dir():
-            # Off the event loop: a generation delete now does this on the request path.
-            await asyncio.to_thread(shutil.rmtree, base, True)
+        if not strict:
+            if base.is_dir():
+                # Off the event loop: a generation delete now does this on the request path.
+                await asyncio.to_thread(shutil.rmtree, base, True)
+            return
+        # Strict (the cleanup job): a failed removal raises, and so does anything still
+        # there afterward, so the caller keeps the record that points at these files.
+        if base.exists():
+            await asyncio.to_thread(shutil.rmtree, base)
+        if base.exists():
+            raise OSError(f"Storage prefix still present after delete: {prefix!r}")
 
 
 @lru_cache(maxsize=1)

@@ -110,6 +110,8 @@ async def generate_text(
                 output=output,
                 retrieved_chunk_ids=result.chunk_ids,
                 retrieval_meta=result.meta,
+                session_id=current_user.session_id,
+                expires_at=current_user.session_expires_at,
             )
             yield {"meta": {"generation_id": str(doc["_id"]), "retrieval": result.envelope()}}
         finally:
@@ -191,6 +193,8 @@ async def generate_card(
                 output=output,
                 retrieved_chunk_ids=result.chunk_ids,
                 retrieval_meta=result.meta,
+                session_id=current_user.session_id,
+                expires_at=current_user.session_expires_at,
             )
             yield {
                 "meta": {
@@ -282,6 +286,8 @@ async def generate_post(
                 output=output,
                 retrieved_chunk_ids=result.chunk_ids,
                 retrieval_meta=result.meta,
+                session_id=current_user.session_id,
+                expires_at=current_user.session_expires_at,
             )
             yield {
                 "meta": {

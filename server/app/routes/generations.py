@@ -1,4 +1,9 @@
-"""Content history routes: list (with type filter), get one, delete."""
+"""Content history routes: list (with type filter), count, get one, patch, delete.
+
+Every route is scoped by `history_scope`: the owner reaches the whole workspace, a demo
+visitor only their own session's work plus the ready-made examples. Another visitor's
+generation is a 404, so its existence never leaks; an example is a 403 on PATCH and
+DELETE for everyone, the owner included."""
 from __future__ import annotations
 
 import logging
@@ -14,9 +19,11 @@ from app.models.generation import (
     GenerationResponse,
     GenerationUpdate,
 )
+from app.models.user import UserInDB
 from app.services import generations_service
 from app.services.storage_service import build_document_prefix, get_storage
-from app.utils.dependencies import get_workspace_or_404, require_not_demo
+from app.utils.dependencies import get_current_user, get_workspace_or_404, history_scope
+from app.utils.errors import ExampleReadOnly
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -31,10 +38,16 @@ async def list_generations(
     limit: int = Query(24, ge=1, le=100),
     offset: int = Query(0, ge=0),
     workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     items, next_offset = await generations_service.list_generations(
-        db, workspace["_id"], type, limit=limit, offset=offset
+        db,
+        workspace["_id"],
+        type,
+        session_id=history_scope(current_user),
+        limit=limit,
+        offset=offset,
     )
     return GenerationPage(items=items, next_offset=next_offset)
 
@@ -42,18 +55,25 @@ async def list_generations(
 @router.get("/count", response_model=GenerationCount)
 async def count_generations(
     workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    return GenerationCount(count=await generations_service.count_generations(db, workspace["_id"]))
+    count = await generations_service.count_generations(
+        db, workspace["_id"], session_id=history_scope(current_user)
+    )
+    return GenerationCount(count=count)
 
 
 @router.get("/{generation_id}", response_model=GenerationResponse)
 async def get_generation(
     generation_id: str,
     workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    doc = await generations_service.get_generation(db, workspace["_id"], generation_id)
+    doc = await generations_service.get_generation(
+        db, workspace["_id"], generation_id, session_id=history_scope(current_user)
+    )
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
     return generations_service.to_response(doc)
@@ -64,11 +84,13 @@ async def update_generation(
     generation_id: str,
     payload: GenerationUpdate,
     workspace: dict = Depends(get_workspace_or_404),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Attach the selected card image (and, from Phase 1.5, inline field/template
-    edits) to a generation's `output`. Allowed for the demo user: these are the
-    user's own generations, not the protected seed corpus."""
+    edits) to a generation's `output`. Allowed for a demo visitor on their own
+    session's generations; an example is read-only for everyone."""
+    session_id = history_scope(current_user)
     patch = payload.model_dump(exclude_none=True)
     # An explicit null clears only the image ("Remove image", QA-07); a null for
     # any other field is ignored, so it can't wipe the template, copy, or accent.
@@ -79,9 +101,13 @@ async def update_generation(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update."
         )
-    existing = await generations_service.get_generation(db, workspace["_id"], generation_id)
+    existing = await generations_service.get_generation(
+        db, workspace["_id"], generation_id, session_id=session_id
+    )
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
+    if existing.get("is_example"):
+        raise ExampleReadOnly()
     # These fields are card-shaped (image/template/fields/accent). A `card` carries
     # them at the top of `output`; a `post_pack` nests its card under `output.card`.
     # Refuse anything else (text/document); merging would corrupt its shape.
@@ -110,7 +136,7 @@ async def update_generation(
                 detail="accent_hex must be one of the workspace's brand colors.",
             )
     doc = await generations_service.update_generation_output(
-        db, workspace["_id"], generation_id, patch, nested_key=nested_key
+        db, workspace["_id"], generation_id, patch, nested_key=nested_key, session_id=session_id
     )
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
@@ -121,10 +147,22 @@ async def update_generation(
 async def delete_generation(
     generation_id: str,
     workspace: dict = Depends(get_workspace_or_404),
-    _: object = Depends(require_not_demo),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
-    ok = await generations_service.delete_generation(db, workspace["_id"], generation_id)
+    """Delete a generation and its built files. A demo visitor may delete their own
+    session's work; an example is read-only for everyone (403)."""
+    session_id = history_scope(current_user)
+    existing = await generations_service.get_generation(
+        db, workspace["_id"], generation_id, session_id=session_id
+    )
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
+    if existing.get("is_example"):
+        raise ExampleReadOnly()
+    ok = await generations_service.delete_generation(
+        db, workspace["_id"], generation_id, session_id=session_id
+    )
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Generation not found")
     # Its built .docx/.pdf/.pptx go too (they used to stay in storage). Only after

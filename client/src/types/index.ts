@@ -291,6 +291,8 @@ export interface Generation {
   embedding_query_model: string;
   created_at: string | null;
   updated_at: string | null;
+  // A ready-made example: readable by everyone, edited or deleted by no one.
+  is_example: boolean;
 }
 
 // Phase 6 — paginated list envelopes ({items, next_offset}; null = exhausted).

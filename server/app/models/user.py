@@ -20,6 +20,9 @@ class UserInDB(User):
     # The visitor session a demo user's token belongs to, set by get_current_user from
     # the token's `sid`. Never stored on the user document.
     session_id: str | None = None
+    # That session's expiry, read with it; a visitor's generations carry it so the hourly
+    # cleanup removes them with the session.
+    session_expires_at: datetime | None = None
 
 
 class UserLogin(BaseModel):

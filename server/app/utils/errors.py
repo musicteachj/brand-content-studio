@@ -34,6 +34,7 @@ BOT_CHECK_UNAVAILABLE_COPY = (
     "The bot check isn't responding right now. Try again in a moment, or browse the "
     "ready-made examples."
 )
+EXAMPLE_READ_ONLY_COPY = "Examples are read-only. Generate your own to edit it."
 DEMO_NOT_READY_COPY = "The demo isn't ready yet. Try again in a minute."
 # Ingestion needs embeddings, and today's AI budget has none left.
 INGEST_PAUSED_COPY = "Ingestion is paused because today's AI budget is used up. Retry later."
@@ -124,3 +125,14 @@ class BotCheckUnavailable(UserFacingError):
 
     def __init__(self) -> None:
         super().__init__(BOT_CHECK_UNAVAILABLE_COPY)
+
+
+class ExampleReadOnly(UserFacingError):
+    """A ready-made example can be read by everyone but edited or deleted by no one, the
+    owner included: HTTP 403."""
+
+    status_code = 403
+    code = "example_read_only"
+
+    def __init__(self) -> None:
+        super().__init__(EXAMPLE_READ_ONLY_COPY)

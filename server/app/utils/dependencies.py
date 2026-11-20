@@ -49,6 +49,7 @@ async def get_current_user(
         if session is None or str(session.get("user_id")) != user.id:
             raise DemoEnded()
         user.session_id = sid
+        user.session_expires_at = session["expires_at"]
     return user
 
 
@@ -119,6 +120,17 @@ def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> User
             detail="This action is disabled in the demo. Sign in with your own account to modify workspaces.",
         )
     return current_user
+
+
+def history_scope(user: UserInDB) -> str | None:
+    """Whose generations a user may reach in the workspace: a demo visitor's own session
+    (plus the ready-made examples), or None for the owner, who sees the whole workspace.
+    A demo user without a session fails closed (`get_current_user` never lets one through)."""
+    if not user.is_demo:
+        return None
+    if not user.session_id:
+        raise DemoEnded()
+    return user.session_id
 
 
 def ledger_visitor_id(user: UserInDB) -> str | None:
