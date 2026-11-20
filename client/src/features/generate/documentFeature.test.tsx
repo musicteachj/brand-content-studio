@@ -8,7 +8,7 @@ vi.mock("@/lib/api", () => ({ api: { get } }));
 
 import { DeckPreview } from "./DeckPreview";
 import { DocumentPage } from "./DocumentPage";
-import { downloadDocumentFile } from "./documentDownload";
+import { downloadDocumentFile, workspaceDownloadUrl } from "./documentDownload";
 import type { DocumentModel } from "@/types";
 import { makeBrandProfile } from "@/test/factories";
 
@@ -115,7 +115,7 @@ describe("downloadDocumentFile", () => {
 
   it("pulls the file from the auth-gated download route — never /generate", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    await downloadDocumentFile("ws1", "gen1", "docx", "one-pager");
+    await downloadDocumentFile(workspaceDownloadUrl("ws1", "gen1"), "docx", "one-pager");
 
     expect(get).toHaveBeenCalledTimes(1);
     const [url, config] = get.mock.calls[0];

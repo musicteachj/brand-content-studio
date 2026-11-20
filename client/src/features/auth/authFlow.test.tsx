@@ -99,7 +99,7 @@ describe("auth flow", () => {
     expect(authHeader).toBe("Bearer new-token");
   });
 
-  it("a 401 from an authenticated request logs out and redirects to login", async () => {
+  it("a 401 from an authenticated request logs out and returns to the start page", async () => {
     useAuthStore.setState({
       token: "stale-token",
       isAuthenticated: true,
@@ -111,7 +111,7 @@ describe("auth flow", () => {
     withProviders(<App />, "/");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: "Try it live" })).toBeInTheDocument(),
     );
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
@@ -209,19 +209,17 @@ describe("auth flow", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
-  it("hides the password sign-in when the server says so", async () => {
+  it("sends visitors to the start page when password sign-in is closed", async () => {
     server.use(
       http.get("*/api/status", () =>
         HttpResponse.json<AppStatus>({ ...DEV_STATUS, password_login: false }),
       ),
     );
 
-    withProviders(<LoginPage />);
+    withProviders(<App />, "/login");
 
-    expect(
-      await screen.findByText(/explore the studio with a ready-made demo workspace\.$/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /explore as demo/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Try it live" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /explore as demo/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^sign in$/i })).not.toBeInTheDocument();

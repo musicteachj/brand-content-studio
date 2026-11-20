@@ -295,6 +295,21 @@ export interface Generation {
   is_example: boolean;
 }
 
+// GET /api/examples (public): the demo workspace's name, the part of its brand profile
+// the examples page shows, and the ready-made examples in display order.
+export interface ExampleBrand {
+  colors: BrandColor[];
+  fonts: BrandFonts;
+  accent_hex: string | null;
+  voice_summary: string | null;
+}
+
+export interface ExamplesResponse {
+  workspace_name: string;
+  brand: ExampleBrand;
+  items: Generation[];
+}
+
 // Phase 6 — paginated list envelopes ({items, next_offset}; null = exhausted).
 export interface GenerationPage {
   items: Generation[];

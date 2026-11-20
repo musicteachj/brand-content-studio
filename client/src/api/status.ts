@@ -11,6 +11,11 @@ export interface AppStatus {
   password_login: boolean;
 }
 
+/** The server's LIVE_AI_PAUSED_COPY (server/app/utils/errors.py), shown on the start page
+ *  before a visitor starts a demo while live generation is off or paused. */
+export const LIVE_AI_PAUSED_COPY =
+  "Live generation is paused right now. Browse the ready-made examples to see what Folio makes.";
+
 export const appStatusQuery = {
   queryKey: ["app-status"],
   queryFn: async () => (await api.get<AppStatus>("/status")).data,

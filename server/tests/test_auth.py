@@ -296,6 +296,18 @@ async def test_login_unknown_email_401(client):
     assert resp.status_code == 401
 
 
+@pytest.mark.asyncio
+async def test_login_refuses_the_demo_user_like_a_wrong_password(client, test_db):
+    # The demo is reached only through the Turnstile start, so the right password for the
+    # demo user is answered exactly as a wrong one: no token that /me would then refuse.
+    await _seed_user(test_db, email="demo@x.com", is_demo=True)
+    right = await client.post("/api/auth/login", json={"email": "demo@x.com", "password": _PASSWORD})
+    wrong = await client.post("/api/auth/login", json={"email": "demo@x.com", "password": "wrong"})
+    assert right.status_code == 401
+    assert right.json() == wrong.json() == {"detail": "Incorrect email or password"}
+    assert right.headers.get("www-authenticate") == "Bearer"
+
+
 # A demo start that passes the bot check (Cloudflare's test secret, answered locally).
 _DEMO_START = {"turnstile_token": DUMMY_TOKEN}
 

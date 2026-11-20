@@ -1,14 +1,18 @@
-import { useRef, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import { AlertCircle, ArrowRight } from "lucide-react";
 import { useAppStatus } from "@/api/status";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { PasswordSignInForm } from "./PasswordSignInForm";
 import { useAuthActions } from "./useAuthActions";
 
+/** The development sign-in page at /login. Visitors start on the start page (`/`); where
+ *  password sign-in is closed (production), this page sends them there. */
 export function LoginPage() {
+  const status = useAppStatus();
+  if (status.data && !status.data.password_login) return <Navigate to="/" replace />;
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <BrandPanel />
@@ -55,8 +59,6 @@ function BrandPanel() {
 
 function AuthPanel() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
   // useAuthActions drives the demo + password flows.
   const { loginDemo, loginPassword, pending, error } = useAuthActions();
@@ -81,8 +83,7 @@ function AuthPanel() {
     }
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function onPassword(email: string, password: string) {
     if (busy) return;
     try {
       await loginPassword(email, password);
@@ -142,44 +143,11 @@ function AuthPanel() {
         )}
 
         {passwordLogin && (
-          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@studio.com"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button
-              type="submit"
-              variant="secondary"
-              className="mt-1 w-full"
-              loading={pending === "password"}
-              disabled={busy}
-            >
-              Sign in
-            </Button>
-          </form>
+          <PasswordSignInForm
+            onSubmit={(email, password) => void onPassword(email, password)}
+            loading={pending === "password"}
+            disabled={busy}
+          />
         )}
       </div>
     </main>

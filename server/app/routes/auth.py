@@ -49,7 +49,10 @@ async def login(
     request: Request, credentials: UserLogin, db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     user_doc = await authenticate_user(db, credentials.email, credentials.password)
-    if not user_doc:
+    # The demo user is reached only through the bot-checked demo start, which gives it a
+    # visitor session. A password token for it would be refused at once (no session), so
+    # the right password is answered exactly as a wrong one, after the same hash check.
+    if not user_doc or user_doc.get("is_demo"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",

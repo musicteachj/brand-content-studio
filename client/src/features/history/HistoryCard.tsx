@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
 import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
 import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
+import type { DocumentDownloadUrl } from "@/features/generate/documentDownload";
 import type { BrandProfile, Generation } from "@/types";
 import { documentOutput, formatDate, postText } from "./historyOutputs";
 import { useGenerationActions } from "./useGenerationActions";
@@ -12,11 +13,18 @@ export function HistoryCard({
   brand,
   workspaceId,
   onOpen,
+  readOnly = false,
+  downloadUrl,
 }: {
   gen: Generation;
   brand: BrandProfile | null;
   workspaceId: string | null;
   onOpen: (opener: HTMLElement) => void;
+  /** A ready-made example: tagged "Example" in place of its date, with no edit or delete
+   *  (open its DetailDialog with `readOnly` too). Download and copy still work. */
+  readOnly?: boolean;
+  /** Where a document's formats download from (default: the workspace's authed route). */
+  downloadUrl?: DocumentDownloadUrl;
 }) {
   // Outer is a div (not a button) so the inline action buttons aren't nested
   // inside an interactive element. The content area is its own trigger button.
@@ -37,7 +45,13 @@ export function HistoryCard({
           <span className="rounded-sm bg-surface-variant px-1.5 py-0.5 eyebrow text-3xs">
             {isPost ? "post + card" : gen.type}
           </span>
-          <span className="ml-auto eyebrow">{formatDate(gen.created_at)}</span>
+          {readOnly ? (
+            <span className="ml-auto rounded-sm border border-border px-1.5 py-0.5 eyebrow text-3xs">
+              Example
+            </span>
+          ) : (
+            <span className="ml-auto eyebrow">{formatDate(gen.created_at)}</span>
+          )}
         </div>
         <p className="mt-3 line-clamp-2 text-sm font-medium text-foreground">{gen.brief}</p>
         {card && brand ? (
@@ -91,6 +105,7 @@ export function HistoryCard({
             workspaceId={workspaceId}
             generationId={gen.id}
             output={doc}
+            downloadUrl={downloadUrl}
             className="px-1"
           />
         ) : (

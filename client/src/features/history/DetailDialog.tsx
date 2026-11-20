@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { CardThumb } from "@/features/generate/cards/CardThumb";
 import { DocumentArtifact } from "@/features/generate/DocumentArtifact";
 import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
+import type { DocumentDownloadUrl } from "@/features/generate/documentDownload";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { useAuthStore } from "@/stores/auth";
 import { useGenerateStore } from "@/stores/generate";
@@ -22,6 +23,8 @@ export function DetailDialog({
   onClose,
   onDeleted,
   returnFocusTo,
+  readOnly = false,
+  downloadUrl,
 }: {
   gen: Generation | null;
   brand: BrandProfile | null;
@@ -31,6 +34,10 @@ export function DetailDialog({
   onDeleted?: () => void;
   /** Where focus goes on close; ignored if it's gone (deleted, or navigated away). */
   returnFocusTo?: RefObject<HTMLElement | null>;
+  /** A ready-made example: no Customize and no Delete, signed in or not. */
+  readOnly?: boolean;
+  /** Where a document's formats download from (default: the workspace's authed route). */
+  downloadUrl?: DocumentDownloadUrl;
 }) {
   const isDemo = useAuthStore((s) => s.user?.is_demo ?? false);
   const navigate = useNavigate();
@@ -126,10 +133,12 @@ export function DetailDialog({
             <div className="flex items-center gap-2">
               {card ? (
                 <>
-                  <Button variant="secondary" size="sm" onClick={customize} disabled={!brand}>
-                    <Sliders className="h-4 w-4" aria-hidden />
-                    Customize
-                  </Button>
+                  {!readOnly && (
+                    <Button variant="secondary" size="sm" onClick={customize} disabled={!brand}>
+                      <Sliders className="h-4 w-4" aria-hidden />
+                      Customize
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -152,7 +161,12 @@ export function DetailDialog({
                   )}
                 </>
               ) : doc ? (
-                <DocumentDownloadRow workspaceId={workspaceId} generationId={gen.id} output={doc} />
+                <DocumentDownloadRow
+                  workspaceId={workspaceId}
+                  generationId={gen.id}
+                  output={doc}
+                  downloadUrl={downloadUrl}
+                />
               ) : (
                 <Button variant="secondary" size="sm" onClick={copyText}>
                   {copied ? (
@@ -169,7 +183,7 @@ export function DetailDialog({
                 </span>
               )}
             </div>
-            {!isDemo && (
+            {!isDemo && !readOnly && (
               <ConfirmDialog
                 trigger={
                   <Button

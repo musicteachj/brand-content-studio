@@ -1,12 +1,17 @@
-// The multi-format download row under a generated document (Generate preview +
-// History). Each button pulls the pre-rendered file through the auth-gated route
-// with no model call. Per-format loading/error state lives here.
+// The multi-format download row under a generated document (Generate preview, History,
+// and the public examples). Each button pulls the pre-rendered file with no model call:
+// through the auth-gated workspace route by default, or from `downloadUrl` when given.
+// Per-format loading/error state lives here.
 import { useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
-import { downloadDocumentFile } from "@/features/generate/documentDownload";
+import {
+  downloadDocumentFile,
+  workspaceDownloadUrl,
+  type DocumentDownloadUrl,
+} from "@/features/generate/documentDownload";
 import type { DocumentFormat, DocumentOutput } from "@/types";
 
 const FORMAT_ORDER: DocumentFormat[] = ["docx", "pdf", "pptx"];
@@ -16,20 +21,30 @@ interface Props {
   workspaceId: string | null;
   generationId: string;
   output: DocumentOutput;
+  /** Where each format downloads from (default: the workspace's authed route). */
+  downloadUrl?: DocumentDownloadUrl;
   className?: string;
 }
 
-export function DocumentDownloadRow({ workspaceId, generationId, output, className }: Props) {
+export function DocumentDownloadRow({
+  workspaceId,
+  generationId,
+  output,
+  downloadUrl,
+  className,
+}: Props) {
   const [busy, setBusy] = useState<DocumentFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
   const available = FORMAT_ORDER.filter((f) => output.formats[f]);
+  const urlFor =
+    downloadUrl ?? (workspaceId ? workspaceDownloadUrl(workspaceId, generationId) : null);
 
   async function go(fmt: DocumentFormat) {
-    if (!workspaceId) return;
+    if (!urlFor) return;
     setBusy(fmt);
     setError(null);
     try {
-      await downloadDocumentFile(workspaceId, generationId, fmt, output.document.archetype);
+      await downloadDocumentFile(urlFor, fmt, output.document.archetype);
     } catch (err) {
       setError(apiErrorMessage(err, "Download failed."));
     } finally {
@@ -46,7 +61,7 @@ export function DocumentDownloadRow({ workspaceId, generationId, output, classNa
           size="sm"
           onClick={() => void go(fmt)}
           loading={busy === fmt}
-          disabled={!workspaceId || busy !== null}
+          disabled={!urlFor || busy !== null}
         >
           <Download className="h-4 w-4" aria-hidden />
           {FORMAT_LABEL[fmt]}
