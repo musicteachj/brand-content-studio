@@ -27,6 +27,7 @@ from app.routes import (
     workspaces,
 )
 from app.services.ai_clients import close_ai_clients
+from app.services.turnstile import close_turnstile_verifier
 from app.spa import mount_spa
 from app.utils.errors import RATE_LIMITED_COPY, UserFacingError
 from app.utils.ratelimit import limiter
@@ -36,8 +37,10 @@ logging.basicConfig(level=logging.INFO)
 
 # The SPA's Content-Security-Policy (known-gaps plan, step 2; DECISIONS #36),
 # tightened by a browser pass over every flow on the production build:
-# - script-src: the bundle only. 'wasm-unsafe-eval' lets WebAssembly compile
+# - script-src: the bundle, plus Cloudflare Turnstile's script (loaded only when a
+#   visitor presses "Explore as demo"). 'wasm-unsafe-eval' lets WebAssembly compile
 #   (resvg rasterizes card PNGs, satori lays them out); no eval, no inline script.
+# - frame-src: Turnstile's challenge runs in an iframe from the same host.
 # - style-src 'unsafe-inline': Radix dialogs inject a <style> element for scroll
 #   locking. React style props go through the CSSOM and don't need it.
 # - Card fonts come from jsDelivr (fetched as bytes, and loaded as FontFace URLs);
@@ -45,7 +48,8 @@ logging.basicConfig(level=logging.INFO)
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
-        "script-src 'self' 'wasm-unsafe-eval'",
+        "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com",
+        "frame-src https://challenges.cloudflare.com",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https://images.unsplash.com https://plus.unsplash.com",
         "font-src 'self' data: https://cdn.jsdelivr.net",
@@ -130,6 +134,7 @@ async def lifespan(app: FastAPI):
     yield
     await close_mongo_connection()
     await close_ai_clients()
+    await close_turnstile_verifier()
 
 
 _docs = api_docs_urls(settings.environment)
@@ -173,7 +178,7 @@ async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONRe
     content = {"detail": err.message}
     if err.code:
         content["code"] = err.code
-    return JSONResponse(status_code=err.status_code, content=content)
+    return JSONResponse(status_code=err.status_code, content=content, headers=err.headers)
 
 
 app.add_exception_handler(UserFacingError, _user_facing_error_handler)

@@ -2,15 +2,32 @@
 import ipaddress
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Final, Literal
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.services.ai_pricing import is_priced
 
 # The shipped placeholder. Signing with it in production would let anyone forge a
 # token for any user_id, so a production boot that still has it must fail closed.
 DEFAULT_JWT_SECRET = "CHANGE-THIS-IN-PRODUCTION"  # noqa: S105 — placeholder; rejected in prod below
 MIN_JWT_SECRET_LEN = 32
+
+# Cloudflare Turnstile's documented test values (developers.cloudflare.com/turnstile/
+# troubleshooting/testing/, re-checked 2026-11-20). The site key always passes; the
+# secrets pass, always fail, and answer "token already spent". They are answered
+# locally (app/services/turnstile.py), never by siteverify, and production refuses
+# them unless APP_ORIGIN is a loopback origin.
+TURNSTILE_TEST_SITE_KEY: Final = "1x00000000000000000000AA"
+TURNSTILE_PASS_SECRET: Final = "1x0000000000000000000000000000000AA"  # noqa: S105 (public test value)
+TURNSTILE_FAIL_SECRET: Final = "2x0000000000000000000000000000000AA"  # noqa: S105 (public test value)
+TURNSTILE_SPENT_SECRET: Final = "3x0000000000000000000000000000000AA"  # noqa: S105 (public test value)
+TURNSTILE_TEST_SECRETS: Final = frozenset(
+    {TURNSTILE_PASS_SECRET, TURNSTILE_FAIL_SECRET, TURNSTILE_SPENT_SECRET}
+)
+_LOOPBACK_HOSTS: Final = frozenset({"localhost", "127.0.0.1"})
 
 
 class Settings(BaseSettings):
@@ -29,6 +46,9 @@ class Settings(BaseSettings):
     # never passes it on the command line); this field only lets the production
     # check below see and vet the same value.
     forwarded_allow_ips: str = "127.0.0.1"
+    # Where visitors reach the app. Turnstile tokens must have been issued for its host,
+    # and production requires https here (unless it is a loopback origin).
+    app_origin: str = "http://localhost:5173"
 
     # MongoDB
     mongodb_url: SecretStr = SecretStr("mongodb://localhost:27017")  # may carry credentials
@@ -43,6 +63,13 @@ class Settings(BaseSettings):
     demo_email: str = "demo@folio.studio"
     demo_password: str = "demo-folio-2026"  # noqa: S105 — public demo credential, not a secret
     demo_full_name: str = "Demo User"
+
+    # Visitor demo starts: Cloudflare Turnstile keys (both blank outside production means
+    # Cloudflare's always-pass test pair) and per-IP start limits.
+    turnstile_site_key: str = ""
+    turnstile_secret_key: SecretStr = SecretStr("")
+    demo_starts_per_hour: int = 15
+    demo_starts_per_day: int = 50
 
     # Content-Security-Policy (known-gaps plan, step 2): "enforce" sends it,
     # "report-only" sends it as Content-Security-Policy-Report-Only (to ease off
@@ -124,6 +151,21 @@ class Settings(BaseSettings):
         return self
 
 
+def turnstile_keys(s: Settings) -> tuple[str, str]:
+    """The (site key, secret) the app uses. Both blank outside production gives
+    Cloudflare's always-pass test pair, so local development needs no Cloudflare account."""
+    site = s.turnstile_site_key.strip()
+    secret = s.turnstile_secret_key.get_secret_value().strip()
+    if not site and not secret and s.environment != "production":
+        return TURNSTILE_TEST_SITE_KEY, TURNSTILE_PASS_SECRET
+    return site, secret
+
+
+def _is_loopback_origin(origin: str) -> bool:
+    parts = urlsplit(origin)
+    return parts.scheme == "http" and parts.hostname in _LOOPBACK_HOSTS
+
+
 def validate_serving_settings(s: Settings) -> None:
     """Production-only checks on how the app is served, run once at the start of the
     lifespan. They live here and not in the import-time validator above so the hourly
@@ -154,6 +196,29 @@ def validate_serving_settings(s: Settings) -> None:
                 f"FORWARDED_ALLOW_IPS entry {entry!r} trusts every address; use the "
                 "load balancer's CIDR."
             )
+
+    loopback = _is_loopback_origin(s.app_origin)
+    parts = urlsplit(s.app_origin)
+    if not loopback and (parts.scheme != "https" or not parts.hostname):
+        raise ValueError(
+            "APP_ORIGIN must be the https origin visitors use (for example "
+            "https://folio.example.com); plain http is allowed only for a loopback origin."
+        )
+    site, secret = turnstile_keys(s)
+    if not site or not secret:
+        raise ValueError(
+            "TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY must both be set in production."
+        )
+    if (site == TURNSTILE_TEST_SITE_KEY or secret in TURNSTILE_TEST_SECRETS) and not loopback:
+        raise ValueError(
+            "The Turnstile test keys are allowed in production only when APP_ORIGIN is a "
+            "loopback origin (http://localhost or http://127.0.0.1); set the real keys."
+        )
+    if not is_priced(s.ai_model):
+        raise ValueError(
+            f"AI_MODEL {s.ai_model!r} has no price in ai_pricing, so the AI ledger could "
+            "not count its spend."
+        )
 
 
 settings = Settings()

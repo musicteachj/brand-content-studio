@@ -13,6 +13,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import secrets
 import struct
 from collections.abc import Mapping
 from datetime import datetime, timezone
@@ -33,7 +34,7 @@ from app.services.storage_service import (
     get_storage,
 )
 from app.services.template_service import discover_placeholders
-from app.utils.security import get_password_hash
+from app.utils.security import get_password_hash, verify_password
 
 CORPUS_DIR = Path(__file__).resolve().parent / "verdure_corpus"
 EMBEDDINGS_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "verdure_embeddings.json"
@@ -141,16 +142,38 @@ VERDURE_BRAND_PROFILE = {
 }
 
 
+def _demo_password_hash() -> str:
+    """The demo user's password hash. In production nobody signs in as the demo user
+    (password sign-in is closed and visitors start sessions instead), so it is the hash
+    of a random value that is thrown away: the public DEMO_PASSWORD opens nothing there."""
+    if settings.environment == "production":
+        return get_password_hash(secrets.token_urlsafe(32))
+    return get_password_hash(settings.demo_password)
+
+
 async def _ensure_demo_user(db) -> ObjectId:
     demo = await db.users.find_one({"is_demo": True})
     if demo:
         print(f"✓ demo user exists ({demo['email']})")
+        if settings.environment == "production" and verify_password(
+            settings.demo_password, demo["hashed_password"]
+        ):
+            await db.users.update_one(
+                {"_id": demo["_id"]},
+                {
+                    "$set": {
+                        "hashed_password": _demo_password_hash(),
+                        "updated_at": datetime.now(timezone.utc),
+                    }
+                },
+            )
+            print("+ demo user's public password replaced with an unusable one")
         return demo["_id"]
     now = datetime.now(timezone.utc)
     res = await db.users.insert_one(
         {
             "email": settings.demo_email,
-            "hashed_password": get_password_hash(settings.demo_password),
+            "hashed_password": _demo_password_hash(),
             "full_name": settings.demo_full_name,
             "is_active": True,
             "is_admin": False,

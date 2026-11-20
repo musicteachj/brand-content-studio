@@ -72,6 +72,7 @@ TEST_COLLECTIONS = (
     "ai_spend_days",
     "ai_spend_calls",
     "ai_spend_visitors",
+    "demo_sessions",
 )
 
 
@@ -101,6 +102,17 @@ async def test_db():
         for coll in TEST_COLLECTIONS:
             await db[coll].delete_many({})
         client.close()
+
+
+@pytest.fixture
+def enabled_limiter():
+    """Turn the per-IP limiter on, from a clean count, for one test (it is off for the
+    rest of the suite)."""
+    limiter.reset()
+    limiter.enabled = True
+    yield
+    limiter.enabled = False
+    limiter.reset()
 
 
 @pytest.fixture

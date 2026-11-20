@@ -27,10 +27,10 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
-    )
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
+    # One clock reading, so exp - iat is exactly the lifetime (a visitor token's 24 hours).
+    now = datetime.now(timezone.utc)
+    expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    to_encode.update({"exp": expire, "iat": now})
     return jwt.encode(
         to_encode, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm
     )

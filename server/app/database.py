@@ -56,5 +56,8 @@ async def ensure_indexes() -> None:
     with contextlib.suppress(OperationFailure):
         await database.generations.drop_index("owner_id_1_created_at_-1")
     await database.templates.create_index("workspace_id")
+    # Visitor sessions: the cleanup job finds expired ones by expiry. Not a TTL index:
+    # the job removes a session's work and spend with it.
+    await database.demo_sessions.create_index("expires_at")
     await ensure_ledger_indexes(database)
     logging.info("Mongo indexes ensured")

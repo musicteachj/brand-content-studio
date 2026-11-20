@@ -40,8 +40,10 @@ def test_enforcing_csp_is_sent_by_default():
     assert "content-security-policy-report-only" not in resp.headers
     d = _directives(resp.headers["content-security-policy"])
     assert d["default-src"] == ["'self'"]
-    # WebAssembly (resvg export, satori layout) only; never general eval or inline script.
-    assert d["script-src"] == ["'self'", "'wasm-unsafe-eval'"]
+    # WebAssembly (resvg export, satori layout); never general eval or inline script.
+    # Cloudflare Turnstile's script and its challenge frame (the demo start's bot check).
+    assert d["script-src"] == ["'self'", "'wasm-unsafe-eval'", "https://challenges.cloudflare.com"]
+    assert d["frame-src"] == ["https://challenges.cloudflare.com"]
     assert d["object-src"] == ["'none'"]
     assert d["base-uri"] == ["'self'"]
     assert d["form-action"] == ["'self'"]

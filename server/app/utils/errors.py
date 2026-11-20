@@ -28,6 +28,13 @@ RATE_LIMITED_COPY = (
     "Too many requests from your network just now. Wait a minute and try again, "
     "or browse the ready-made examples."
 )
+DEMO_ENDED_COPY = "Your demo session ended. Start a new one any time."
+BOT_CHECK_FAILED_COPY = "We couldn't confirm you're a person. Please try again."
+BOT_CHECK_UNAVAILABLE_COPY = (
+    "The bot check isn't responding right now. Try again in a moment, or browse the "
+    "ready-made examples."
+)
+DEMO_NOT_READY_COPY = "The demo isn't ready yet. Try again in a minute."
 # Ingestion needs embeddings, and today's AI budget has none left.
 INGEST_PAUSED_COPY = "Ingestion is paused because today's AI budget is used up. Retry later."
 # The brief matched nothing in the workspace's corpus: a 409 before any model call.
@@ -43,6 +50,8 @@ class UserFacingError(Exception):
     status_code = 422
     # A stable machine-readable code the client can branch on; sent only when set.
     code: str | None = None
+    # Response headers the handler adds (such as WWW-Authenticate on a 401).
+    headers: dict[str, str] | None = None
 
     def __init__(self, message: str, *, log_detail: str | None = None) -> None:
         super().__init__(log_detail or message)
@@ -83,3 +92,35 @@ class LiveAIUnavailable(UserFacingError):
 
     def __init__(self, *, log_detail: str) -> None:
         super().__init__(LIVE_AI_UNAVAILABLE_COPY, log_detail=log_detail)
+
+
+class DemoEnded(UserFacingError):
+    """A demo token whose visitor session is missing, expired, or deleted: HTTP 401 with
+    friendly copy, so the client signs the visitor out and offers a new demo."""
+
+    status_code = 401
+    code = "demo_ended"
+    headers = {"WWW-Authenticate": "Bearer"}
+
+    def __init__(self) -> None:
+        super().__init__(DEMO_ENDED_COPY)
+
+
+class BotCheckFailed(UserFacingError):
+    """Turnstile did not confirm the visitor starting a demo is a person: HTTP 403."""
+
+    status_code = 403
+    code = "bot_check_failed"
+
+    def __init__(self) -> None:
+        super().__init__(BOT_CHECK_FAILED_COPY)
+
+
+class BotCheckUnavailable(UserFacingError):
+    """Turnstile could not be asked, so the demo start fails closed: HTTP 503."""
+
+    status_code = 503
+    code = "bot_check_unavailable"
+
+    def __init__(self) -> None:
+        super().__init__(BOT_CHECK_UNAVAILABLE_COPY)

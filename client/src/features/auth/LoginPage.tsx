@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, ArrowRight } from "lucide-react";
+import { useAppStatus } from "@/api/status";
 import { Brand } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { useAuthActions } from "./useAuthActions";
 
 export function LoginPage() {
@@ -58,6 +60,13 @@ function AuthPanel() {
 
   // useAuthActions drives the demo + password flows.
   const { loginDemo, loginPassword, pending, error } = useAuthActions();
+  // The bot check's widget renders here, under the demo button, and stays invisible unless
+  // Cloudflare needs a click.
+  const turnstileSlot = useRef<HTMLDivElement>(null);
+  // Password sign-in is closed in production. Hidden until the server says it's open, so
+  // production never flashes a form that can't work; shown if the status can't be read.
+  const status = useAppStatus();
+  const passwordLogin = status.data ? status.data.password_login : status.isError;
 
   // One sign-in at a time, so two flows can't race to set the session.
   const busy = pending !== null;
@@ -65,7 +74,7 @@ function AuthPanel() {
   async function onDemo() {
     if (busy) return;
     try {
-      await loginDemo();
+      await loginDemo(turnstileSlot.current);
       navigate("/", { replace: true });
     } catch {
       /* error surfaced below */
@@ -94,7 +103,9 @@ function AuthPanel() {
           Sign in
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Explore the studio with a ready-made demo workspace, or sign in.
+          {passwordLogin
+            ? "Explore the studio with a ready-made demo workspace, or sign in."
+            : "Explore the studio with a ready-made demo workspace."}
         </p>
 
         <Button
@@ -107,61 +118,69 @@ function AuthPanel() {
           Explore as demo
           {pending !== "demo" && <ArrowRight className="h-4 w-4" aria-hidden />}
         </Button>
+        <div ref={turnstileSlot} className="mt-3 flex justify-center empty:hidden" />
 
-        <div className="my-6 flex items-center gap-3">
-          <span className="h-px flex-1 bg-border" />
-          <span className="eyebrow">or sign in</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
+        {passwordLogin && (
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="eyebrow">or sign in</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        )}
 
         {error && (
           <div
             role="alert"
-            className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm text-destructive"
+            className={cn(
+              "flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm text-destructive",
+              passwordLogin ? "mb-4" : "mt-6",
+            )}
           >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">
-              Email
-            </label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@studio.com"
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">
-              Password
-            </label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="mt-1 w-full"
-            loading={pending === "password"}
-            disabled={busy}
-          >
-            Sign in
-          </Button>
-        </form>
+        {passwordLogin && (
+          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@studio.com"
+                required
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              variant="secondary"
+              className="mt-1 w-full"
+              loading={pending === "password"}
+              disabled={busy}
+            >
+              Sign in
+            </Button>
+          </form>
+        )}
       </div>
     </main>
   );

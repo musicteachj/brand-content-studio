@@ -3,7 +3,16 @@ secret check (SEC-06), and the API docs being off in production."""
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from app.config import DEFAULT_JWT_SECRET, Settings, settings, validate_serving_settings
+from app.config import (
+    DEFAULT_JWT_SECRET,
+    TURNSTILE_FAIL_SECRET,
+    TURNSTILE_PASS_SECRET,
+    TURNSTILE_TEST_SITE_KEY,
+    Settings,
+    settings,
+    turnstile_keys,
+    validate_serving_settings,
+)
 
 SECRETS = {
     "jwt_secret_key": "jwt-secret-value-that-is-long-enough-000",
@@ -184,8 +193,78 @@ def test_production_requires_forwarded_allow_ips_to_be_set():
         validate_serving_settings(_settings(environment="production"))
 
 
+# A production configuration that passes every serving check; each test below breaks one.
+_SERVING = {
+    "environment": "production",
+    "forwarded_allow_ips": "10.0.0.0/16",
+    "turnstile_site_key": "0x4AAAAAAAreal-site-key",
+    "turnstile_secret_key": "0x4AAAAAAAreal-secret-key",
+    "app_origin": "https://folio.example.com",
+}
+
+
+def _serving(**overrides) -> Settings:
+    return _settings(**{**_SERVING, **overrides})
+
+
 def test_production_accepts_a_cidr_list():
-    validate_serving_settings(_settings(environment="production", forwarded_allow_ips="10.0.0.0/16,127.0.0.1"))
+    validate_serving_settings(_serving(forwarded_allow_ips="10.0.0.0/16,127.0.0.1"))
+
+
+@pytest.mark.parametrize("missing", ["turnstile_site_key", "turnstile_secret_key"])
+def test_production_requires_both_turnstile_keys(missing):
+    with pytest.raises(ValueError, match="TURNSTILE"):
+        validate_serving_settings(_serving(**{missing: ""}))
+
+
+def test_production_refuses_the_turnstile_test_keys_on_a_public_origin():
+    with pytest.raises(ValueError, match="test keys"):
+        validate_serving_settings(
+            _serving(
+                turnstile_site_key=TURNSTILE_TEST_SITE_KEY,
+                turnstile_secret_key=TURNSTILE_PASS_SECRET,
+                app_origin="https://folio.example.com",
+            )
+        )
+    with pytest.raises(ValueError, match="test keys"):
+        validate_serving_settings(_serving(turnstile_secret_key=TURNSTILE_FAIL_SECRET))
+
+
+@pytest.mark.parametrize("origin", ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost"])
+def test_production_allows_the_test_keys_on_a_loopback_origin(origin):
+    # The local production run (docker on this machine) uses Cloudflare's test pair.
+    validate_serving_settings(
+        _serving(
+            turnstile_site_key=TURNSTILE_TEST_SITE_KEY,
+            turnstile_secret_key=TURNSTILE_PASS_SECRET,
+            app_origin=origin,
+        )
+    )
+
+
+@pytest.mark.parametrize("origin", ["http://folio.example.com", "ftp://folio.example.com", "folio.example.com"])
+def test_production_requires_an_https_app_origin_unless_loopback(origin):
+    with pytest.raises(ValueError, match="APP_ORIGIN"):
+        validate_serving_settings(_serving(app_origin=origin))
+
+
+def test_production_requires_a_priced_ai_model():
+    with pytest.raises(ValueError, match="AI_MODEL"):
+        validate_serving_settings(_serving(ai_model="claude-unknown-9"))
+
+
+def test_blank_turnstile_keys_are_the_test_pair_only_outside_production():
+    dev = _settings(environment="development")
+    assert turnstile_keys(dev) == (TURNSTILE_TEST_SITE_KEY, TURNSTILE_PASS_SECRET)
+    prod = _settings(environment="production")
+    assert turnstile_keys(prod) == ("", "")
+    real = _serving()
+    assert turnstile_keys(real) == ("0x4AAAAAAAreal-site-key", "0x4AAAAAAAreal-secret-key")
+
+
+def test_the_turnstile_secret_never_prints():
+    s = _serving()
+    assert "0x4AAAAAAAreal-secret-key" not in repr(s)
 
 
 def test_development_skips_the_serving_checks():

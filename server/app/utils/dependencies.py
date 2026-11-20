@@ -11,7 +11,8 @@ from app.rag.vector_store import VectorStore
 from app.services import retrieval_service
 from app.services.ai_meter import embedding_line, reserve_action
 from app.services.auth_service import get_user_by_id
-from app.utils.errors import NO_CONTEXT_COPY
+from app.services.session_service import get_active_session
+from app.utils.errors import NO_CONTEXT_COPY, DemoEnded
 from app.utils.security import decode_access_token
 
 security = HTTPBearer()
@@ -37,6 +38,17 @@ async def get_current_user(
         raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+    if user.is_demo:
+        # A visitor's token is good only while its own session is live: a token from
+        # before sessions, an expired session, or one the cleanup removed is a plain
+        # "demo ended", which the client turns into a sign-out and a fresh start.
+        sid = payload.get("sid")
+        if not isinstance(sid, str) or not sid:
+            raise DemoEnded()
+        session = await get_active_session(db, sid)
+        if session is None or str(session.get("user_id")) != user.id:
+            raise DemoEnded()
+        user.session_id = sid
     return user
 
 
@@ -111,7 +123,6 @@ def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> User
 
 def ledger_visitor_id(user: UserInDB) -> str | None:
     """Whose allowance an AI action is counted against in the dollar ledger, beside the
-    shared daily and monthly budget. None for everyone today; demo sessions get their own
-    ID (and a per-visitor cap) when they arrive."""
-    _ = user
-    return None
+    shared daily and monthly budget: a demo visitor's session ID (each session has its own
+    cap), or None for the owner."""
+    return user.session_id if user.is_demo else None
