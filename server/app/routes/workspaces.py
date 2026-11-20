@@ -1,6 +1,7 @@
 """Workspace CRUD routes. All workspace-scoped sub-routers (assets, generate,
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
+import asyncio
 import re
 
 from bson import ObjectId
@@ -157,8 +158,10 @@ async def extract_brand(
     ledger first."""
     data, _, media_type = await read_upload(file, IMAGE_POLICY, default_name="image")
     _ = workspace  # ownership enforced by the dependency
+    # The reservation's prompt carries the image's palette: Pillow work, off the loop.
+    line = await asyncio.to_thread(brand_extract_line, data)
     async with await reserve_action(
-        db, [brand_extract_line(data)], visitor_id=ledger_visitor_id(current_user)
+        db, [line], visitor_id=ledger_visitor_id(current_user)
     ) as action:
         return await service.propose(data, media_type, line=action.lines[0])
 

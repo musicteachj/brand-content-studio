@@ -156,7 +156,7 @@ Workspace-scoped paths below are shortened to `…` for `/workspaces/{id}`.
 | generate (SSE) | `POST …/generate/text` · `POST …/generate/card` · `POST …/generate/post` · `POST …/generate/document` |
 | generations | `GET …/generations?type=` · `GET …/generations/count` · `GET/PATCH/DELETE …/generations/{gid}` · `GET …/generations/{gid}/download/{fmt}` |
 | images | `GET /images/unsplash/search?q=&page=` · `POST /images/unsplash/track` · `POST …/images/upload` · `GET …/images/file/{iid}/{name}` |
-| health | `GET /health` → `{status, mongo, vector_store}` |
+| health | `GET /health/live` → `{status}` (liveness, no database) · `GET /health` → `{status, mongo, vector_store, seed}` (readiness, 503 when not ready) |
 
 List endpoints page with `?limit=&offset=` and return `{items, next_offset}` (generations default to 24, assets to 30, max 100); `GET …/generations?type=` takes `all|text|card|document|post_pack`. The interactive API docs (`/docs`, `/redoc`, `/openapi.json`) are off in production.
 

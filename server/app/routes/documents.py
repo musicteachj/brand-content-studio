@@ -12,6 +12,7 @@ Two surfaces, mirroring the existing generate/serve split:
 NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
 @limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
 """
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 
@@ -139,8 +140,13 @@ async def generate_document(
                         uploaded_font_bytes[f["family"]] = await get_storage().read(f["storage_key"])
                     except (FileNotFoundError, ValueError):
                         pass
-            files = document_service.build_document_files(
-                output["document"], brand_profile, uploaded_font_bytes
+            # Rendering the .docx, PDF, and .pptx is CPU-bound: off the event loop, so
+            # other visitors' requests and streams keep moving meanwhile.
+            files = await asyncio.to_thread(
+                document_service.build_document_files,
+                output["document"],
+                brand_profile,
+                uploaded_font_bytes,
             )
             storage = get_storage()
             formats: dict[str, dict] = {}

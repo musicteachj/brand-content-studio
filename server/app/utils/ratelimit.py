@@ -18,3 +18,6 @@ limiter = Limiter(key_func=get_remote_address)
 # reserves every model call before it runs.
 AUTH_RATE_LIMIT = settings.rate_limit_auth
 GENERATE_RATE_LIMIT = settings.rate_limit_generate
+# Unsplash search and download tracking: the access key's hourly quota is shared by
+# every visitor, so one network can't spend it (search results are also cached).
+RATE_LIMIT_UNSPLASH = settings.rate_limit_unsplash

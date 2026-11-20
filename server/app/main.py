@@ -28,7 +28,7 @@ from app.routes import (
     workspaces,
 )
 from app.services.ai_clients import close_ai_clients
-from app.services.storage_service import get_storage
+from app.services.storage_service import assert_writable, get_storage
 from app.services.turnstile import close_turnstile_verifier
 from app.spa import mount_spa
 from app.utils.errors import RATE_LIMITED_COPY, UserFacingError
@@ -153,6 +153,10 @@ async def run_startup_seed() -> SeedReport | None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_serving_settings(settings)
+    # Both data directories must be writable by this uid before anything uses them, so a
+    # wrongly owned volume stops the app here, naming the directory.
+    assert_writable(Path(settings.storage_local_dir))
+    assert_writable(Path(settings.chroma_path))
     await connect_to_mongo()
     await ensure_indexes()
     get_vector_store()  # instantiate the configured backend (Chroma)

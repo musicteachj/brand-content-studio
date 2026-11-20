@@ -133,26 +133,41 @@ jobs:
                echo "secret files were baked into the image:" >&2; echo "$found" >&2; exit 1
              fi'
       - name: Boot the image and wait for its HEALTHCHECK
+        # As production runs it, with live AI off (a zero budget) and Cloudflare's
+        # always-pass Turnstile test keys (allowed because APP_ORIGIN is loopback).
+        # No AI key at all: the startup seed restores the demo from its fixtures.
         run: |
           docker run -d --name bcs --network host \
             -e MONGODB_URL=mongodb://localhost:27017 \
             -e JWT_SECRET_KEY=ci-test-secret-not-a-real-key-000000 \
+            -e APP_ORIGIN=http://localhost:8000 \
             -e FORWARDED_ALLOW_IPS=127.0.0.1 \
+            -e TURNSTILE_SITE_KEY=1x00000000000000000000AA \
+            -e TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA \
+            -e AI_MONTHLY_BUDGET_USD=0 \
             brand-content-studio:ci
-          # The Dockerfile's first probe fires one interval (30s) after start.
-          for i in $(seq 1 40); do
+          # The HEALTHCHECK probes liveness, first one interval (30s) after start.
+          for i in $(seq 1 60); do
             if [ "$(docker inspect -f '{{.State.Running}}' bcs)" != true ]; then
               echo "container exited during boot" >&2; exit 1
             fi
             status=$(docker inspect -f '{{.State.Health.Status}}' bcs)
             if [ "$status" = healthy ]; then echo "container is healthy"; exit 0; fi
-            echo "waiting for healthy, currently $status ($i/40)"; sleep 3
+            echo "waiting for healthy, currently $status ($i/60)"; sleep 3
           done
           echo "container never became healthy" >&2; exit 1
-      - name: API reports both stores up and the SPA is served
+      - name: API is ready with the seed, the examples, and the SPA
         run: |
+          # Readiness: Mongo, Chroma, and the startup seed (built from fixtures, no AI key).
           curl -sf http://127.0.0.1:8000/api/health | python3 -c \
-            'import json, sys; d = json.load(sys.stdin); print(d); sys.exit(d["status"] != "ok")'
+            'import json, sys; d = json.load(sys.stdin); print(d); sys.exit(not (d["status"] == "ok" and d["seed"] is True))'
+          # The four ready-made examples are public.
+          curl -sf http://127.0.0.1:8000/api/examples | python3 -c \
+            'import json, sys; n = len(json.load(sys.stdin)["items"]); print(n, "examples"); sys.exit(n != 4)'
+          # Password sign-in does not exist in production.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"email":"a@example.com","password":"x"}' http://127.0.0.1:8000/api/auth/login)
+          test "$code" = 404 || { echo "POST /api/auth/login returned $code" >&2; exit 1; }
           curl -sf http://127.0.0.1:8000/ -o index.html
           grep -q 'id="root"' index.html
           # The bundle index.html loads must come back as JavaScript, not as
@@ -165,9 +180,13 @@ jobs:
           # An unknown API path is a 404, not the SPA.
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/does-not-exist)
           test "$code" = 404 || { echo "/api/does-not-exist returned $code" >&2; exit 1; }
-          # The SPA is served under an enforcing CSP (known-gaps plan, step 2).
-          curl -sfI http://127.0.0.1:8000/login | grep -qi "^content-security-policy: default-src 'self'" \
+          # The SPA is served under an enforcing CSP (known-gaps plan, step 2) that lets
+          # the Turnstile check load.
+          csp=$(curl -sfI http://127.0.0.1:8000/login | grep -i "^content-security-policy:" || true)
+          echo "$csp" | grep -qi "^content-security-policy: default-src 'self'" \
             || { echo "no enforcing Content-Security-Policy on the SPA" >&2; exit 1; }
+          echo "$csp" | grep -q "https://challenges.cloudflare.com" \
+            || { echo "the CSP does not allow Turnstile (https://challenges.cloudflare.com)" >&2; exit 1; }
       - name: Container logs
         if: failure()
         run: docker logs bcs || true

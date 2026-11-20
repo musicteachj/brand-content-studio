@@ -8,6 +8,7 @@ import asyncio
 import os
 import re
 import shutil
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -61,6 +62,24 @@ def build_template_key(workspace_id: str, template_id: str, filename: str) -> st
     """Uploaded fill-in templates live under a `templates/` prefix, separate from
     the ingested corpus, card images, and generated documents."""
     return f"{safe_filename(workspace_id)}/templates/{safe_filename(template_id)}/{safe_filename(filename)}"
+
+
+class StorageNotWritable(RuntimeError):
+    """A data directory the app must write to (storage, Chroma) isn't writable by the
+    user the app runs as, such as a volume still owned by another uid."""
+
+
+def assert_writable(path: Path) -> None:
+    """Create `path` if needed, then create and delete a probe file in it. Run at startup
+    so a wrongly owned volume stops the app with the directory's name, instead of failing
+    on a visitor's first upload."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        fd, probe = tempfile.mkstemp(prefix=".write-probe-", dir=path)
+        os.close(fd)
+        os.unlink(probe)
+    except OSError as exc:
+        raise StorageNotWritable(f"{path} is not writable by uid {os.getuid()}") from exc
 
 
 class StorageBackend(Protocol):

@@ -52,7 +52,9 @@ class Settings(BaseSettings):
 
     # MongoDB
     mongodb_url: SecretStr = SecretStr("mongodb://localhost:27017")  # may carry credentials
-    database_name: str = "brand_content"
+    database_name: str = "folio"
+    # A small pool: one process serves the demo, and Atlas's shared tiers cap connections.
+    mongo_max_pool_size: int = 10
 
     # JWT
     jwt_secret_key: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
@@ -82,6 +84,8 @@ class Settings(BaseSettings):
     # Per-IP rate limits (slowapi syntax) — env-tunable (SEC-02).
     rate_limit_auth: str = "10/minute"
     rate_limit_generate: str = "30/minute"
+    # Unsplash search and download tracking (the API key's hourly quota is shared by all).
+    rate_limit_unsplash: str = "20/minute"
 
     # AI — generation (Anthropic)
     anthropic_api_key: SecretStr = SecretStr("")

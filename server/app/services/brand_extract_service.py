@@ -12,6 +12,7 @@ The proposal is returned to the client for review and is **never auto-applied**
 shape is shared with `ai_service` through `claude_calls` (DECISIONS #40)."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 from typing import Any, cast
@@ -137,7 +138,7 @@ class BrandExtractService:
         self.client = get_anthropic()
 
     async def propose(self, data: bytes, media_type: str, *, line: MeteredLine) -> BrandExtractResponse:
-        detected = extract_palette(data)
+        detected = await asyncio.to_thread(extract_palette, data)  # Pillow work, off the loop
         result = await self._vision_structured_call(
             system=build_extract_system(),
             user=build_extract_user(detected),

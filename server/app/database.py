@@ -21,8 +21,20 @@ async def get_database() -> AsyncIOMotorDatabase:
     return db.client[settings.database_name]
 
 
+# How long to look for a server before an operation fails, and how long one socket read
+# may stall. Without the second, a stalled socket could hang a request, or the AI
+# ledger's shielded writes, forever.
+SERVER_SELECTION_TIMEOUT_MS = 5000
+SOCKET_TIMEOUT_MS = 20000
+
+
 async def connect_to_mongo() -> None:
-    db.client = AsyncIOMotorClient(settings.mongodb_url.get_secret_value())
+    db.client = AsyncIOMotorClient(
+        settings.mongodb_url.get_secret_value(),
+        maxPoolSize=settings.mongo_max_pool_size,
+        serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
+        socketTimeoutMS=SOCKET_TIMEOUT_MS,
+    )
     await db.client.admin.command("ping")
     logging.info("Connected to MongoDB (%s)", settings.database_name)
 
