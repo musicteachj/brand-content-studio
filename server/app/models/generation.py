@@ -234,6 +234,10 @@ class GenerationResponse(BaseModel):
     is_example: bool = False
 
 
+# The ready-made examples, in display order (seed/fixtures/examples.json must match).
+EXAMPLE_KEYS = ("text-post", "card", "post-pack", "document")
+
+
 class GenerationPage(BaseModel):
     items: list[GenerationResponse]
     next_offset: int | None = None

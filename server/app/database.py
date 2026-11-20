@@ -59,6 +59,17 @@ async def ensure_indexes() -> None:
     # The cleanup job finds expired visitor work by expiry (not a TTL index: the job
     # removes each generation's files before its record).
     await database.generations.create_index("expires_at")
+    # One of each ready-made example per workspace: the seed finds them by workspace and
+    # key. Per workspace, so a recreated demo workspace can hold its own examples while an
+    # old one's are still there.
+    await database.generations.create_index(
+        [("workspace_id", 1), ("example_key", 1)],
+        unique=True,
+        partialFilterExpression={"example_key": {"$exists": True}},
+    )
+    # The first, global version of that index; drop it where it still exists.
+    with contextlib.suppress(OperationFailure):
+        await database.generations.drop_index("example_key_1")
     # Only the old quota count used this; drop it where it still exists.
     with contextlib.suppress(OperationFailure):
         await database.generations.drop_index("owner_id_1_created_at_-1")

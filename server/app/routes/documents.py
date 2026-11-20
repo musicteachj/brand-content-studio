@@ -50,7 +50,7 @@ router = APIRouter()
 # Mounted at /api/workspaces/{workspace_id}/generations
 download_router = APIRouter()
 
-_DOC_MEDIA = {
+DOC_MEDIA = {
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "pdf": "application/pdf",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -192,7 +192,7 @@ async def download_document(
     `get_workspace_or_404`, and a demo visitor reaches only their own session's documents
     and the examples (another visitor's is a 404); the storage key is rebuilt server-side,
     so a tampered stored key can never widen access (the path-traversal guard backs it up)."""
-    if fmt not in _DOC_MEDIA:
+    if fmt not in DOC_MEDIA:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown format.")
 
     doc = await generations_service.get_generation(
@@ -218,6 +218,6 @@ async def download_document(
     filename = safe_filename(f"{archetype}.{fmt}")
     return Response(
         content=data,
-        media_type=_DOC_MEDIA[fmt],
+        media_type=DOC_MEDIA[fmt],
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

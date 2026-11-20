@@ -205,26 +205,31 @@ async def test_login_is_404_in_production_and_works_in_development(client, test_
     assert (await client.post("/api/auth/login", json=creds)).status_code == 200
 
 
-async def test_the_seed_gives_the_demo_user_an_unusable_password_in_production(test_db, monkeypatch):
-    from seed.seed_demo import _ensure_demo_user
+def _seed_run(db):
+    from app.services.storage_service import LocalStorage
+    from seed.seed_demo import _SeedRun
 
+    return _SeedRun(db, FakeVectorStore(), LocalStorage(), embed_missing=False)
+
+
+async def test_the_seed_gives_the_demo_user_an_unusable_password_in_production(test_db, monkeypatch):
     monkeypatch.setattr(settings, "environment", "production")
-    uid = await _ensure_demo_user(test_db)
+    uid = await _seed_run(test_db).demo_user()
     doc = await test_db.users.find_one({"_id": uid})
     assert doc["is_demo"] is True
     assert not verify_password(settings.demo_password, doc["hashed_password"])
 
 
 async def test_the_seed_rehashes_an_existing_demo_password_in_production(test_db, monkeypatch):
-    from seed.seed_demo import _ensure_demo_user
-
     monkeypatch.setattr(settings, "environment", "development")
-    uid = await _ensure_demo_user(test_db)
+    uid = await _seed_run(test_db).demo_user()
     doc = await test_db.users.find_one({"_id": uid})
     assert verify_password(settings.demo_password, doc["hashed_password"])  # dev keeps it
 
     monkeypatch.setattr(settings, "environment", "production")
-    assert await _ensure_demo_user(test_db) == uid
+    run = _seed_run(test_db)
+    assert await run.demo_user() == uid
+    assert run.report.repaired == ["demo user password"]
     doc = await test_db.users.find_one({"_id": uid})
     assert not verify_password(settings.demo_password, doc["hashed_password"])
     assert await test_db.users.count_documents({"is_demo": True}) == 1

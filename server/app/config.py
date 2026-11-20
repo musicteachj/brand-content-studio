@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     demo_email: str = "demo@folio.studio"
     demo_password: str = "demo-folio-2026"  # noqa: S105 — public demo credential, not a secret
     demo_full_name: str = "Demo User"
+    # Run the self-healing demo seed (seed/seed_demo.py) at startup: build the demo on a
+    # fresh database and repair whatever is missing on a seeded one. No paid calls.
+    seed_on_startup: bool = False
 
     # Visitor demo starts: Cloudflare Turnstile keys (both blank outside production means
     # Cloudflare's always-pass test pair) and per-IP start limits.

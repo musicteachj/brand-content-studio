@@ -12,12 +12,13 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.config import settings, validate_serving_settings
-from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
+from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes, get_database
 from app.rag.vector_store import get_vector_store
 from app.routes import (
     assets,
     auth,
     documents,
+    examples,
     generate,
     generations,
     health,
@@ -27,12 +28,15 @@ from app.routes import (
     workspaces,
 )
 from app.services.ai_clients import close_ai_clients
+from app.services.storage_service import get_storage
 from app.services.turnstile import close_turnstile_verifier
 from app.spa import mount_spa
 from app.utils.errors import RATE_LIMITED_COPY, UserFacingError
 from app.utils.ratelimit import limiter
+from seed.seed_demo import SeedReport, ensure_demo_seed
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # The SPA's Content-Security-Policy (known-gaps plan, step 2; DECISIONS #36),
@@ -125,12 +129,34 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
+async def run_startup_seed() -> SeedReport | None:
+    """The self-healing demo seed, when SEED_ON_STARTUP is set. A failure is logged and
+    kept as the report's error; the app still starts, and readiness reports it."""
+    if not settings.seed_on_startup:
+        return None
+    try:
+        report = await ensure_demo_seed(
+            await get_database(), store=get_vector_store(), storage=get_storage()
+        )
+    except Exception as exc:  # noqa: BLE001 (the app must start; readiness shows the error)
+        logger.exception("The demo seed failed at startup")
+        return SeedReport(error=f"The demo seed failed: {type(exc).__name__}")
+    if report.ok:
+        logger.info(
+            "Demo seed checked: created %s, repaired %s",
+            report.created or "nothing",
+            report.repaired or "nothing",
+        )
+    return report
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_serving_settings(settings)
     await connect_to_mongo()
     await ensure_indexes()
     get_vector_store()  # instantiate the configured backend (Chroma)
+    app.state.seed_report = await run_startup_seed()
     yield
     await close_mongo_connection()
     await close_ai_clients()
@@ -221,6 +247,7 @@ app.include_router(
     tags=["documents"],
 )
 app.include_router(images.router, prefix="/api/images", tags=["images"])
+app.include_router(examples.router, prefix="/api/examples", tags=["examples"])
 app.include_router(
     images.ws_router,
     prefix="/api/workspaces/{workspace_id}/images",
