@@ -22,14 +22,12 @@ anthropic>=0.111,<1  # output_config, fallbacks (DECISIONS #40); 1.x is a breaki
 openai>=1.40
 
 # RAG
-# NOTE: chromadb has an unpatched pre-auth RCE (GHSA-f4j7-r4q5-qw2c, no fixed
-# release). Mitigated by binding the dev Chroma to loopback (docker-compose.yml);
-# revisit at deploy time (auth/network isolation) — see docs/AUDIT-2026-07.md.
-# Pinned to the same version as the chromadb/chroma server image in
-# docker-compose.yml and .github/workflows/ci.yml: bump all three together.
-# Its advisories are allow-listed, with reasons, in the CI audit job.
+# NOTE: chromadb 1.5.9 has advisories with no fixed release (the pre-auth RCE
+# GHSA-f4j7-r4q5-qw2c among them). They are all in Chroma's server; this app runs
+# Chroma in-process only (PersistentClient), with no server and no listener, so none
+# is reachable. Watch for a patched release and bump the pin then. The advisories are
+# allow-listed, with reasons, in the CI audit job.
 chromadb==1.5.9
-qdrant-client>=1.9
 langchain-text-splitters>=0.2
 pypdf>=4.2
 pdfplumber>=0.11

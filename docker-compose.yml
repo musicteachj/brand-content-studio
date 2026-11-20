@@ -11,17 +11,7 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  chroma:
-    # Pinned to match chromadb in server/requirements.txt (and the CI services).
-    image: chromadb/chroma:1.5.9
-    container_name: brand_content_chroma
-    # Loopback-only, and non-negotiable: chromadb <=1.5.9 has an unpatched
-    # pre-auth code-injection RCE (GHSA-f4j7-r4q5-qw2c) with no fixed release.
-    ports:
-      - "127.0.0.1:8001:8000"
-    volumes:
-      - chroma_data:/data
+  # No Chroma service: Chroma runs in-process in the API server (server/chroma/).
 
 volumes:
   mongo_data:
-  chroma_data:

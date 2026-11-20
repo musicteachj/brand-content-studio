@@ -80,12 +80,9 @@ class Settings(BaseSettings):
     embedding_dim: int = 1536
     embedding_timeout_s: float = 10.0
 
-    # Vector store: "chroma" (dev) | "qdrant" (prod)
+    # Vector store: Chroma runs in-process on local disk (no server). One process only.
     vector_store_backend: str = "chroma"
-    chroma_host: str = "localhost"
-    chroma_port: int = 8001
-    qdrant_url: str = "http://localhost:6333"
-    qdrant_collection: str = "brand-content-studio"
+    chroma_path: str = "./chroma"
 
     # Storage: "local" (dev) | "s3" (prod)
     storage_backend: str = "local"

@@ -13,7 +13,7 @@
 | Backend | Python 3.12, FastAPI (Starlette 1.x) + Motor (async MongoDB) + Pydantic v2 | Employee Management System |
 | Generation | Claude `claude-sonnet-5-5` via `AsyncAnthropic`, streamed over SSE (DECISIONS #40) | EMS `ai_service.py` |
 | Embeddings | OpenAI `text-embedding-3-small` (1536-dim) behind `Embedder` protocol | new |
-| Vector store | Chroma behind `VectorStore` protocol (the only implemented backend); Qdrant planned for prod, `qdrant_store.py` is a stub that raises `NotImplementedError` | new |
+| Vector store | Chroma, in-process (`chromadb.PersistentClient`, no server), behind the `VectorStore` protocol | new |
 | RAG orchestration | Hand-rolled (SDKs + vector-store client directly); `langchain-text-splitters` (standalone) for chunking; pdfplumber | new |
 | App DB | MongoDB (Docker dev / shared self-hosted prod) | EMS |
 | Auth | PyJWT (HS256, algorithms pinned) + seeded demo user + demo bypass | EMS |
@@ -21,13 +21,13 @@
 | Storage | Local FS behind `StorageBackend` protocol (the only implemented backend); S3 planned for prod, `get_storage()` supports `local` only | new |
 | Card export | Satori (HTML/JSX→SVG) + `@resvg/resvg-wasm` (SVG→PNG) → 1080×1350 PNG; client-side, free; no server-side fallback | new |
 
-**Local dev is fully decoupled from the cloud.** `docker-compose up` brings up `mongo:7` + `chromadb/chroma`; `npm run dev` runs client + server. No AWS needed until the deferred deployment phase.
+**Local dev is fully decoupled from the cloud.** `docker-compose up` brings up `mongo:7` (Chroma runs in-process in the API server); `npm run dev` runs client + server. No AWS needed until the deferred deployment phase.
 
 ---
 
 ## 2. Repo structure (monorepo)
 
-Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` builds the SPA with Node, then Python serves `client/dist` (`app/spa.py`, `mount_spa`: real files as files, hashed `/assets/*` cached as immutable, every other path gets `index.html`, unknown `/api/...` paths are a JSON 404). `docker-compose.yml` provides `mongo:7` + `chromadb/chroma`.
+Root `package.json` runs both apps via `concurrently`; multi-stage `Dockerfile` builds the SPA with Node, then Python serves `client/dist` (`app/spa.py`, `mount_spa`: real files as files, hashed `/assets/*` cached as immutable, every other path gets `index.html`, unknown `/api/...` paths are a JSON 404). `docker-compose.yml` provides `mongo:7`.
 
 ```
 server/app/
@@ -36,7 +36,7 @@ server/app/
   routes/    auth · workspaces · assets · templates · generate · documents · generations · images · health
   services/  auth · workspace · asset · ingestion · retrieval · ai (Claude client) · generations (Mongo persistence) ·
              document · template · content_extraction · brand_extract · brand_fonts · upload · unsplash · storage · usage (demo AI-call quota)
-  rag/       vector_store(Protocol + factory) · chroma_store · qdrant_store · embeddings · chunking · loaders
+  rag/       vector_store(Protocol + factory) · chroma_store · embeddings · chunking · loaders
   models/    common · user · workspace · asset · generation · template · image
   prompts/   text_post · image_card · post_pack · document · template_fill · brand_extract · exemplars · context
   utils/     security · dependencies (get_current_user, get_workspace_or_404, …) · sse · errors · ratelimit · archives
@@ -67,7 +67,7 @@ client/src/
 
 ## 3. RAG: vector-store abstraction
 
-`app/rag/vector_store.py` defines a `VectorStore` Protocol; `get_vector_store()` returns the impl named by `settings.vector_store_backend` (`"chroma"` | `"qdrant"`).
+`app/rag/vector_store.py` defines a `VectorStore` Protocol; `get_vector_store()` returns the impl named by `settings.vector_store_backend` (`"chroma"`).
 
 ```python
 class Chunk(TypedDict):
@@ -88,10 +88,9 @@ class VectorStore(Protocol):
 ```
 
 - **Embedding** goes through an `Embedder` protocol (`OpenAIEmbedder`, `text-embedding-3-small`, 1536-dim). No service calls OpenAI directly — a provider swap touches `embeddings.py` only.
-- **Chroma (dev):** one collection per workspace, `ws_{workspace_id}`. Isolation = separate collection.
-- **Qdrant (prod, planned; not implemented yet):** one shared collection `brand-content-studio`. Isolation = **indexed payload filter** `workspace_id == namespace` on every query. The filter is the *only* tenant boundary in the shared collection — index it, never run an unfiltered query.
-- Both pin **1536 / cosine** and store identical payloads, so flipping `vector_store_backend` is the entire migration.
-- **The pipeline is hand-rolled — no LLM framework.** Embedding uses the OpenAI SDK; storage/retrieval use the Chroma/Qdrant client; generation uses the Anthropic SDK. The `VectorStore`/`Embedder` protocols are the only abstraction. Only the standalone `langchain-text-splitters` package is pulled in (for `RecursiveCharacterTextSplitter`); full LangChain is deliberately avoided.
+- **Chroma (in-process):** one collection per workspace, `ws_{workspace_id}`, on local disk (`CHROMA_PATH`). Isolation = separate collection. One process per directory.
+- Collections pin **1536 / cosine**.
+- **The pipeline is hand-rolled, no LLM framework.** Embedding uses the OpenAI SDK; storage/retrieval use the Chroma client; generation uses the Anthropic SDK. The `VectorStore`/`Embedder` protocols are the only abstraction. Only the standalone `langchain-text-splitters` package is pulled in (for `RecursiveCharacterTextSplitter`); full LangChain is deliberately avoided.
 
 ---
 

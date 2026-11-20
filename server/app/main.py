@@ -126,7 +126,7 @@ async def lifespan(app: FastAPI):
     validate_serving_settings(settings)
     await connect_to_mongo()
     await ensure_indexes()
-    get_vector_store()  # instantiate the configured backend (chroma/qdrant)
+    get_vector_store()  # instantiate the configured backend (Chroma)
     yield
     await close_mongo_connection()
     await close_ai_clients()

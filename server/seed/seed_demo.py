@@ -3,11 +3,18 @@ pre-ingested (DECISIONS #15 — visitors hit the RAG "wow" instantly).
 
 Run from the server/ directory:  python -m seed.seed_demo
 (or `npm run seed` from the repo root). Idempotent: re-running won't duplicate
-the user, workspace, or assets. Corpus ingestion needs OPENAI_API_KEY + a
-running Chroma; if the key is missing the workspace is created empty and you can
-re-run after adding the key.
+the user, workspace, or assets. The corpus vectors come from a checked-in fixture
+(seed/fixtures/verdure_embeddings.json), so seeding makes no OpenAI call and needs
+no key. Chroma runs in-process: stop the dev API server first (one process per
+Chroma directory). If the corpus or the chunker changes, rebuild the fixture with
+`python -m seed.build_embeddings_fixture --yes` (a paid run).
 """
 import asyncio
+import base64
+import hashlib
+import json
+import struct
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -16,10 +23,8 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.config import settings
-from app.rag.embeddings import embed_metered
 from app.rag.loaders import load_sections
-from app.rag.vector_store import get_vector_store
-from app.services.ai_meter import embedding_line, reserve_action
+from app.rag.vector_store import Chunk, get_vector_store
 from app.services.ingestion_service import build_chunks
 from app.services.storage_service import (
     build_image_key,
@@ -31,6 +36,12 @@ from app.services.template_service import discover_placeholders
 from app.utils.security import get_password_hash
 
 CORPUS_DIR = Path(__file__).resolve().parent / "verdure_corpus"
+EMBEDDINGS_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "verdure_embeddings.json"
+_FIXTURE_ENCODING = "float32-le-base64"
+
+
+class SeedError(RuntimeError):
+    """The seed cannot continue; the message says what to do."""
 
 # Verdure brand palette (RGB tuples for Pillow; hex for Office docs).
 _FOREST = (0x1C, 0x3A, 0x2E)
@@ -48,6 +59,71 @@ CORPUS = [
     ("personas.md", "text/markdown", "personas"),
     ("competitors.md", "text/markdown", "competitors"),
 ]
+
+def chunk_key(text: str) -> str:
+    """Stable identity of a chunk's embedding: sha256 of its UTF-8 text."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _file_chunks(
+    namespace: str, asset_id: str, filename: str, content_type: str, kind: str
+) -> list[Chunk]:
+    sections = load_sections(CORPUS_DIR / filename, content_type)
+    return build_chunks(
+        workspace_namespace=namespace,
+        asset_id=asset_id,
+        asset_kind=kind,
+        filename=filename,
+        sections=sections,
+    )
+
+
+def corpus_chunks(namespace: str, asset_ids: Mapping[str, str]) -> list[Chunk]:
+    """The seed's chunks for the five corpus files (no embeddings). `asset_ids` maps a
+    corpus filename to its asset id; the chunk text, and so its key, never depends on it."""
+    out: list[Chunk] = []
+    for filename, content_type, kind in CORPUS:
+        out.extend(_file_chunks(namespace, asset_ids[filename], filename, content_type, kind))
+    return out
+
+
+def write_embeddings_fixture(
+    vectors: Mapping[str, list[float]], path: Path = EMBEDDINGS_FIXTURE
+) -> None:
+    embeddings = {
+        key: base64.b64encode(struct.pack(f"<{len(vec)}f", *vec)).decode("ascii")
+        for key, vec in sorted(vectors.items())
+    }
+    payload = {
+        "model": settings.embedding_model,
+        "dim": settings.embedding_dim,
+        "encoding": _FIXTURE_ENCODING,
+        "embeddings": embeddings,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=0) + "\n", encoding="utf-8")
+
+
+def load_embeddings_fixture(path: Path = EMBEDDINGS_FIXTURE) -> dict[str, list[float]]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    dim = settings.embedding_dim
+    if (
+        data.get("model") != settings.embedding_model
+        or data.get("dim") != dim
+        or data.get("encoding") != _FIXTURE_ENCODING
+    ):
+        raise SeedError(
+            "The embeddings fixture was built for a different model or size. "
+            "Run python -m seed.build_embeddings_fixture (a paid run)."
+        )
+    out: dict[str, list[float]] = {}
+    for key, blob in data["embeddings"].items():
+        raw = base64.b64decode(blob)
+        if len(raw) != dim * 4:
+            raise SeedError(f"Fixture vector {key[:12]} has the wrong size.")
+        out[key] = list(struct.unpack(f"<{dim}f", raw))
+    return out
+
 
 VERDURE_BRAND_PROFILE = {
     "colors": [
@@ -113,14 +189,41 @@ async def _ensure_workspace(db, owner_id: ObjectId) -> dict:
     return doc
 
 
-async def _ingest_corpus(db, workspace: dict) -> None:
-    if await db.assets.count_documents({"workspace_id": workspace["_id"]}) > 0:
+def _vectors_for(chunks: list[Chunk], fixture: Mapping[str, list[float]]) -> list[list[float]]:
+    try:
+        return [fixture[chunk_key(c["text"])] for c in chunks]
+    except KeyError:
+        raise SeedError(
+            "The embeddings fixture is out of date. "
+            "Run python -m seed.build_embeddings_fixture (a paid run)."
+        ) from None
+
+
+async def _restore_vectors(db, workspace: dict) -> None:  # type: ignore[no-untyped-def]
+    """The corpus assets exist. If the vector store is empty (a fresh Chroma directory),
+    put the corpus vectors back from the fixture; otherwise there is nothing to do."""
+    namespace = workspace["vector_namespace"]
+    store = get_vector_store()
+    if await store.count(namespace) > 0:
         print("✓ corpus already ingested")
         return
-    if not settings.openai_api_key.get_secret_value():
-        print("⚠ OPENAI_API_KEY not set — workspace created empty. Add the key and re-run to ingest.")
+    fixture = load_embeddings_fixture()
+    restored = 0
+    for filename, content_type, kind in CORPUS:
+        asset = await db.assets.find_one({"workspace_id": workspace["_id"], "filename": filename})
+        if asset is None:
+            continue
+        chunks = _file_chunks(namespace, str(asset["_id"]), filename, content_type, kind)
+        restored += await store.upsert_chunks(namespace, chunks, _vectors_for(chunks, fixture))
+    print(f"+ restored {restored} corpus vectors from the fixture")
+
+
+async def _ingest_corpus(db, workspace: dict) -> None:
+    if await db.assets.count_documents({"workspace_id": workspace["_id"]}) > 0:
+        await _restore_vectors(db, workspace)
         return
 
+    fixture = load_embeddings_fixture()
     namespace = workspace["vector_namespace"]
     store = get_vector_store()
     storage = get_storage()
@@ -138,18 +241,8 @@ async def _ingest_corpus(db, workspace: dict) -> None:
         storage_key = build_storage_key(namespace, str(asset_oid), filename)
         await storage.save(storage_key, data)
 
-        sections = load_sections(storage.local_path(storage_key), content_type)
-        chunks = build_chunks(
-            workspace_namespace=namespace,
-            asset_id=str(asset_oid),
-            asset_kind=kind,
-            filename=filename,
-            sections=sections,
-        )
-        texts = [c["text"] for c in chunks]
-        corpus_call = await reserve_action(db, [embedding_line("seed_corpus", texts)], visitor_id=None)
-        async with corpus_call:
-            vectors = await embed_metered(texts, line=corpus_call.lines[0])
+        chunks = _file_chunks(namespace, str(asset_oid), filename, content_type, kind)
+        vectors = _vectors_for(chunks, fixture)
         count = await store.upsert_chunks(namespace, chunks, vectors)
         await db.assets.insert_one(
             {

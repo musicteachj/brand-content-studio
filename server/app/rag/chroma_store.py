@@ -1,7 +1,10 @@
-"""Chroma (local dev) VectorStore — one collection per workspace (`ws_{id}`).
+"""Chroma VectorStore, in-process: one collection per workspace (`ws_{id}`).
 
-Connects to the chromadb/chroma container from docker-compose via HttpClient.
-Chroma's client is sync, so each operation runs in a worker thread.
+Runs `chromadb.PersistentClient` on a local directory (`settings.chroma_path`); there
+is no Chroma server. One process only: two copies must never open the same directory,
+so stop the dev API server before running the seed. `PersistentClient`'s own docstring
+calls it a development client (chromadb/__init__.py:207-208); that is accepted at this
+scale. Chroma's client is sync, so each operation runs in a worker thread.
 """
 from __future__ import annotations
 
@@ -12,10 +15,13 @@ from app.rag.vector_store import Chunk, RetrievedChunk
 
 
 class ChromaStore:
-    def __init__(self) -> None:
+    def __init__(self, path: str | None = None) -> None:
         import chromadb
 
-        self._client = chromadb.HttpClient(host=settings.chroma_host, port=settings.chroma_port)
+        self._client = chromadb.PersistentClient(
+            path=path or settings.chroma_path,
+            settings=chromadb.config.Settings(anonymized_telemetry=False, allow_reset=False),
+        )
         # The store never embeds: callers pass vectors in, so every embedding call is
         # metered by the caller (see app/rag/embeddings.py).
 
@@ -23,6 +29,7 @@ class ChromaStore:
         return self._client.get_or_create_collection(
             name=f"ws_{workspace_id}",
             metadata={"hnsw:space": "cosine"},
+            embedding_function=None,  # vectors are always passed in; never load a default model
         )
 
     async def upsert_chunks(
@@ -101,6 +108,9 @@ class ChromaStore:
 
         return await asyncio.to_thread(_do)
 
+    async def count(self, workspace_id: str) -> int:
+        return await asyncio.to_thread(lambda: self._collection(workspace_id).count())
+
     async def delete_workspace(self, workspace_id: str) -> None:
         def _do() -> None:
             try:
@@ -118,7 +128,7 @@ class ChromaStore:
 
     async def health(self) -> bool:
         def _do() -> bool:
-            self._client.heartbeat()
+            self._client.heartbeat()  # local call: confirms the in-process client is alive
             return True
 
         try:

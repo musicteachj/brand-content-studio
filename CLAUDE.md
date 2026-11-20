@@ -1,6 +1,6 @@
 # Folio (brand-content-studio)
 
-Folio is one of James Littlefield's portfolio apps: a retrieval-augmented studio that writes on-brand LinkedIn posts, image cards, and documents. A FastAPI server (`server/`: MongoDB through Motor, Chroma for vectors, OpenAI embeddings, Claude Sonnet 5.5 streamed over SSE) serves a React 19 + Vite client (`client/`). The public demo has no accounts: one click starts a private, temporary visitor session.
+Folio is one of James Littlefield's portfolio apps: a retrieval-augmented studio that writes on-brand LinkedIn posts, image cards, and documents. A FastAPI server (`server/`: MongoDB through Motor, in-process Chroma for vectors, OpenAI embeddings, Claude Sonnet 5.5 streamed over SSE) serves a React 19 + Vite client (`client/`). The public demo has no accounts: one click starts a private, temporary visitor session.
 
 ## Commands
 

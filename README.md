@@ -66,8 +66,7 @@ Screenshots use the "Verdure Materials" demo brand and a made-up user.
 - **AI:** Claude `claude-sonnet-5-5` (`AsyncAnthropic`, streamed over SSE) for generation, brand extraction from
   images, and template drafting; OpenAI `text-embedding-3-small` for embeddings.
 - **RAG:** hand-rolled ingestion (standalone `langchain-text-splitters` for chunking, no full framework) and a
-  vector store behind a swappable interface: **Chroma** today. A Qdrant store for production is planned but not
-  implemented yet.
+  vector store behind a swappable interface: **Chroma**, running in-process on local disk (no Chroma server).
 - **Documents:** python-docx, python-pptx, and reportlab; docxtpl for template filling.
 - **Images:** Unsplash API (server-proxied, mandatory attribution) plus uploads.
 - **Auth:** JWT (PyJWT) with a seeded demo user and an "Explore as demo" sign-in. There is no public sign-up.
@@ -89,7 +88,7 @@ Dockerfile   Production image: builds the client and serves it from the API on p
 **Prerequisites:** Node 24 (see `.nvmrc`), Python 3.12, and Docker.
 
 ```bash
-# 1. Databases: MongoDB on 127.0.0.1:27017 and Chroma on 127.0.0.1:8001 (loopback only)
+# 1. Databases: MongoDB on 127.0.0.1:27017 (Chroma runs inside the API server, in `server/chroma/`)
 docker compose up -d
 
 # 2. Server: virtual environment, dependencies, and settings
@@ -124,7 +123,7 @@ works right away. The API's interactive docs are at http://localhost:8000/docs i
 | `AI_MODEL` | Optional. The Claude model, `claude-sonnet-5-5` by default. Requests are shaped for Sonnet 5.5 (DECISIONS #40), so if an older `.env` still sets `claude-sonnet-4-6`, update the line or remove it |
 | `AI_EFFORT` | Optional. How much the model thinks before writing: `low` (default), `medium`, or `high` |
 
-Keep `VECTOR_STORE_BACKEND=chroma` and `STORAGE_BACKEND=local`; the Qdrant and S3 options aren't implemented yet.
+Keep `VECTOR_STORE_BACKEND=chroma` and `STORAGE_BACKEND=local`; the S3 option isn't implemented yet. `CHROMA_PATH` (default `./chroma`) is the Chroma data directory; only one process may use it, so stop the dev server before `npm run seed`.
 
 **Your own account:** there's no sign-up screen. The demo account is read-only for workspace and brand changes, so
 to try uploads and the brand editor, add a user directly in MongoDB (see the seed script for the user shape).
@@ -147,7 +146,7 @@ boots the Docker image and runs dependency audits.
 ## Production image
 
 `docker build .` produces one image that serves the built client and the API on port 8000 (non-root, with a
-health check on `/api/health`). It needs external MongoDB and Chroma plus production settings
+health check on `/api/health`). It needs an external MongoDB (Chroma runs inside the container, so mount a volume at `/app/chroma`) plus production settings
 (`ENVIRONMENT=production` and a strong `JWT_SECRET_KEY`). Rate limiting is in-memory and per instance.
 
 ## Documentation

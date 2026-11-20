@@ -3,13 +3,16 @@ integration fixtures connect to the local docker Mongo and skip cleanly if it
 isn't running."""
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 import httpx
 import pytest
 import pytest_asyncio
 
+from app.config import settings
 from app.rag.loaders import Section
+from app.rag.vector_store import get_vector_store
 from app.services.ingestion_service import build_chunks
 from app.utils.ratelimit import limiter
 from tests.fakes import FakeEmbedder, FakeVectorStore
@@ -18,6 +21,12 @@ from tests.fakes import FakeEmbedder, FakeVectorStore
 # to an endpoint would otherwise trip the SEC-02 limits. Disable rate limiting for
 # tests; the limit behavior is covered explicitly in test_rate_limit.py.
 limiter.enabled = False
+
+# Chroma runs in-process on a directory, and only one process may open it. Point the
+# suite at a throwaway directory before anything builds a store, so a test run never
+# opens the dev data directory while `npm run dev` holds it.
+settings.chroma_path = tempfile.mkdtemp(prefix="folio-test-chroma-")
+get_vector_store.cache_clear()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORPUS_DIR = REPO_ROOT / "docs" / "demo-corpus"

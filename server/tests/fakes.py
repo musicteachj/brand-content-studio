@@ -104,6 +104,9 @@ class FakeVectorStore:
                 break
         return out
 
+    async def count(self, workspace_id: str) -> int:
+        return len(self._data.get(workspace_id, {}))
+
     async def delete_workspace(self, workspace_id: str) -> None:
         self._data.pop(workspace_id, None)
 
