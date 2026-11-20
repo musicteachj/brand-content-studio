@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   Files,
   LayoutDashboard,
@@ -135,6 +135,15 @@ export function SideNav() {
             signOutButton
           )}
         </div>
+
+        {!collapsed && (
+          <Link
+            to="/privacy"
+            className="mt-3 block px-2.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Privacy and terms
+          </Link>
+        )}
 
         <button
           type="button"

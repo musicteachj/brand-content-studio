@@ -6,6 +6,7 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { AssetsPage } from "@/features/assets/AssetsPage";
 import { ExamplesPage } from "@/features/examples/ExamplesPage";
 import { GeneratePage } from "@/features/generate/GeneratePage";
+import { PrivacyPage } from "@/features/privacy/PrivacyPage";
 import { HistoryPage } from "@/features/history/HistoryPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { StartPage } from "@/features/start/StartPage";
@@ -30,6 +31,7 @@ export default function App() {
     <Routes>
       {/* Public: the ready-made examples need no demo start and no bot check. */}
       <Route path="/examples" element={<ExamplesPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       {/* The development sign-in page; it sends visitors to `/` where password sign-in is closed. */}
       <Route
         path="/login"

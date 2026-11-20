@@ -27,7 +27,7 @@ export function DashboardPage() {
 
       {isError && (
         <div className="rounded-lg border border-border bg-surface p-4 text-sm text-destructive">
-          Couldn't load this workspace. Is the server running?
+          Couldn't load this workspace. Check your connection and try again.
         </div>
       )}
 

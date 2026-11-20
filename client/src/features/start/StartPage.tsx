@@ -209,6 +209,17 @@ export function StartPage() {
           </section>
         )}
       </main>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto w-full max-w-6xl px-6 py-6 sm:px-10">
+          <Link
+            to="/privacy"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Privacy and terms
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

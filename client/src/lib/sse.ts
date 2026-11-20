@@ -62,7 +62,7 @@ async function openStream(
     });
   } catch (err) {
     if ((err as Error).name === "AbortError") return null;
-    onError("Network error. Is the server running?");
+    onError("Network error. Check your connection and try again.");
     return null;
   }
 

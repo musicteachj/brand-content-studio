@@ -144,4 +144,22 @@ describe("stream errors", () => {
     expect(useAuthStore.getState().endedReason).toBe("ended");
     vi.unstubAllGlobals();
   });
+
+  it("a network failure reads as plain advice, not developer text", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+    const onError = vi.fn();
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      { onText: vi.fn(), onMeta: vi.fn(), onError },
+    );
+    expect(onError).toHaveBeenCalledWith("Network error. Check your connection and try again.");
+    expect(onError.mock.calls[0]![0]).not.toMatch(/server running/i);
+    vi.unstubAllGlobals();
+  });
 });

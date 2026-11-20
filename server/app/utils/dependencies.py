@@ -117,7 +117,7 @@ def require_not_demo(current_user: UserInDB = Depends(get_current_user)) -> User
     if current_user.is_demo:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="This action is disabled in the demo. Sign in with your own account to modify workspaces.",
+            detail="This part of the demo is read-only, so the sample brand stays the same for every visitor.",
         )
     return current_user
 

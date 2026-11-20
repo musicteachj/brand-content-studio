@@ -46,7 +46,7 @@ export function useAuthActions() {
       const res = await api.post<{ access_token: string }>("/auth/demo-login", { turnstile_token });
       await finish(res.data.access_token);
     } catch (err) {
-      setError(apiErrorMessage(err, "Demo sign-in failed. Is the server running and seeded?"));
+      setError(apiErrorMessage(err, "The demo couldn't start. Try again in a moment."));
       throw err;
     } finally {
       setPending(null);

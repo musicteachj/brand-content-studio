@@ -85,7 +85,7 @@ export function AssetsPage() {
         {isLoading && <SkeletonRows />}
         {isError && (
           <p className="rounded-lg border border-border bg-surface p-4 text-sm text-destructive">
-            Couldn't load assets. Is the server running?
+            Couldn't load assets. Check your connection and try again.
           </p>
         )}
         {!isLoading && !isError && assets.length === 0 && <EmptyAssets />}

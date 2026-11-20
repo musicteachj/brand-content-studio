@@ -209,6 +209,17 @@ describe("auth flow", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
+  it("a failed demo start says so in plain words", async () => {
+    server.use(http.post("*/api/auth/demo-login", () => HttpResponse.error()));
+
+    withProviders(<LoginPage />);
+    await userEvent.click(screen.getByRole("button", { name: /explore as demo/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The demo couldn't start. Try again in a moment.");
+    expect(alert).not.toHaveTextContent(/server running/i);
+  });
+
   it("sends visitors to the start page when password sign-in is closed", async () => {
     server.use(
       http.get("*/api/status", () =>

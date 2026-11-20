@@ -260,4 +260,4 @@ app.include_router(
 
 
 if settings.environment == "production":
-    mount_spa(app, Path("dist"))  # last: its catch-all only sees unclaimed paths
+    mount_spa(app, Path("dist"), app_origin=settings.app_origin)  # last: its catch-all only sees unclaimed paths
