@@ -1,6 +1,6 @@
 """The shared Claude request shape (DECISIONS #40). Route tests replace the
 services with fakes, so this is where the real request is checked: the model,
-effort, server-side fallback, structured output instead of a forced tool, reading
+effort, no server-side fallback, structured output instead of a forced tool, reading
 blocks by type, and turning a decline into `ModelDeclined`. No network: a fake
 stands in for `client.beta.messages`."""
 from __future__ import annotations
@@ -103,8 +103,7 @@ async def test_structured_call_request_shape():
         "effort": settings.ai_effort,
         "format": {"type": "json_schema", "schema": TOOL["input_schema"]},
     }
-    assert call["betas"] == ["server-side-fallback-2026-07-01"]
-    assert call["fallbacks"] == "default"
+    assert "betas" not in call and "fallbacks" not in call
     # Sonnet 5.5 rejects a forced tool_choice; nothing tool-shaped is sent.
     for key in ("tool_choice", "tools", "thinking", "temperature"):
         assert key not in call
@@ -180,9 +179,20 @@ async def test_stream_text_yields_deltas_with_the_shared_options():
     call = msgs.calls[0]
     assert call["model"] == settings.ai_model
     assert call["output_config"] == {"effort": settings.ai_effort}
-    assert call["fallbacks"] == "default"
+    assert "betas" not in call and "fallbacks" not in call
     assert call["system"] == "SYS"
     assert call["max_tokens"] == 2000
+
+
+@pytest.mark.asyncio
+async def test_stream_sets_a_per_request_read_timeout():
+    msgs = _FakeMessages(reply=_message(_text("Hi")), deltas=["Hi"])
+    _ = [
+        t async for t in claude_calls.stream_text(
+            _client(msgs), system="s", user="b", max_tokens=10
+        )
+    ]
+    assert msgs.calls[0]["timeout"].read == settings.ai_stream_read_timeout_s
 
 
 @pytest.mark.asyncio

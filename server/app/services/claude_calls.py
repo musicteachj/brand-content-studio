@@ -11,11 +11,10 @@ can't drift between them:
   forced `tool_choice`, which is how this used to be done; the existing strict
   tool definitions are reused for their schema.
 
-Shared request options: the model and effort come from settings, and the
-server-side fallback (beta) re-runs a policy decline on the previous Sonnet when
-the decline category allows it. A decline that survives the fallback raises
-`ModelDeclined`, which the SSE wrapper and an app exception handler turn into a
-readable message instead of the generic redacted error."""
+Shared request options: the model and effort come from settings. There is no
+server-side fallback: a policy decline raises `ModelDeclined`, which the SSE
+wrapper and an app exception handler turn into a readable message instead of the
+generic redacted error. A streamed call carries its own read timeout."""
 from __future__ import annotations
 
 import json
@@ -27,11 +26,11 @@ from anthropic import AsyncAnthropic
 from anthropic.types.beta import BetaMessageParam
 
 from app.config import settings
+from app.services.ai_clients import stream_timeout
 from app.utils.errors import UserFacingError
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
 DECLINED_MESSAGE = "The model declined this request. Try rewording the brief."
 
 
@@ -51,8 +50,6 @@ def request_options() -> dict[str, Any]:
     return {
         "model": settings.ai_model,
         "output_config": {"effort": settings.ai_effort},
-        "betas": [FALLBACK_BETA],
-        "fallbacks": "default",
     }
 
 
@@ -75,6 +72,7 @@ async def stream_text(
         max_tokens=max_tokens,
         system=system,
         messages=[{"role": "user", "content": user}],
+        timeout=stream_timeout(),
         **request_options(),
     ) as stream:
         async for text in stream.text_stream:

@@ -26,6 +26,7 @@ from app.routes import (
     templates,
     workspaces,
 )
+from app.services.ai_clients import close_ai_clients
 from app.spa import mount_spa
 from app.utils.errors import UserFacingError
 from app.utils.ratelimit import limiter
@@ -128,6 +129,7 @@ async def lifespan(app: FastAPI):
     get_vector_store()  # instantiate the configured backend (chroma/qdrant)
     yield
     await close_mongo_connection()
+    await close_ai_clients()
 
 
 _docs = api_docs_urls(settings.environment)

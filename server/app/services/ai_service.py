@@ -13,12 +13,10 @@ import re
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from anthropic import AsyncAnthropic
-
-from app.config import settings
 from app.prompts.document import DOC_SECTIONS_TOOL
 from app.prompts.image_card import CARD_FIELDS_TOOL
 from app.services import claude_calls
+from app.services.ai_clients import get_anthropic
 
 # Ceilings, not targets: the prompts set length. They leave room for adaptive
 # thinking, which counts toward max_tokens, and for Sonnet 5.x's tokenizer
@@ -37,7 +35,7 @@ class GenerationService:
     EMS service convention."""
 
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
+        self.client = get_anthropic()
 
     async def stream_text(self, system: str, user: str) -> AsyncGenerator[str, None]:
         async for text in claude_calls.stream_text(

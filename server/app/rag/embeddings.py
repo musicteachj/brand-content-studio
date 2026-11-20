@@ -18,9 +18,9 @@ class Embedder(Protocol):
 
 class OpenAIEmbedder:
     def __init__(self) -> None:
-        from openai import OpenAI
+        from app.services.ai_clients import get_openai
 
-        self._client = OpenAI(api_key=settings.openai_api_key.get_secret_value())
+        self._client = get_openai()
         self._model = settings.embedding_model
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:

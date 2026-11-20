@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
 import pytest
 import pytest_asyncio
 
@@ -93,3 +94,29 @@ async def ingested_store() -> FakeVectorStore:
     store = FakeVectorStore()
     await store.upsert_chunks(NS_A, build_corpus_chunks(NS_A))
     return store
+
+
+_ALLOWED_TRANSPORTS = (httpx.ASGITransport, httpx.MockTransport)
+
+
+def _guarded(original, transport_of):
+    def send(self, request, *args, **kwargs):
+        if not isinstance(transport_of(self), _ALLOWED_TRANSPORTS):
+            raise AssertionError(f"real network call in a test: {request.url.host}")
+        return original(self, request, *args, **kwargs)
+
+    return send
+
+
+@pytest.fixture(autouse=True)
+def _no_real_network(monkeypatch):
+    """The suite's guard against paid calls: an httpx request fails unless the
+    client's transport is the in-process ASGI app or a mock. Every Anthropic,
+    OpenAI, and Unsplash call goes through httpx; Mongo (Motor) does not."""
+    def transport_of(client):
+        return client._transport
+
+    monkeypatch.setattr(
+        httpx.AsyncClient, "send", _guarded(httpx.AsyncClient.send, transport_of)
+    )
+    monkeypatch.setattr(httpx.Client, "send", _guarded(httpx.Client.send, transport_of))

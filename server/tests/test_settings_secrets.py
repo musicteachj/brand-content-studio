@@ -50,6 +50,7 @@ def test_the_raw_values_are_still_readable_where_they_are_used():
 
 def test_the_providers_get_the_raw_keys(monkeypatch):
     from app.rag.embeddings import OpenAIEmbedder
+    from app.services import ai_clients
     from app.services.ai_service import GenerationService
     from app.services.brand_extract_service import BrandExtractService
     from app.services.unsplash_service import _require_key
@@ -57,9 +58,16 @@ def test_the_providers_get_the_raw_keys(monkeypatch):
     monkeypatch.setattr(settings, "anthropic_api_key", SecretStr("sk-ant-raw"))
     monkeypatch.setattr(settings, "openai_api_key", SecretStr("sk-openai-raw"))
     monkeypatch.setattr(settings, "unsplash_access_key", SecretStr("unsplash-raw"))
-    assert GenerationService().client.api_key == "sk-ant-raw"
-    assert BrandExtractService().client.api_key == "sk-ant-raw"
-    assert OpenAIEmbedder()._client.api_key == "sk-openai-raw"
+    # The clients are cached for the process; build fresh ones from the patched keys.
+    ai_clients.get_anthropic.cache_clear()
+    ai_clients.get_openai.cache_clear()
+    try:
+        assert GenerationService().client.api_key == "sk-ant-raw"
+        assert BrandExtractService().client.api_key == "sk-ant-raw"
+        assert OpenAIEmbedder()._client.api_key == "sk-openai-raw"
+    finally:
+        ai_clients.get_anthropic.cache_clear()
+        ai_clients.get_openai.cache_clear()
     assert _require_key() == "unsplash-raw"
 
 

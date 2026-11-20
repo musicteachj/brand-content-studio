@@ -65,10 +65,18 @@ class Settings(BaseSettings):
     # env change if quality looks thin.
     ai_effort: Literal["low", "medium", "high"] = "low"
 
+    # AI timeouts, in seconds. The SDKs never retry (a retry is a second billed call).
+    # Whole-request timeout for a non-streamed call, the longest silence allowed
+    # between streamed chunks, and the deadline for a whole streamed call.
+    ai_request_timeout_s: float = 60.0
+    ai_stream_read_timeout_s: float = 30.0
+    ai_stream_deadline_s: float = 90.0
+
     # AI — embeddings (OpenAI)
     openai_api_key: SecretStr = SecretStr("")
     embedding_model: str = "text-embedding-3-small"
     embedding_dim: int = 1536
+    embedding_timeout_s: float = 10.0
 
     # Vector store: "chroma" (dev) | "qdrant" (prod)
     vector_store_backend: str = "chroma"

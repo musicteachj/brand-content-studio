@@ -16,11 +16,9 @@ import base64
 import io
 from typing import Any, cast
 
-from anthropic import AsyncAnthropic
 from PIL import Image
 from pydantic import ValidationError
 
-from app.config import settings
 from app.models.common import BrandColor, BrandFonts
 from app.models.workspace import BrandExtractResponse
 from app.prompts.brand_extract import (
@@ -32,6 +30,7 @@ from app.prompts.brand_extract import (
     build_extract_user,
 )
 from app.services import claude_calls
+from app.services.ai_clients import get_anthropic
 from app.services.brand_fonts import curated_family
 
 # A ceiling with room for adaptive thinking and Sonnet 5.x's larger token counts.
@@ -95,7 +94,7 @@ class BrandExtractService:
     `GenerationService` convention."""
 
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key.get_secret_value())
+        self.client = get_anthropic()
 
     async def propose(self, data: bytes, media_type: str) -> BrandExtractResponse:
         detected = extract_palette(data)
