@@ -53,6 +53,17 @@ def build_corpus_chunks(namespace: str) -> list[dict]:
 
 
 TEST_DB_NAME = "brand_content_test"
+TEST_COLLECTIONS = (
+    "users",
+    "workspaces",
+    "assets",
+    "generations",
+    "templates",
+    "usage",
+    "ai_spend_days",
+    "ai_spend_calls",
+    "ai_spend_visitors",
+)
 
 
 @pytest_asyncio.fixture
@@ -73,12 +84,12 @@ async def test_db():
         pytest.skip("MongoDB not reachable (start docker-compose) — skipping integration test")
 
     db = client[TEST_DB_NAME]
-    for coll in ("users", "workspaces", "assets", "generations", "templates", "usage"):
+    for coll in TEST_COLLECTIONS:
         await db[coll].delete_many({})
     try:
         yield db
     finally:
-        for coll in ("users", "workspaces", "assets", "generations", "templates", "usage"):
+        for coll in TEST_COLLECTIONS:
             await db[coll].delete_many({})
         client.close()
 

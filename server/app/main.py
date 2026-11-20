@@ -23,6 +23,7 @@ from app.routes import (
     generations,
     health,
     images,
+    status,
     templates,
     workspaces,
 )
@@ -156,7 +157,10 @@ async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONRe
     with its readable `detail` instead of a 500. The streaming routes send it in
     their SSE error frame instead."""
     err = cast(UserFacingError, exc)
-    return JSONResponse(status_code=err.status_code, content={"detail": err.message})
+    content = {"detail": err.message}
+    if err.code:
+        content["code"] = err.code
+    return JSONResponse(status_code=err.status_code, content=content)
 
 
 app.add_exception_handler(UserFacingError, _user_facing_error_handler)
@@ -173,6 +177,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware, csp_exempt=csp_exempt_paths(app))
 
 app.include_router(health.router, prefix="/api", tags=["health"])
+app.include_router(status.router, prefix="/api/status", tags=["status"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(workspaces.router, prefix="/api/workspaces", tags=["workspaces"])
 app.include_router(

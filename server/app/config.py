@@ -1,5 +1,6 @@
 """Application settings (pydantic-settings). Loads from server/.env."""
 import ipaddress
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
@@ -71,6 +72,12 @@ class Settings(BaseSettings):
     ai_request_timeout_s: float = 60.0
     ai_stream_read_timeout_s: float = 30.0
     ai_stream_deadline_s: float = 90.0
+
+    # The AI dollar ledger (ai_ledger.py). A budget of 0 means live AI is off.
+    ai_monthly_budget_usd: Decimal = Decimal("10")
+    ai_pacing_multiplier: Decimal = Decimal("3")
+    ai_daily_floor_usd: Decimal = Decimal("0.50")
+    ai_visitor_budget_usd: Decimal = Decimal("0.15")
 
     # AI — embeddings (OpenAI)
     openai_api_key: SecretStr = SecretStr("")

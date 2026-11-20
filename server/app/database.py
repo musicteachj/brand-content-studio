@@ -33,6 +33,13 @@ async def close_mongo_connection() -> None:
         logging.info("Disconnected from MongoDB")
 
 
+async def ensure_ledger_indexes(database: AsyncIOMotorDatabase) -> None:
+    """Indexes for the AI dollar ledger: the sweeper and prune scan open calls by age,
+    and the pacing sum reads one month of day documents."""
+    await database.ai_spend_calls.create_index([("status", 1), ("created_at", 1)])
+    await database.ai_spend_days.create_index("month")
+
+
 async def ensure_indexes() -> None:
     """Idempotent index creation (see docs/DATA_MODEL.md)."""
     if db.client is None:
@@ -52,4 +59,5 @@ async def ensure_indexes() -> None:
     with contextlib.suppress(OperationFailure):
         await database.generations.drop_index("owner_id_1_created_at_-1")
     await database.templates.create_index("workspace_id")
+    await ensure_ledger_indexes(database)
     logging.info("Mongo indexes ensured")
