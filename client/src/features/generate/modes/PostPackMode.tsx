@@ -73,6 +73,7 @@ export function PostPackMode() {
             imageDataUrl={gen.imageDataUrl}
             attribution={gen.image?.attribution ?? null}
             error={gen.error}
+            errorShownBeside
             hasImage={gen.image !== null}
             imageError={gen.imageError}
             onAddImage={() => setPickerOpen(true)}

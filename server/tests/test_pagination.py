@@ -10,8 +10,9 @@ from app.main import app
 from app.models.asset import AssetPage
 from app.models.common import utcnow
 from app.models.generation import GenerationCount, GenerationPage
+from app.models.user import UserInDB
 from app.services import generations_service
-from app.utils.dependencies import get_workspace_or_404
+from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import TEST_DB_NAME
 
 WS = ObjectId()
@@ -25,7 +26,7 @@ def test_page_models_shape():
     assert GenerationCount(count=7).count == 7
 
 
-async def _seed_generations(db, n):
+async def _seed_generations(db, n, **extra):
     now = utcnow()
     docs = [
         {
@@ -34,6 +35,7 @@ async def _seed_generations(db, n):
             "output": {"post_text": f"p{i}", "hashtags": [], "char_count": 2},
             "retrieved_chunk_ids": [], "retrieval_meta": [], "model": "m",
             "embedding_query_model": "e", "created_at": now, "updated_at": now,
+            **extra,
         }
         for i in range(n)
     ]
@@ -44,12 +46,12 @@ async def _seed_generations(db, n):
 async def test_list_generations_paginates(test_db):
     await _seed_generations(test_db, 30)
     items, next_offset = await generations_service.list_generations(
-        test_db, WS, "all", limit=24, offset=0
+        test_db, WS, "all", session_id=None, limit=24, offset=0
     )
     assert len(items) == 24
     assert next_offset == 24
     items2, next2 = await generations_service.list_generations(
-        test_db, WS, "all", limit=24, offset=24
+        test_db, WS, "all", session_id=None, limit=24, offset=24
     )
     assert len(items2) == 6
     assert next2 is None
@@ -58,7 +60,26 @@ async def test_list_generations_paginates(test_db):
 @pytest.mark.asyncio
 async def test_count_generations(test_db):
     await _seed_generations(test_db, 5)
-    assert await generations_service.count_generations(test_db, WS) == 5
+    assert await generations_service.count_generations(test_db, WS, session_id=None) == 5
+
+
+@pytest.mark.asyncio
+async def test_a_visitor_pages_through_their_own_work_and_the_examples(test_db):
+    await _seed_generations(test_db, 20, session_id="sid-a")
+    await _seed_generations(test_db, 7, session_id="sid-b")
+    await _seed_generations(test_db, 6, is_example=True)
+    items, next_offset = await generations_service.list_generations(
+        test_db, WS, "all", session_id="sid-a", limit=24, offset=0
+    )
+    assert len(items) == 24 and next_offset == 24
+    items2, next2 = await generations_service.list_generations(
+        test_db, WS, "all", session_id="sid-a", limit=24, offset=24
+    )
+    assert len(items2) == 2 and next2 is None
+    assert await generations_service.count_generations(test_db, WS, session_id="sid-a") == 26
+    assert await generations_service.count_generations(test_db, WS, session_id="sid-b") == 13
+    # The owner sees the whole workspace.
+    assert await generations_service.count_generations(test_db, WS, session_id=None) == 33
 
 
 @pytest_asyncio.fixture
@@ -66,6 +87,9 @@ async def client(test_db, monkeypatch):
     monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[get_workspace_or_404] = lambda: {"_id": WS, "owner_id": ObjectId()}
+    app.dependency_overrides[get_current_user] = lambda: UserInDB(
+        id=str(ObjectId()), email="o@e.com", hashed_password="x", full_name="O"
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

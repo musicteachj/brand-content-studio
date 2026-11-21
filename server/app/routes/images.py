@@ -7,13 +7,16 @@ Two surfaces (ARCHITECTURE §6):
 The Unsplash access key never leaves the server. Uploads are untrusted: the
 content type is allow-listed, size-capped, and the storage key is derived
 server-side (never from the raw filename) — the same defenses as asset upload.
-"""
-from __future__ import annotations
+Unsplash search and tracking are limited per IP: the key's hourly quota is shared.
 
+NOTE: no `from __future__ import annotations` here: slowapi's @limiter.limit wrapper
+can't resolve string annotations (see routes/generate.py).
+"""
+import logging
 import os
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 
 from app.models.image import (
@@ -25,6 +28,10 @@ from app.services import unsplash_service
 from app.services.storage_service import build_image_key, get_storage, safe_filename
 from app.services.upload_service import IMAGE_CONTENT_TYPE, IMAGE_POLICY, read_upload
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
+from app.utils.errors import IMAGE_SEARCH_UNAVAILABLE_COPY
+from app.utils.ratelimit import RATE_LIMIT_UNSPLASH, limiter
+
+logger = logging.getLogger(__name__)
 
 # Global (auth-only) router — mounted at /api/images
 router = APIRouter()
@@ -33,7 +40,9 @@ ws_router = APIRouter()
 
 
 @router.get("/unsplash/search", response_model=UnsplashSearchResponse)
+@limiter.limit(RATE_LIMIT_UNSPLASH)
 async def unsplash_search(
+    request: Request,
     q: str,
     page: int = 1,
     _: object = Depends(get_current_user),
@@ -44,11 +53,16 @@ async def unsplash_search(
     try:
         return await unsplash_service.search(query, page)
     except unsplash_service.UnsplashError as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        logger.warning("Unsplash search failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=IMAGE_SEARCH_UNAVAILABLE_COPY
+        ) from exc
 
 
 @router.post("/unsplash/track", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(RATE_LIMIT_UNSPLASH)
 async def unsplash_track(
+    request: Request,
     payload: TrackDownloadRequest,
     _: object = Depends(get_current_user),
 ):

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
-import { makeBrandProfile } from "@/test/factories";
+import { makeBrandProfile, makeGeneration } from "@/test/factories";
 import { useAuthStore } from "@/stores/auth";
 import { setupMswServer } from "@/test/msw/lifecycle";
 import { server } from "@/test/msw/server";
@@ -84,5 +84,55 @@ describe("HistoryPage a11y", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(deleted).toEqual(["gen-ws1"]);
     expect(screen.getByRole("heading", { level: 1, name: "Generations" })).toHaveFocus();
+  });
+
+  it("badges examples and offers no delete or edit on them", async () => {
+    // Card thumbnails size themselves with a ResizeObserver, which jsdom lacks.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    server.use(
+      http.get("*/api/workspaces/ws1/generations", () =>
+        HttpResponse.json({
+          items: [
+            makeGeneration({
+              id: "ex1",
+              type: "card",
+              is_example: true,
+              output: {
+                template_id: "statement",
+                fields: { eyebrow: "e", headline: "h", body: "b", cta: "c", hashtag: "#x" },
+                image: null,
+                suggested_keywords: [],
+                accent_hex: null,
+              },
+            }),
+          ],
+          next_offset: null,
+        }),
+      ),
+    );
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /^card example/i }));
+    await screen.findByRole("dialog");
+    expect(screen.getAllByText("Example").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Customize" })).not.toBeInTheDocument();
+  });
+
+  it("lets a visitor delete their own generation", async () => {
+    useAuthStore.setState({
+      token: "t",
+      isAuthenticated: true,
+      user: { id: "d1", email: "d@x.io", full_name: "Demo", is_demo: true },
+    });
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /^text/i }));
+    expect(await screen.findByRole("button", { name: "Delete" })).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ControlsPanel } from "@/features/generate/ControlsPanel";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { RetrievalDebugPanel } from "@/features/generate/RetrievalDebugPanel";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import { useTextGeneration } from "@/features/generate/useTextGeneration";
@@ -72,11 +73,7 @@ function PostOutput({
           </div>
         )}
 
-        {status === "error" && (
-          <p role="alert" className="min-h-[120px] text-sm text-destructive">
-            {error ?? "Generation failed."}
-          </p>
-        )}
+        {status === "error" && <GenerationError message={error} className="min-h-[120px]" />}
 
         {(status === "streaming" || status === "done") && (
           <>

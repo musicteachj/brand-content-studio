@@ -13,6 +13,7 @@ from app.models.common import utcnow
 from app.models.user import UserInDB
 from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import TEST_DB_NAME
+from tests.fakes import FakeVectorStore
 
 WS = ObjectId()
 OWNER = ObjectId()
@@ -52,6 +53,8 @@ async def _noop_ingest(asset_id: str, namespace: str) -> None:
 async def _mk(test_db, monkeypatch, *, is_demo=False) -> AsyncClient:
     monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
     monkeypatch.setattr(assets_routes, "ingest_asset", _noop_ingest)
+    # The route drops old vectors first; use the in-memory store, not the docker Chroma.
+    monkeypatch.setattr(assets_routes, "get_vector_store", lambda: FakeVectorStore())
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[get_current_user] = lambda: _user(is_demo)
     app.dependency_overrides[get_workspace_or_404] = lambda: _workspace()

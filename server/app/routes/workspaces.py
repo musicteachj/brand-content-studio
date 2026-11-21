@@ -1,6 +1,7 @@
 """Workspace CRUD routes. All workspace-scoped sub-routers (assets, generate,
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
+import asyncio
 import re
 
 from bson import ObjectId
@@ -27,14 +28,25 @@ from app.models.workspace import (
 )
 from app.rag.vector_store import get_vector_store
 from app.services import generations_service, workspace_service
-from app.services.brand_extract_service import BrandExtractService
-from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
+from app.services.ai_meter import reserve_action
+from app.services.brand_extract_service import (
+    BrandExtractService,
+    brand_extract_line,
+    exemplar_note_line,
+)
+from app.services.storage_service import (
+    build_font_key,
+    build_image_key,
+    build_workspace_prefix,
+    get_storage,
+    safe_filename,
+)
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
 from app.services.workspace_service import WorkspaceWriteConflict
 from app.utils.dependencies import (
-    enforce_demo_ai_quota,
     get_current_user,
     get_workspace_or_404,
+    ledger_visitor_id,
     require_not_demo,
 )
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
@@ -141,16 +153,23 @@ async def extract_brand(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: BrandExtractService = Depends(BrandExtractService),
-    _quota: None = Depends(enforce_demo_ai_quota),
+    current_user: UserInDB = Depends(require_not_demo),
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Propose a brand profile (palette + voice + fonts) from an uploaded image.
 
-    Returns a **proposal only** — nothing is persisted; the client reviews it and
-    applies it through the brand PATCH. Allowed for the demo user (it's generative,
-    not a mutation — DECISIONS #15); validated like the image/logo uploads."""
+    Returns a **proposal only**: nothing is persisted; the client reviews it and
+    applies it through the brand PATCH. Closed to the demo (the UI hides it there), and
+    validated like the image/logo uploads. The vision call is reserved in the AI dollar
+    ledger first."""
     data, _, media_type = await read_upload(file, IMAGE_POLICY, default_name="image")
     _ = workspace  # ownership enforced by the dependency
-    return await service.propose(data, media_type)
+    # The reservation's prompt carries the image's palette: Pillow work, off the loop.
+    line = await asyncio.to_thread(brand_extract_line, data)
+    async with await reserve_action(
+        db, [line], visitor_id=ledger_visitor_id(current_user)
+    ) as action:
+        return await service.propose(data, media_type, line=action.lines[0])
 
 
 @router.post("/{workspace_id}/exemplars", response_model=WorkspaceResponse)
@@ -171,7 +190,10 @@ async def add_exemplar(
             detail=f"At most {MAX_EXEMPLARS} example cards per workspace.",
         )
     data, filename, media_type = await read_upload(file, IMAGE_POLICY, default_name="card")
-    note = await service.propose_exemplar_note(data, media_type)
+    async with await reserve_action(
+        db, [exemplar_note_line()], visitor_id=ledger_visitor_id(current_user)
+    ) as action:
+        note = await service.propose_exemplar_note(data, media_type, line=action.lines[0])
     workspace_id = str(workspace["_id"])
     exemplar_id = str(ObjectId())
     clean_name = safe_filename(filename)
@@ -443,5 +465,9 @@ async def delete_workspace(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     namespace = workspace["vector_namespace"]
-    await workspace_service.delete_workspace(db, str(workspace["_id"]), current_user.id)
+    workspace_id = str(workspace["_id"])
+    if await workspace_service.delete_workspace(db, workspace_id, current_user.id):
+        # Its files go with it, best effort, records first: with the workspace record gone,
+        # the cleanup job's orphan sweep would never reach them.
+        await get_storage().delete_prefix(build_workspace_prefix(workspace_id))
     await get_vector_store().delete_workspace(namespace)

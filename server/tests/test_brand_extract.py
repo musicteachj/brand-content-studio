@@ -1,6 +1,6 @@
 """Brand auto-extraction (Phase 4c). The Pillow palette step is deterministic and
 unit-tested directly; the route is tested with the vision service faked (no model
-call), asserting it returns a proposal, validates the upload, allows the demo
+call), asserting it returns a proposal, validates the upload, refuses the demo
 user, and **never mutates** the workspace."""
 import io
 from dataclasses import replace
@@ -26,6 +26,7 @@ from app.services.brand_extract_service import (
 from app.services.upload_service import IMAGE_POLICY
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
+from tests.fakes import settle_fake_usage
 
 WORKSPACE_OID = ObjectId()
 OWNER_OID = ObjectId()
@@ -138,7 +139,13 @@ def test_extract_tool_restricts_fonts_to_curated_families():
 # --- Route (vision service faked) ------------------------------------------
 
 class _FakeExtractService:
-    async def propose(self, data: bytes, media_type: str) -> BrandExtractResponse:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def propose(self, data: bytes, media_type: str, *, line) -> BrandExtractResponse:
+        self.calls += 1
+        line.mark_started()
+        await settle_fake_usage(line)
         return BrandExtractResponse(
             colors=[BrandColor(name="Forest", hex="#1C3A2E", role="primary")],
             voice_summary="Calm, precise.",
@@ -182,8 +189,11 @@ async def _make_client(test_db, monkeypatch, *, is_demo: bool) -> AsyncClient:
     await _seed_workspace(test_db)
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[get_current_user] = lambda: _owner_user(is_demo)
-    app.dependency_overrides[BrandExtractService] = lambda: _FakeExtractService()
-    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    fake = _FakeExtractService()
+    app.dependency_overrides[BrandExtractService] = lambda: fake
+    ac = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    ac.fake = fake  # type: ignore[attr-defined]
+    return ac
 
 
 @pytest_asyncio.fixture
@@ -235,7 +245,9 @@ async def test_extract_rejects_oversize(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_extract_allowed_for_demo(demo_client):
-    # Extraction is generative (a proposal), not a mutation — demo is allowed.
+async def test_extract_closed_to_the_demo(demo_client):
+    # A paid vision call the demo UI never offers (BrandIdentityEditor hides it), so the
+    # route refuses it too, before the upload is read or anything is reserved.
     resp = await demo_client.post(_url(), files={"file": ("logo.png", _png((28, 58, 46)), "image/png")})
-    assert resp.status_code == 200
+    assert resp.status_code == 403
+    assert demo_client.fake.calls == 0

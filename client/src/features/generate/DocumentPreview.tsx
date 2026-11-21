@@ -6,6 +6,7 @@ import { FileText } from "lucide-react";
 import { DeckPreview } from "@/features/generate/DeckPreview";
 import { DocumentDownloadRow } from "@/features/generate/DocumentDownloadRow";
 import { DocumentPage } from "@/features/generate/DocumentPage";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 import type {
   BrandProfile,
@@ -56,9 +57,7 @@ export function DocumentPreview({
 
       {status === "error" && (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-border bg-surface p-6 shadow-preview">
-          <p role="alert" className="text-sm text-destructive">
-            {error ?? "Generation failed."}
-          </p>
+          <GenerationError message={error} />
         </div>
       )}
 

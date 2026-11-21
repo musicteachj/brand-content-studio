@@ -24,11 +24,12 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from httpx import ASGITransport, AsyncClient
 
-from app.config import settings
+from app.config import TURNSTILE_PASS_SECRET, settings
 from app.database import get_database
 from app.main import app
 from app.models.user import UserInDB
 from app.services.auth_service import authenticate_user, get_user_by_id
+from app.services.turnstile import DUMMY_TOKEN, TestKeyVerifier, get_turnstile_verifier
 from app.utils.dependencies import get_current_user
 from app.utils.security import (
     create_access_token,
@@ -94,6 +95,7 @@ async def client(test_db):
     """AsyncClient wired to the app, with the DB pointed at the clean test database.
     `get_current_user` is intentionally NOT overridden — that's the whole point."""
     app.dependency_overrides[get_database] = lambda: test_db
+    app.dependency_overrides[get_turnstile_verifier] = lambda: TestKeyVerifier(TURNSTILE_PASS_SECRET)
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -295,18 +297,36 @@ async def test_login_unknown_email_401(client):
 
 
 @pytest.mark.asyncio
-async def test_demo_login_404_when_unseeded(client):
-    resp = await client.post("/api/auth/demo-login")
-    assert resp.status_code == 404
+async def test_login_refuses_the_demo_user_like_a_wrong_password(client, test_db):
+    # The demo is reached only through the Turnstile start, so the right password for the
+    # demo user is answered exactly as a wrong one: no token that /me would then refuse.
+    await _seed_user(test_db, email="demo@x.com", is_demo=True)
+    right = await client.post("/api/auth/login", json={"email": "demo@x.com", "password": _PASSWORD})
+    wrong = await client.post("/api/auth/login", json={"email": "demo@x.com", "password": "wrong"})
+    assert right.status_code == 401
+    assert right.json() == wrong.json() == {"detail": "Incorrect email or password"}
+    assert right.headers.get("www-authenticate") == "Bearer"
+
+
+# A demo start that passes the bot check (Cloudflare's test secret, answered locally).
+_DEMO_START = {"turnstile_token": DUMMY_TOKEN}
+
+
+@pytest.mark.asyncio
+async def test_demo_login_503_when_unseeded(client):
+    resp = await client.post("/api/auth/demo-login", json=_DEMO_START)
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "The demo isn't ready yet. Try again in a minute."
 
 
 @pytest.mark.asyncio
 async def test_demo_login_success_when_seeded(client, test_db):
     uid = await _seed_user(test_db, email="demo@x.com", is_demo=True)
-    resp = await client.post("/api/auth/demo-login")
+    resp = await client.post("/api/auth/demo-login", json=_DEMO_START)
     assert resp.status_code == 200
     payload = decode_access_token(resp.json()["access_token"])
     assert payload is not None and payload["user_id"] == str(uid)
+    assert payload["sid"]  # a visitor session (test_demo_sessions.py)
 
 
 @pytest.mark.asyncio

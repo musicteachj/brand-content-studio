@@ -5,6 +5,7 @@
 // imported so they stay out of the initial bundle.
 import { useEffect, useState } from "react";
 import { fetchImageDataUrl } from "@/api/images";
+import { CardExportError, cardExportErrorMessage } from "@/features/generate/cardExportError";
 import {
   buildCardElement,
   CARD_H,
@@ -35,13 +36,15 @@ async function ensureResvg(): Promise<void> {
 }
 
 /** Render the card element to an SVG string via Satori (workspace fonts as
- *  buffers). Throws a friendly error if no brand font could be loaded — Satori
- *  needs at least one. */
+ *  buffers). Throws a CardExportError (curated copy) if no brand font could be
+ *  loaded, since Satori needs at least one. */
 export async function renderCardSvg(props: CardElementProps): Promise<string> {
   const { default: satori } = await import("satori");
   const fonts = await loadBrandFontBuffers(props.brand.fonts, props.brand.uploaded_fonts ?? []);
   if (fonts.length === 0) {
-    throw new Error("Could not load the workspace brand fonts. Check your connection and retry.");
+    throw new CardExportError(
+      "Could not load the workspace brand fonts. Check your connection and retry.",
+    );
   }
   return satori(buildCardElement(props), { width: CARD_W, height: CARD_H, fonts });
 }
@@ -95,7 +98,8 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 /** Produce the locked-preview SVG once `enabled` (the copy is finalized). Returns
  *  the SVG string, plus loading/error so the preview can fall back to the live DOM
- *  card while it renders or if Satori fails. */
+ *  card while it renders or if Satori fails. `error` is visitor-facing copy
+ *  (cardExportErrorMessage), never raw engine text. */
 export function useCardSvg(enabled: boolean, props: CardElementProps) {
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,23 +118,24 @@ export function useCardSvg(enabled: boolean, props: CardElementProps) {
   useEffect(() => {
     if (!enabled) {
       setSvg(null);
+      setError(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     setLoading(true);
     setError(null);
     renderCardSvg(props)
       .then((out) => {
-        if (!cancelled) setSvg(out);
+        if (!canceled) setSvg(out);
       })
       .catch((err) => {
-        if (!cancelled) setError((err as Error).message);
+        if (!canceled) setError(cardExportErrorMessage(err));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!canceled) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // `key` captures every input that changes the render; props is read inside.
     // eslint-disable-next-line react-hooks/exhaustive-deps

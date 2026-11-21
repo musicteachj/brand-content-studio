@@ -291,6 +291,23 @@ export interface Generation {
   embedding_query_model: string;
   created_at: string | null;
   updated_at: string | null;
+  // A ready-made example: readable by everyone, edited or deleted by no one.
+  is_example: boolean;
+}
+
+// GET /api/examples (public): the demo workspace's name, the part of its brand profile
+// the examples page shows, and the ready-made examples in display order.
+export interface ExampleBrand {
+  colors: BrandColor[];
+  fonts: BrandFonts;
+  accent_hex: string | null;
+  voice_summary: string | null;
+}
+
+export interface ExamplesResponse {
+  workspace_name: string;
+  brand: ExampleBrand;
+  items: Generation[];
 }
 
 // Phase 6 — paginated list envelopes ({items, next_offset}; null = exhausted).

@@ -26,7 +26,8 @@ from app.models.template import (
 from app.models.user import UserInDB
 from app.prompts import template_fill
 from app.services import template_service
-from app.services.ai_service import GenerationService
+from app.services.ai_meter import reserve_action
+from app.services.ai_service import GenerationService, template_fill_line
 from app.services.content_extraction import (
     NoExtractableTextError,
     UnsupportedSourceError,
@@ -36,8 +37,9 @@ from app.services.storage_service import build_template_key, get_storage, safe_f
 from app.services.upload_service import SOURCE_POLICY, TEMPLATE_POLICY, read_upload
 from app.utils.archives import UnsafeArchive
 from app.utils.dependencies import (
-    enforce_demo_ai_quota,
+    get_current_user,
     get_workspace_or_404,
+    ledger_visitor_id,
     require_not_demo,
 )
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
@@ -138,11 +140,12 @@ async def ai_fill_template(
     payload: TemplateAiFillRequest,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
-    _quota: None = Depends(enforce_demo_ai_quota),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft a value for each placeholder from a brief (optional path). Generative,
-    not a mutation → allowed for the demo user. Nothing is persisted."""
+    not a mutation → allowed for the demo user. Nothing is persisted. The model call is
+    reserved in the AI dollar ledger first."""
     doc = await template_service.get_template(db, workspace["_id"], template_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
@@ -150,11 +153,12 @@ async def ai_fill_template(
     if not placeholders:
         return TemplateAiFillResponse(values={})
     tool = template_fill.build_fill_tool(placeholders)
-    result = await service.fill_template_values(
-        template_fill.build_fill_system(),
-        template_fill.build_fill_user(payload.brief, placeholders),
-        tool,
-    )
+    system = template_fill.build_fill_system()
+    user = template_fill.build_fill_user(payload.brief, placeholders)
+    async with await reserve_action(
+        db, [template_fill_line(system, user, tool)], visitor_id=ledger_visitor_id(current_user)
+    ) as action:
+        result = await service.fill_template_values(system, user, tool, line=action.lines[0])
     values = template_service.clamp_values(result, placeholders)
     return TemplateAiFillResponse(values=template_service.scrub_ai_values(values))
 
@@ -167,7 +171,7 @@ async def fill_template_from_document(
     file: UploadFile,
     workspace: dict = Depends(get_workspace_or_404),
     service: GenerationService = Depends(GenerationService),
-    _quota: None = Depends(enforce_demo_ai_quota),
+    current_user: UserInDB = Depends(get_current_user),
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Draft each placeholder by mapping an uploaded document's content onto the
@@ -201,11 +205,14 @@ async def fill_template_from_document(
             detail="Couldn't read that document. Is it a valid .docx, .pptx, .pdf, .txt, or .md file?",
         ) from exc
     tool = template_fill.build_fill_tool(placeholders)
-    result = await service.fill_template_values(
-        template_fill.build_fill_system(),
-        template_fill.build_fill_user_from_content(content, placeholders),
-        tool,
-    )
+    system = template_fill.build_fill_system()
+    user = template_fill.build_fill_user_from_content(content, placeholders)
+    async with await reserve_action(
+        db,
+        [template_fill_line(system, user, tool, purpose="template_fill_from_document")],
+        visitor_id=ledger_visitor_id(current_user),
+    ) as action:
+        result = await service.fill_template_values(system, user, tool, line=action.lines[0])
     values = template_service.clamp_values(result, placeholders)
     return TemplateAiFillResponse(values=template_service.scrub_ai_values(values))
 

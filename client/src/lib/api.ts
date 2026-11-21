@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useAuthStore } from "@/stores/auth";
+import { endSessionOn401, useAuthStore } from "@/stores/auth";
 
 /** Axios instance. Vite proxies /api -> FastAPI (see vite.config.ts). */
 export const api = axios.create({ baseURL: "/api" });
@@ -15,7 +15,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      endSessionOn401();
     }
     return Promise.reject(error);
   },

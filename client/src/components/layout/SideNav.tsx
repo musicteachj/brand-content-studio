@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   Files,
   LayoutDashboard,
@@ -13,6 +13,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 
@@ -42,6 +44,17 @@ export function SideNav() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
+  // End the visitor's session on the server first, then sign out here whatever the answer
+  // was: a failed call must not leave them stuck signed in.
+  async function endDemo() {
+    try {
+      await api.post("/auth/end-demo");
+    } catch {
+      // Signed out locally below; the session still lapses on its own within 24 hours.
+    }
+    logout();
+  }
+
   // Follow the window across the breakpoint; the toggle still works in between.
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
@@ -57,6 +70,18 @@ export function SideNav() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={user?.is_demo ? undefined : () => logout()}
+      aria-label="Sign out"
+      title={collapsed ? "Sign out" : undefined}
+      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <LogOut className="h-[18px] w-[18px]" aria-hidden />
+    </button>
+  );
 
   return (
     <aside
@@ -109,16 +134,28 @@ export function SideNav() {
               {user?.is_demo && <span className="mt-0.5 eyebrow">Demo session</span>}
             </div>
           )}
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Sign out"
-            title={collapsed ? "Sign out" : undefined}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <LogOut className="h-[18px] w-[18px]" aria-hidden />
-          </button>
+          {user?.is_demo ? (
+            <ConfirmDialog
+              trigger={signOutButton}
+              title="End your demo?"
+              description="Signing out ends this demo. Your work stays private and is removed after 24 hours."
+              confirmLabel="End demo"
+              onConfirm={endDemo}
+              errorFallback="Couldn’t end the demo. Try again."
+            />
+          ) : (
+            signOutButton
+          )}
         </div>
+
+        {!collapsed && (
+          <Link
+            to="/privacy"
+            className="mt-3 block px-2.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Privacy and terms
+          </Link>
+        )}
 
         <button
           type="button"

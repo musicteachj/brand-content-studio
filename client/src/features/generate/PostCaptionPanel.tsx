@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Check, Copy, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { GenerationError } from "@/features/generate/GenerationError";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
 
 interface Props {
@@ -39,11 +40,7 @@ export function PostCaptionPanel({ status, streamingText, value, onChange, error
         </p>
       )}
 
-      {status === "error" && (
-        <p role="alert" className="py-6 text-sm text-destructive">
-          {error ?? "Generation failed."}
-        </p>
-      )}
+      {status === "error" && <GenerationError message={error} className="py-6" />}
 
       {status === "streaming" && (
         <div

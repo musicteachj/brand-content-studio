@@ -13,11 +13,13 @@ from bson import ObjectId
 from app.database import get_database
 from app.limits import MAX_CHUNKS, PARSE_TIMEOUT_S
 from app.rag.chunking import chunk_text, split_posts
+from app.rag.embeddings import embed_metered
 from app.rag.loaders import FileTooComplexError, Section, UnsupportedFileError, load_sections
 from app.rag.vector_store import Chunk, get_vector_store
 from app.services import asset_service
+from app.services.ai_meter import embedding_line, reserve_action
 from app.services.storage_service import get_storage
-from app.utils.errors import client_error
+from app.utils.errors import INGEST_PAUSED_COPY, BudgetRefusal, LiveAIUnavailable, client_error
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +106,21 @@ async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
                 f"Document too large ({len(chunks)} sections > {MAX_CHUNKS}). Split it into smaller files.",
             )
             return
-        count = await get_vector_store().upsert_chunks(workspace_namespace, chunks)
+        try:
+            ingest = await reserve_action(
+                db, [embedding_line("ingest", [c["text"] for c in chunks])], visitor_id=None
+            )
+            async with ingest:
+                vectors = await embed_metered(
+                    [c["text"] for c in chunks], line=ingest.lines[0]
+                )
+        except BudgetRefusal:
+            await asset_service.mark_error(db, asset_oid, INGEST_PAUSED_COPY)
+            return
+        except LiveAIUnavailable as exc:
+            await asset_service.mark_error(db, asset_oid, exc.message)
+            return
+        count = await get_vector_store().upsert_chunks(workspace_namespace, chunks, vectors)
         marked = await asset_service.mark_ready(db, asset_oid, count)
         if marked is None:
             # Asset was deleted while we were ingesting; drop the orphan vectors

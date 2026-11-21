@@ -12,8 +12,9 @@ from app.config import settings
 from app.database import get_database
 from app.main import app
 from app.models.common import utcnow
+from app.models.user import UserInDB
 from app.services import generations_service
-from app.utils.dependencies import get_workspace_or_404
+from app.utils.dependencies import get_current_user, get_workspace_or_404
 from tests.conftest import TEST_DB_NAME
 
 WORKSPACE_OID = ObjectId()
@@ -40,6 +41,9 @@ async def client(test_db, monkeypatch):
     monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
     app.dependency_overrides[get_database] = lambda: test_db
     app.dependency_overrides[get_workspace_or_404] = lambda: _workspace()
+    app.dependency_overrides[get_current_user] = lambda: UserInDB(
+        id=str(OWNER_OID), email="o@e.com", hashed_password="x", full_name="O"
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -270,10 +274,10 @@ async def test_concurrent_patches_dont_overwrite_each_other(client, test_db, see
 
     await asyncio.gather(
         generations_service.update_generation_output(
-            test_db, WORKSPACE_OID, gid, {"image": None}, nested_key=nested_key
+            test_db, WORKSPACE_OID, gid, {"image": None}, nested_key=nested_key, session_id=None
         ),
         generations_service.update_generation_output(
-            test_db, WORKSPACE_OID, gid, {"fields": fields}, nested_key=nested_key
+            test_db, WORKSPACE_OID, gid, {"fields": fields}, nested_key=nested_key, session_id=None
         ),
     )
     stored = (await test_db.generations.find_one({"_id": ObjectId(gid)}))["output"]
@@ -315,3 +319,28 @@ async def test_card_with_a_null_output_still_patches(client, test_db):
 async def test_patch_unknown_generation_is_404(client, test_db):
     resp = await client.patch(_url(str(ObjectId())), json={"image": None})
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_the_update_never_writes_an_example_or_another_sessions_card(test_db):
+    """The service's own write filter backs the route's checks: an example is never
+    changed (owner included), and a visitor writes only their own session's card."""
+    example = await _seed_card(test_db)
+    await test_db.generations.update_one({"_id": ObjectId(example)}, {"$set": {"is_example": True}})
+    mine = await _seed_card(test_db)
+    await test_db.generations.update_one({"_id": ObjectId(mine)}, {"$set": {"session_id": "sid-a"}})
+    patch = {"template_id": "quote"}
+
+    for session_id in (None, "sid-a"):
+        assert await generations_service.update_generation_output(
+            test_db, WORKSPACE_OID, example, patch, session_id=session_id
+        ) is None
+    assert await generations_service.update_generation_output(
+        test_db, WORKSPACE_OID, mine, patch, session_id="sid-b"
+    ) is None
+    assert (await test_db.generations.find_one({"_id": ObjectId(mine)}))["output"]["template_id"] == "photo-led"
+    updated = await generations_service.update_generation_output(
+        test_db, WORKSPACE_OID, mine, patch, session_id="sid-a"
+    )
+    assert updated is not None and updated["output"]["template_id"] == "quote"
+    assert (await test_db.generations.find_one({"_id": ObjectId(example)}))["output"]["template_id"] == "photo-led"

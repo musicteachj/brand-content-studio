@@ -7,6 +7,7 @@ import pytest
 
 from app.services import retrieval_service
 from tests.conftest import NS_A
+from tests.fakes import NullLine
 
 # brief -> the past-post chunk id we expect retrieval to surface.
 EVAL_SET = {
@@ -28,7 +29,7 @@ async def test_retrieval_hit_rate_meets_threshold(ingested_store):
     hits = 0
     misses: list[str] = []
     for brief, expected_id in EVAL_SET.items():
-        result = await retrieval_service.retrieve(ingested_store, NS_A, brief, k=6)
+        result = await retrieval_service.retrieve(ingested_store, NS_A, brief, k=6, line=NullLine())
         if expected_id in result.chunk_ids:
             hits += 1
         else:

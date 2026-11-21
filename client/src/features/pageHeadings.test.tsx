@@ -1,5 +1,6 @@
 // QA-16: Generate's mode buttons didn't expose the selected mode, and Settings'
 // only h1 was "Appearance" (one of its sections).
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -25,7 +26,15 @@ import { SettingsPage } from "@/features/settings/SettingsPage";
 
 describe("page chrome a11y", () => {
   it("Generate marks the selected mode with aria-pressed", async () => {
-    render(<GeneratePage />);
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <MemoryRouter>
+          <GeneratePage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
     const text = screen.getByRole("button", { name: "Text post" });
     const card = screen.getByRole("button", { name: "Image card" });
     expect(text).toHaveAttribute("aria-pressed", "true");

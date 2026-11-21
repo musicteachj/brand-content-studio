@@ -35,6 +35,7 @@ from app.services.template_service import (
 )
 from app.utils.dependencies import get_current_user
 from tests.conftest import TEST_DB_NAME
+from tests.fakes import settle_fake_usage
 
 # --- Task 1: storage key ----------------------------------------------------
 
@@ -185,7 +186,9 @@ DOCX_CT = "application/vnd.openxmlformats-officedocument.wordprocessingml.docume
 
 
 class _FakeGen:
-    async def fill_template_values(self, system, user, tool):
+    async def fill_template_values(self, system, user, tool, *, line):
+        line.mark_started()
+        await settle_fake_usage(line)
         return {name: f"draft {name}" for name in tool["input_schema"]["properties"]}
 
 
@@ -263,17 +266,6 @@ async def test_ai_fill_returns_values(tpl_client):
     resp = await tpl_client.post(f"{_base()}/{t['id']}/ai-fill", json={"brief": "a welcome letter"})
     assert resp.status_code == 200
     assert resp.json()["values"] == {"client_name": "draft client_name"}
-
-
-@pytest.mark.asyncio
-async def test_ai_fill_demo_over_quota_is_429(tpl_client, monkeypatch):
-    """The demo's daily AI-call quota guards the paid AI template routes too (SEC-02,
-    known-gaps step 1); limit 0 means any demo request is over the cap."""
-    t = await _upload(tpl_client)
-    monkeypatch.setattr(settings, "demo_daily_generation_limit", 0)
-    app.dependency_overrides[get_current_user] = lambda: _user(is_demo=True)
-    resp = await tpl_client.post(f"{_base()}/{t['id']}/ai-fill", json={"brief": "x"})
-    assert resp.status_code == 429
 
 
 @pytest.mark.asyncio

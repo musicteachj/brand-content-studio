@@ -205,7 +205,7 @@ export function ImagePickerPanel({
               <div className="flex flex-col items-center py-10 text-center">
                 <ImageOff className="h-6 w-6 text-muted-foreground" aria-hidden />
                 <p className="mt-3 text-sm text-destructive">
-                  Couldn’t reach Unsplash. Check the server’s UNSPLASH_ACCESS_KEY.
+                  Image search isn’t available right now. You can still use the brand images.
                 </p>
               </div>
             )}

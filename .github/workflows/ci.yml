@@ -25,12 +25,15 @@ jobs:
   client:
     name: client
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: client
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc # the one Node version for local dev, CI, and the image
           cache: npm
@@ -51,18 +54,18 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format
-      - run: npm run build # tsc -b && vite build — the gate that catches BUILD-01
+      - run: npm run build # tsc -b && vite build: the gate that catches BUILD-01
       - run: npm test
 
   server:
     name: server
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: server
-    # Mirror docker-compose: both Mongo AND Chroma. With Mongo up the integration
-    # fixtures un-skip, and some (e.g. asset reingest, which drops prior vectors)
-    # then need the real vector store — so Chroma must be present too.
+    # Mirror docker-compose: Mongo. With Mongo up the integration fixtures un-skip.
+    # Chroma runs in-process (a temp directory per test run), so it needs no service.
     services:
       mongo:
         image: mongo:7
@@ -71,62 +74,42 @@ jobs:
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s --health-timeout 5s --health-retries 5
-      chroma:
-        # Pinned to match chromadb in server/requirements.txt (and docker-compose.yml).
-        image: chromadb/chroma:1.5.9
-        ports:
-          - 8001:8000
     env:
       MONGODB_URL: mongodb://localhost:27017
-      CHROMA_HOST: localhost
-      CHROMA_PORT: "8001"
       # A real (test-only) secret so config's production validator is exercised
       # without ever putting a live key in CI.
       JWT_SECRET_KEY: ci-test-secret-not-a-real-key-000000
       ANTHROPIC_API_KEY: ""
       OPENAI_API_KEY: ""
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
-      - name: Chroma client and server versions match
-        # The chromadb pin and the chromadb/chroma image tags must move together,
-        # so fail if one is bumped without the others.
+      - name: No Chroma server anywhere
+        # Chroma runs in-process (chromadb.PersistentClient). The server and its
+        # advisories must never come back, so fail if any Chroma server image appears.
         working-directory: .
         run: |
-          client=$(sed -n 's/^chromadb==\([^ ]*\).*/\1/p' server/requirements.txt)
-          tags=$(grep -hE '^ *image: chromadb/chroma:' docker-compose.yml .github/workflows/ci.yml \
-            | sed 's/.*image: //' | sort -u)
-          echo "chromadb client: $client"; echo "server images:"; echo "$tags"
-          if [ -z "$client" ] || [ "$tags" != "chromadb/chroma:$client" ]; then
-            echo "Pin chromadb in server/requirements.txt and every chromadb/chroma image tag to the same version." >&2
+          if grep -rn 'chromadb/chrom[a]:' docker-compose*.yml Dockerfile .github/workflows; then
+            echo "A Chroma server image is referenced; Chroma must stay in-process." >&2
             exit 1
           fi
       - run: pip install -r requirements-dev.txt # runtime + ruff/mypy/pytest
-      - name: Wait for Chroma
-        # The image ships no shell tooling we can use in a service --health-cmd,
-        # so poll its heartbeat from the runner instead.
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8001/api/v2/heartbeat \
-               || curl -sf http://localhost:8001/api/v1/heartbeat; then
-              echo "chroma is up"; exit 0
-            fi
-            echo "waiting for chroma ($i/30)"; sleep 2
-          done
-          echo "chroma did not become ready" >&2; exit 1
       - run: ruff check app tests
       - run: mypy app
-      - run: pytest -q # Mongo + Chroma services un-skip the integration fixtures
+      - run: pytest -q # the Mongo service un-skips the integration fixtures
 
-  # Builds the production image and boots it against real Mongo + Chroma, so a
+  # Builds the production image and boots it against real Mongo (Chroma runs inside it), so a
   # broken Dockerfile (DEP-02) or a secret baked into a layer (DEP-01) fails here
   # instead of at deploy time. Nothing is pushed anywhere.
   docker:
     name: docker
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       mongo:
         image: mongo:7
@@ -135,12 +118,10 @@ jobs:
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s --health-timeout 5s --health-retries 5
-      chroma:
-        image: chromadb/chroma:1.5.9
-        ports:
-          - 8001:8000
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Third-party actions are pinned to a commit SHA (a tag can be moved).
       # When upgrading, update the SHA and the version comment together.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -161,26 +142,47 @@ jobs:
                echo "secret files were baked into the image:" >&2; echo "$found" >&2; exit 1
              fi'
       - name: Boot the image and wait for its HEALTHCHECK
+        # As production runs it, with live AI off (a zero budget) and Cloudflare's
+        # always-pass Turnstile test keys (allowed because APP_ORIGIN is loopback).
+        # No AI key at all: the startup seed restores the demo from its fixtures.
+        # Hardened like the ECS task (docs/DEPLOY.md): read-only root filesystem with a
+        # /tmp tmpfs, no capabilities, no privilege escalation. The two data directories
+        # get volumes, as in production (Docker gives a new volume the image directory's
+        # owner, uid 10001), or the app's startup write check refuses to boot.
         run: |
           docker run -d --name bcs --network host \
+            --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -v /app/storage -v /app/chroma \
             -e MONGODB_URL=mongodb://localhost:27017 \
-            -e CHROMA_HOST=localhost -e CHROMA_PORT=8001 \
             -e JWT_SECRET_KEY=ci-test-secret-not-a-real-key-000000 \
+            -e APP_ORIGIN=http://localhost:8000 \
+            -e FORWARDED_ALLOW_IPS=127.0.0.1 \
+            -e TURNSTILE_SITE_KEY=1x00000000000000000000AA \
+            -e TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA \
+            -e AI_MONTHLY_BUDGET_USD=0 \
             brand-content-studio:ci
-          # The Dockerfile's first probe fires one interval (30s) after start.
-          for i in $(seq 1 40); do
+          # The HEALTHCHECK probes liveness, first one interval (30s) after start.
+          for i in $(seq 1 60); do
             if [ "$(docker inspect -f '{{.State.Running}}' bcs)" != true ]; then
               echo "container exited during boot" >&2; exit 1
             fi
             status=$(docker inspect -f '{{.State.Health.Status}}' bcs)
             if [ "$status" = healthy ]; then echo "container is healthy"; exit 0; fi
-            echo "waiting for healthy, currently $status ($i/40)"; sleep 3
+            echo "waiting for healthy, currently $status ($i/60)"; sleep 3
           done
           echo "container never became healthy" >&2; exit 1
-      - name: API reports both stores up and the SPA is served
+      - name: API is ready with the seed, the examples, and the SPA
         run: |
+          # Readiness: Mongo, Chroma, and the startup seed (built from fixtures, no AI key).
           curl -sf http://127.0.0.1:8000/api/health | python3 -c \
-            'import json, sys; d = json.load(sys.stdin); print(d); sys.exit(d["status"] != "ok")'
+            'import json, sys; d = json.load(sys.stdin); print(d); sys.exit(not (d["status"] == "ok" and d["seed"] is True))'
+          # The four ready-made examples are public.
+          curl -sf http://127.0.0.1:8000/api/examples | python3 -c \
+            'import json, sys; n = len(json.load(sys.stdin)["items"]); print(n, "examples"); sys.exit(n != 4)'
+          # Password sign-in does not exist in production.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"email":"a@example.com","password":"x"}' http://127.0.0.1:8000/api/auth/login)
+          test "$code" = 404 || { echo "POST /api/auth/login returned $code" >&2; exit 1; }
           curl -sf http://127.0.0.1:8000/ -o index.html
           grep -q 'id="root"' index.html
           # The bundle index.html loads must come back as JavaScript, not as
@@ -193,9 +195,25 @@ jobs:
           # An unknown API path is a 404, not the SPA.
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/does-not-exist)
           test "$code" = 404 || { echo "/api/does-not-exist returned $code" >&2; exit 1; }
-          # The SPA is served under an enforcing CSP (known-gaps plan, step 2).
-          curl -sfI http://127.0.0.1:8000/login | grep -qi "^content-security-policy: default-src 'self'" \
+          # The SPA is served under an enforcing CSP (known-gaps plan, step 2) that lets
+          # the Turnstile check load.
+          csp=$(curl -sfI http://127.0.0.1:8000/login | grep -i "^content-security-policy:" || true)
+          echo "$csp" | grep -qi "^content-security-policy: default-src 'self'" \
             || { echo "no enforcing Content-Security-Policy on the SPA" >&2; exit 1; }
+          echo "$csp" | grep -q "https://challenges.cloudflare.com" \
+            || { echo "the CSP does not allow Turnstile (https://challenges.cloudflare.com)" >&2; exit 1; }
+      - name: Card export's harfbuzz wasm ships as a served asset
+        # Satori's text shaper (harfbuzz) loads its wasm by URL. src/lib/harfbuzz.ts
+        # points it at a hashed /assets/hb-<hash>.wasm; without that it fetched a bare
+        # hb.wasm, got index.html back, and every card PNG export failed.
+        run: |
+          wasm=$(docker exec bcs sh -c 'cat /app/dist/assets/*.js' \
+            | grep -oE '/assets/hb-[A-Za-z0-9_-]+\.wasm' | sort -u || true)
+          n=$(printf '%s' "$wasm" | grep -c . || true)
+          test "$n" = 1 || { echo "expected one /assets/hb-*.wasm in the built JS, found $n: $wasm" >&2; exit 1; }
+          type=$(curl -sf -o /dev/null -w '%{content_type}' "http://127.0.0.1:8000$wasm")
+          echo "$wasm -> $type"
+          test "$type" = application/wasm || { echo "harfbuzz wasm served as $type" >&2; exit 1; }
       - name: Container logs
         if: failure()
         run: docker logs bcs || true
@@ -205,19 +223,23 @@ jobs:
   audit:
     name: audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
       - run: pip install pip-audit==2.10.1
       - name: Python (runtime + dev tooling)
-        # chromadb 1.5.9 has no fixed release for any of these. The server is
-        # loopback-only in dev (docker-compose.yml) and runs without auth, so the
-        # RBAC/authz ones don't apply; revisit at deploy (docs/AUDIT-2026-07.md).
+        # chromadb 1.5.9 has no fixed release for any of these. All four are in
+        # Chroma's server; the package runs in-process only here (PersistentClient),
+        # with no server and no listener, so none is reachable. Watch for a patched
+        # release (docs/AUDIT-2026-07.md).
         #   GHSA-f4j7-r4q5-qw2c  pre-auth code injection
         #   GHSA-36p7-vc44-83pf  authenticated code injection
         #   GHSA-2wm9-hf6c-p5cr  missing authorization checks

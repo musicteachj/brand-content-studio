@@ -1,11 +1,8 @@
 """VectorStore protocol + factory.
 
-The implementation is selected by `settings.vector_store_backend`:
-- "chroma" (local dev) — one collection per workspace
-- "qdrant" (prod)      — one shared collection, isolation via payload filter
-
-Both pin 1536-dim / cosine and store identical payloads, so switching backends
-is a config flip. See docs/ARCHITECTURE.md §3.
+The one implementation is Chroma, in-process on local disk
+(`settings.vector_store_backend == "chroma"`): one collection per workspace, 1536-dim /
+cosine. See docs/ARCHITECTURE.md §3.
 """
 from __future__ import annotations
 
@@ -30,13 +27,27 @@ class RetrievedChunk(TypedDict):
 
 @runtime_checkable
 class VectorStore(Protocol):
-    async def upsert_chunks(self, workspace_id: str, chunks: list[Chunk]) -> int: ...
-    async def query(self, workspace_id: str, query: str, k: int = 6) -> list[RetrievedChunk]: ...
+    async def upsert_chunks(
+        self, workspace_id: str, chunks: list[Chunk], embeddings: list[list[float]]
+    ) -> int:
+        """Store `chunks` with their precomputed vectors (stores never embed)."""
+        ...
+
+    async def query(
+        self, workspace_id: str, query: str, query_embedding: list[float], k: int = 6
+    ) -> list[RetrievedChunk]:
+        """Nearest chunks to `query_embedding`. `query` is the text it came from."""
+        ...
+
     async def get_by_kinds(
         self, workspace_id: str, kinds: list[str], limit: int = 8
     ) -> list[RetrievedChunk]:
         """Fetch chunks by `asset_kind`, regardless of similarity. Used for the
         always-injected brand fundamentals (voice/pillars) in hybrid retrieval."""
+        ...
+
+    async def count(self, workspace_id: str) -> int:
+        """Number of chunks stored for the workspace."""
         ...
 
     async def delete_workspace(self, workspace_id: str) -> None: ...
@@ -51,8 +62,4 @@ def get_vector_store() -> VectorStore:
         from app.rag.chroma_store import ChromaStore
 
         return ChromaStore()
-    if backend == "qdrant":
-        from app.rag.qdrant_store import QdrantStore
-
-        return QdrantStore()
-    raise ValueError(f"Unknown vector_store_backend: {backend!r} (expected 'chroma' or 'qdrant')")
+    raise ValueError(f"Unknown vector_store_backend: {backend!r} (expected 'chroma')")

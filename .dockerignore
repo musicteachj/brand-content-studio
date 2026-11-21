@@ -13,6 +13,7 @@
 server/storage/
 server/uploads/
 chroma/
+server/chroma/
 
 # Environments and dependencies (reinstalled inside the image)
 **/.venv/

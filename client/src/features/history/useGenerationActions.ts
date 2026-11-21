@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cardExportErrorMessage } from "@/features/generate/cardExportError";
 import { downloadCardPng } from "@/features/generate/useCardExport";
 import type { BrandProfile, Generation } from "@/types";
 import { cardFrom, postText } from "./historyOutputs";
@@ -36,7 +37,7 @@ export function useGenerationActions(gen: Generation | null, brand: BrandProfile
     try {
       await downloadCardPng(card, brand);
     } catch (err) {
-      setDownloadError((err as Error).message);
+      setDownloadError(cardExportErrorMessage(err));
     } finally {
       setDownloading(false);
     }

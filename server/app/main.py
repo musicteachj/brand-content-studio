@@ -1,4 +1,6 @@
 """FastAPI application entrypoint."""
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,36 +9,44 @@ from typing import cast
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.config import settings
-from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes
+from app.config import settings, validate_serving_settings
+from app.database import close_mongo_connection, connect_to_mongo, ensure_indexes, get_database
 from app.rag.vector_store import get_vector_store
 from app.routes import (
     assets,
     auth,
     documents,
+    examples,
     generate,
     generations,
     health,
     images,
+    status,
     templates,
     workspaces,
 )
+from app.services.ai_clients import close_ai_clients
+from app.services.storage_service import assert_writable, get_storage
+from app.services.turnstile import close_turnstile_verifier
 from app.spa import mount_spa
-from app.utils.errors import UserFacingError
+from app.utils.errors import RATE_LIMITED_COPY, UserFacingError
 from app.utils.ratelimit import limiter
+from seed.seed_demo import SeedReport, ensure_demo_seed
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # The SPA's Content-Security-Policy (known-gaps plan, step 2; DECISIONS #36),
 # tightened by a browser pass over every flow on the production build:
-# - script-src: the bundle only. 'wasm-unsafe-eval' lets WebAssembly compile
+# - script-src: the bundle, plus Cloudflare Turnstile's script (loaded only when a
+#   visitor presses "Explore as demo"). 'wasm-unsafe-eval' lets WebAssembly compile
 #   (resvg rasterizes card PNGs, satori lays them out); no eval, no inline script.
+# - frame-src: Turnstile's challenge runs in an iframe from the same host.
 # - style-src 'unsafe-inline': Radix dialogs inject a <style> element for scroll
 #   locking. React style props go through the CSSOM and don't need it.
 # - Card fonts come from jsDelivr (fetched as bytes, and loaded as FontFace URLs);
@@ -44,7 +54,8 @@ logging.basicConfig(level=logging.INFO)
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
-        "script-src 'self' 'wasm-unsafe-eval'",
+        "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com",
+        "frame-src https://challenges.cloudflare.com",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https://images.unsplash.com https://plus.unsplash.com",
         "font-src 'self' data: https://cdn.jsdelivr.net",
@@ -120,13 +131,79 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
+async def run_seed_once(*, retry: int = 0) -> tuple[SeedReport, bool]:
+    """One run of the self-healing demo seed: its report, and whether another try could
+    help. A run that raised (a Mongo blip, say) is logged and worth retrying; a `SeedError`
+    report names a problem in the fixtures or settings that no retry fixes. Either way the
+    app keeps serving, and readiness reports the result."""
+    try:
+        report = await ensure_demo_seed(
+            await get_database(), store=get_vector_store(), storage=get_storage()
+        )
+    except Exception as exc:  # noqa: BLE001 (the app must start; readiness shows the error)
+        if retry:
+            logger.exception("Demo seed retry %d failed", retry)
+        else:
+            logger.exception("The demo seed failed at startup")
+        return SeedReport(error=f"The demo seed failed: {type(exc).__name__}"), True
+    if report.ok:
+        logger.info(
+            "Demo seed checked: created %s, repaired %s",
+            report.created or "nothing",
+            report.repaired or "nothing",
+        )
+    return report, False
+
+
+# Waits before each retry of a failed startup seed; the last repeats until one succeeds.
+SEED_RETRY_DELAYS_S: tuple[float, ...] = (5, 15, 30, 60, 120, 300)
+
+
+async def retry_startup_seed(app: FastAPI) -> None:
+    """After a startup seed that raised, try again in the background with backoff, so a
+    passing failure doesn't leave the demo not ready until a restart. Each try's report
+    replaces the last, so readiness turns green as soon as one works. A retry runs while
+    the app serves; it repairs only what is missing or wrong, which is already broken for
+    visitors. It stops at a `SeedError`, which needs a fix and a deploy."""
+    attempt = 0
+    while True:
+        await asyncio.sleep(SEED_RETRY_DELAYS_S[min(attempt, len(SEED_RETRY_DELAYS_S) - 1)])
+        attempt += 1
+        report, retryable = await run_seed_once(retry=attempt)
+        app.state.seed_report = report
+        if report.ok:
+            logger.info("The demo seed succeeded on retry %d", attempt)
+            return
+        if not retryable:
+            logger.error("The demo seed stopped on retry %d; no further retries", attempt)
+            return
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_serving_settings(settings)
+    # Both data directories must be writable by this uid before anything uses them, so a
+    # wrongly owned volume stops the app here, naming the directory.
+    assert_writable(Path(settings.storage_local_dir))
+    assert_writable(Path(settings.chroma_path))
     await connect_to_mongo()
     await ensure_indexes()
-    get_vector_store()  # instantiate the configured backend (chroma/qdrant)
+    get_vector_store()  # instantiate the configured backend (Chroma)
+    # The self-healing demo seed, when SEED_ON_STARTUP is set (None when it isn't).
+    app.state.seed_report = None
+    seed_retry: asyncio.Task[None] | None = None
+    if settings.seed_on_startup:
+        app.state.seed_report, retryable = await run_seed_once()
+        if retryable:
+            seed_retry = asyncio.create_task(retry_startup_seed(app))
     yield
+    if seed_retry is not None:
+        seed_retry.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await seed_retry
     await close_mongo_connection()
+    await close_ai_clients()
+    await close_turnstile_verifier()
 
 
 _docs = api_docs_urls(settings.environment)
@@ -143,8 +220,22 @@ app = FastAPI(
 # Rate limiting (SEC-02): per-route @limiter.limit decorators read the limiter off
 # app.state; the handler turns an exceeded limit into a 429.
 app.state.limiter = limiter
-# slowapi's handler is typed for RateLimitExceeded; Starlette wants Exception.
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+
+async def _rate_limited_handler(request: Request, exc: Exception) -> JSONResponse:
+    """An exceeded per-IP limit answers in plain words with a code the client can show,
+    instead of slowapi's `{"error": "Rate limit exceeded: ..."}`. The limiter's own
+    headers (such as Retry-After, when enabled) are kept."""
+    response = JSONResponse(
+        status_code=429, content={"detail": RATE_LIMITED_COPY, "code": "rate_limited"}
+    )
+    return cast(
+        JSONResponse,
+        request.app.state.limiter._inject_headers(response, request.state.view_rate_limit),
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, _rate_limited_handler)
 
 
 async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -153,7 +244,10 @@ async def _user_facing_error_handler(request: Request, exc: Exception) -> JSONRe
     with its readable `detail` instead of a 500. The streaming routes send it in
     their SSE error frame instead."""
     err = cast(UserFacingError, exc)
-    return JSONResponse(status_code=err.status_code, content={"detail": err.message})
+    content = {"detail": err.message}
+    if err.code:
+        content["code"] = err.code
+    return JSONResponse(status_code=err.status_code, content=content, headers=err.headers)
 
 
 app.add_exception_handler(UserFacingError, _user_facing_error_handler)
@@ -170,6 +264,7 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware, csp_exempt=csp_exempt_paths(app))
 
 app.include_router(health.router, prefix="/api", tags=["health"])
+app.include_router(status.router, prefix="/api/status", tags=["status"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(workspaces.router, prefix="/api/workspaces", tags=["workspaces"])
 app.include_router(
@@ -195,6 +290,7 @@ app.include_router(
     tags=["documents"],
 )
 app.include_router(images.router, prefix="/api/images", tags=["images"])
+app.include_router(examples.router, prefix="/api/examples", tags=["examples"])
 app.include_router(
     images.ws_router,
     prefix="/api/workspaces/{workspace_id}/images",
@@ -203,4 +299,4 @@ app.include_router(
 
 
 if settings.environment == "production":
-    mount_spa(app, Path("dist"))  # last: its catch-all only sees unclaimed paths
+    mount_spa(app, Path("dist"), app_origin=settings.app_origin)  # last: its catch-all only sees unclaimed paths

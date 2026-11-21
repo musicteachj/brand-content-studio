@@ -7,7 +7,10 @@ from fastapi.testclient import TestClient
 
 from app.spa import mount_spa
 
-INDEX = '<!doctype html><div id="root"></div><script type="module" src="/assets/index-abc12345.js"></script>'
+INDEX = (
+    '<!doctype html><meta property="og:image" content="__APP_ORIGIN__/og-image.jpg">'
+    '<div id="root"></div><script type="module" src="/assets/index-abc12345.js"></script>'
+)
 
 
 @pytest.fixture
@@ -29,7 +32,7 @@ def client(tmp_path):
     async def health():  # stands in for the real API routers, registered first
         return {"status": "ok"}
 
-    mount_spa(app, dist)
+    mount_spa(app, dist, app_origin="https://folio.example.com")
     return TestClient(app)
 
 
@@ -116,10 +119,29 @@ def test_unhashed_files_under_assets_are_not_cached_forever(client):
 def test_a_dist_without_an_assets_folder_still_starts(tmp_path):
     (tmp_path / "index.html").write_text(INDEX)
     app = FastAPI()
-    mount_spa(app, tmp_path)
+    mount_spa(app, tmp_path, app_origin="https://folio.example.com")
     assert TestClient(app).get("/login").status_code == 200
 
 
 def test_fonts_have_a_font_content_type(client):
     resp = client.get("/assets/inter-latin-400-AbCd1234.woff2")
     assert resp.headers["content-type"] == "font/woff2"
+
+
+def test_index_html_carries_the_app_origin_in_link_previews(client):
+    for path in ("/", "/index.html", "/privacy"):
+        resp = client.get(path)
+        assert resp.status_code == 200, path
+        assert "https://folio.example.com/og-image.jpg" in resp.text, path
+        assert "__APP_ORIGIN__" not in resp.text, path
+        assert resp.headers["cache-control"] == "no-cache", path
+
+
+def test_app_origin_trailing_slash_is_not_doubled(tmp_path):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text(INDEX)
+    app = FastAPI()
+    mount_spa(app, dist, app_origin="https://folio.example.com/")
+    resp = TestClient(app).get("/")
+    assert "https://folio.example.com/og-image.jpg" in resp.text

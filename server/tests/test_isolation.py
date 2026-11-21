@@ -15,6 +15,7 @@ from tests.conftest import TEST_DB_NAME
 OWNER_A = ObjectId()
 OWNER_B = ObjectId()
 WS_B = ObjectId()
+GEN_B = ObjectId()
 
 
 def _user_a() -> UserInDB:
@@ -37,6 +38,14 @@ async def _seed_ws_b(db):
             "ingested_at": None, "created_at": None, "updated_at": None,
         }
     )
+    await db.generations.insert_one(
+        {
+            "_id": GEN_B, "workspace_id": WS_B, "owner_id": OWNER_B, "type": "document",
+            "brief": "b", "status": "complete", "output": {"formats": {"pdf": {}}},
+            "retrieved_chunk_ids": [], "retrieval_meta": [], "model": "m",
+            "embedding_query_model": "e", "is_example": True,
+        }
+    )
 
 
 @pytest_asyncio.fixture
@@ -51,8 +60,29 @@ async def client_a(test_db, monkeypatch):
     app.dependency_overrides.clear()
 
 
-@pytest.mark.parametrize("path", ["", "/assets", "/generations", "/templates"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "",
+        "/assets",
+        "/generations",
+        "/generations/count",
+        f"/generations/{GEN_B}",
+        f"/generations/{GEN_B}/download/pdf",
+        "/templates",
+    ],
+)
 @pytest.mark.asyncio
 async def test_owner_a_cannot_read_owner_b(client_a, path):
     resp = await client_a.get(f"/api/workspaces/{WS_B}{path}")
     assert resp.status_code == 404  # never B's data leaked
+
+
+@pytest.mark.asyncio
+async def test_owner_a_cannot_change_owner_bs_generations(client_a, test_db):
+    """Even B's example, readable by B's own visitors, is a 404 for another owner (the
+    workspace check runs first), and nothing changes."""
+    url = f"/api/workspaces/{WS_B}/generations/{GEN_B}"
+    assert (await client_a.patch(url, json={"template_id": "quote"})).status_code == 404
+    assert (await client_a.delete(url)).status_code == 404
+    assert await test_db.generations.count_documents({"_id": GEN_B}) == 1

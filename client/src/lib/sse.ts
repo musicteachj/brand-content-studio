@@ -3,12 +3,14 @@
 // (ARCHITECTURE gotcha #3). Decodes the EMS frame shape: `data: {json}\n\n`
 // terminated by `data: [DONE]`. Text and card generation share this reader and
 // frame shape (gotcha #3); only the terminal `meta` payload differs.
-import { useAuthStore } from "@/stores/auth";
+import { endSessionOn401, useAuthStore } from "@/stores/auth";
 import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame } from "@/types";
 
 /** Abort the read if no frame arrives within this window: a stalled stream
  *  (proxy hang, dropped connection) should surface an error, not spin forever. */
 export const STREAM_INACTIVITY_MS = 30000;
+const SERVER_UNREACHABLE = "Folio couldn't reach its server just now. Try again in a minute.";
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
 export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
@@ -62,19 +64,24 @@ async function openStream(
     });
   } catch (err) {
     if ((err as Error).name === "AbortError") return null;
-    onError("Network error. Is the server running?");
+    onError("Network error. Check your connection and try again.");
     return null;
   }
 
   if (!response.ok) {
-    // Non-stream error (e.g. 409 empty corpus). Body is JSON {detail}.
-    let detail = `Request failed (${response.status})`;
+    // Non-stream error (e.g. 409 empty corpus). Our API's body is JSON {detail}; a load
+    // balancer's 502, 503, or 504 is an HTML page, so it gets plain words instead.
+    let detail = GATEWAY_STATUSES.has(response.status)
+      ? SERVER_UNREACHABLE
+      : `That request didn't go through (error ${response.status}). Try again.`;
     try {
       const data = await response.json();
       if (typeof data?.detail === "string") detail = data.detail;
     } catch {
       /* ignore */
     }
+    // The session is gone: end it here, as the axios interceptor does for other calls.
+    if (response.status === 401) endSessionOn401();
     onError(detail);
     return null;
   }

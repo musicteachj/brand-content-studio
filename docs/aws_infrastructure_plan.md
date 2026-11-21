@@ -1,3 +1,5 @@
+> **Superseded for deployment (2026-11-19).** The deployment now follows the portfolio-infra design (`../portfolio-infra/docs/design/2026-11-18-portfolio-apps-aws-deployment-design.md`) and this repo's `docs/superpowers/plans/2026-11-19-demo-sessions-and-deploy-readiness.md`. Kept for history.
+
 # AWS Infrastructure & AI Deployment Plan
 ## James Littlefield — Portfolio Projects
 
