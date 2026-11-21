@@ -94,8 +94,12 @@ async def test_unsplash_search_normalizes_attribution(monkeypatch):
     assert "janemason" in photo.attribution.author_url
     assert "abc123" in photo.attribution.source_url
     # UTM referral params are appended per the Unsplash guidelines.
-    assert "utm_source=Brand+Content+Studio" in photo.attribution.author_url
-    assert "utm_source=Brand+Content+Studio" in photo.attribution.source_url
+    assert photo.attribution.author_url == (
+        "https://unsplash.com/@janemason?utm_source=Folio&utm_medium=referral"
+    )
+    assert photo.attribution.source_url == (
+        "https://unsplash.com/photos/abc123?utm_source=Folio&utm_medium=referral"
+    )
     # Download-tracking location is preserved for the on-selection ping.
     assert photo.download_location.startswith("https://api.unsplash.com/photos/abc123/download")
     # The key travels only in the request header, never in the normalized output.
