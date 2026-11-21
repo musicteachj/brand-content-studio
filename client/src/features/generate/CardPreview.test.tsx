@@ -118,3 +118,12 @@ describe("CardPreview: export errors read plainly", () => {
     expect(alerts()).toEqual(["Could not load the workspace brand fonts."]);
   });
 });
+
+describe("CardPreview errors", () => {
+  it("stays quiet when the error is shown beside it (LinkedIn Post mode)", () => {
+    render({ status: "error", error: "Something went wrong.", errorShownBeside: true });
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain("No card this time.");
+    expect(container.textContent).not.toContain("Something went wrong.");
+  });
+});

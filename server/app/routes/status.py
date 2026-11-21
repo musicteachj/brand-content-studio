@@ -12,14 +12,45 @@ from pydantic import BaseModel
 from app.config import settings, turnstile_keys
 from app.database import get_database
 from app.services.ai_ledger import budget_snapshot
-from app.services.ai_pricing import usd_to_micros
+from app.services.ai_pricing import claude_reservation_micros, usd_to_micros
+from app.services.ai_service import (
+    CARD_COPY_MAX_TOKENS,
+    CARD_FIELDS_MAX_TOKENS,
+    DOC_COPY_MAX_TOKENS,
+    DOC_SECTIONS_MAX_TOKENS,
+    MAX_TOKENS,
+    TEMPLATE_FILL_MAX_TOKENS,
+)
 
 router = APIRouter()
 
 CACHE_SECONDS = 30
-# About one text post: below this much room left today, say paused rather than let a
-# visitor start something that would be refused.
-STATUS_MIN_ROOM_MICROS = 60_000
+# Below the largest generation's reservation left today, say paused rather than let a
+# visitor start something that would be refused. Every action reserves all of its calls up
+# front, so the largest generation is two calls with 8,000 output tokens between them (a
+# document, or a LinkedIn post and its card). 15,000 input tokens covers both prompts with
+# the retrieved context plus the first call's output fed to the second (a document reserves
+# about 13,500). On Sonnet 5.5 that comes to $0.11. Filling a template from an uploaded
+# file is sized by that file, so a long one can still be refused; its refusal points at the
+# examples like any other.
+LARGEST_ACTION_OUTPUT_TOKENS = max(
+    MAX_TOKENS,
+    TEMPLATE_FILL_MAX_TOKENS,
+    CARD_COPY_MAX_TOKENS + CARD_FIELDS_MAX_TOKENS,
+    MAX_TOKENS + CARD_FIELDS_MAX_TOKENS,
+    DOC_COPY_MAX_TOKENS + DOC_SECTIONS_MAX_TOKENS,
+)
+LARGEST_ACTION_INPUT_TOKENS = 15_000
+
+
+def status_min_room_micros() -> int:
+    """The room live AI needs today before status says available, at the configured model's
+    price."""
+    return claude_reservation_micros(
+        settings.ai_model,
+        input_tokens=LARGEST_ACTION_INPUT_TOKENS,
+        max_tokens=LARGEST_ACTION_OUTPUT_TOKENS,
+    )
 
 
 LiveReason = Literal["available", "off", "paused"]
@@ -66,6 +97,6 @@ async def _live_reason(db: AsyncIOMotorDatabase) -> LiveReason:
     if usd_to_micros(settings.ai_monthly_budget_usd) == 0:
         return "off"
     snap = await budget_snapshot(db)
-    if snap.allowance_today - snap.spent_today >= STATUS_MIN_ROOM_MICROS:
+    if snap.allowance_today - snap.spent_today >= status_min_room_micros():
         return "available"
     return "paused"

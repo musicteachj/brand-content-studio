@@ -13,9 +13,11 @@ NOTE: no `from __future__ import annotations` — see generate.py; slowapi's
 @limiter.limit wrapper + ForwardRef annotations would 422 request bodies.
 """
 import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import aclosing
 
+import anyio
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
@@ -34,7 +36,12 @@ from app.services.ai_service import (
     document_copy_line,
     document_sections_line,
 )
-from app.services.storage_service import build_document_key, get_storage, safe_filename
+from app.services.storage_service import (
+    build_document_key,
+    build_document_prefix,
+    get_storage,
+    safe_filename,
+)
 from app.utils.dependencies import (
     ensure_ready_corpus,
     get_current_user,
@@ -45,6 +52,8 @@ from app.utils.dependencies import (
 )
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
 from app.utils.sse import sse_response
+
+logger = logging.getLogger(__name__)
 
 # Mounted at /api/workspaces/{workspace_id}/generate
 router = APIRouter()
@@ -125,7 +134,9 @@ async def generate_document(
             output = document_service.build_document_output(archetype, extracted)
 
             # Build + store the branded files BEFORE persisting, so a render or storage
-            # failure can't leave a "complete" generation with no files. The id is
+            # failure can't leave a "complete" generation with no files. A failed or
+            # interrupted save or insert removes the record (if written) and the files;
+            # anything left behind, the hourly cleanup removes after a day. The id is
             # pre-generated because the storage keys derive from it.
             generation_oid = ObjectId()
             generation_id = str(generation_oid)
@@ -150,26 +161,31 @@ async def generate_document(
             )
             storage = get_storage()
             formats: dict[str, dict] = {}
-            for fmt, data in files.items():
-                key = build_document_key(workspace_id, generation_id, fmt)
-                await storage.save(key, data)
-                formats[fmt] = {"storage_key": key}
-            output["formats"] = formats
+            try:
+                for fmt, data in files.items():
+                    key = build_document_key(workspace_id, generation_id, fmt)
+                    await storage.save(key, data)
+                    formats[fmt] = {"storage_key": key}
+                output["formats"] = formats
 
-            await generations_service.create_generation(
-                db,
-                workspace_oid=workspace_oid,
-                owner_oid=workspace["owner_id"],
-                type="document",
-                brief=payload.brief,
-                status="complete",
-                output=output,
-                retrieved_chunk_ids=result.chunk_ids,
-                retrieval_meta=result.meta,
-                gen_id=generation_oid,
-                session_id=current_user.session_id,
-                expires_at=current_user.session_expires_at,
-            )
+                await generations_service.create_generation(
+                    db,
+                    workspace_oid=workspace_oid,
+                    owner_oid=workspace["owner_id"],
+                    type="document",
+                    brief=payload.brief,
+                    status="complete",
+                    output=output,
+                    retrieved_chunk_ids=result.chunk_ids,
+                    retrieval_meta=result.meta,
+                    gen_id=generation_oid,
+                    session_id=current_user.session_id,
+                    expires_at=current_user.session_expires_at,
+                )
+            except BaseException:
+                with anyio.CancelScope(shield=True):
+                    await _discard_document(db, workspace_id, generation_oid)
+                raise
 
             yield {
                 "meta": {
@@ -184,6 +200,21 @@ async def generate_document(
             await action.finalize()
 
     return sse_response(produce(), context="document generation", on_close=action.finalize)
+
+
+async def _discard_document(
+    db: AsyncIOMotorDatabase, workspace_id: str, generation_oid: ObjectId
+) -> None:
+    """Undo a document that failed partway: the record first (an insert canceled in flight
+    may still have landed), then the files. If the record can't be removed, the files stay
+    with it, so it never points at nothing; files left without a record, the hourly cleanup
+    removes after a day."""
+    try:
+        await db.generations.delete_one({"_id": generation_oid})
+    except Exception:  # noqa: BLE001 (the original error is the one to raise)
+        logger.exception("Couldn't remove the record of failed document %s", generation_oid)
+        return
+    await get_storage().delete_prefix(build_document_prefix(workspace_id, str(generation_oid)))
 
 
 @download_router.get("/{generation_id}/download/{fmt}")

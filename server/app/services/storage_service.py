@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -90,6 +91,9 @@ class StorageBackend(Protocol):
     # `strict=True` raises when anything under the prefix couldn't be removed; the default
     # is best effort (errors ignored), for request paths where a leftover file is harmless.
     async def delete_prefix(self, prefix: str, *, strict: bool = False) -> None: ...
+    # Each document folder (`<workspace>/documents/<generation>`) last changed before
+    # `older_than`, as a prefix; the cleanup job looks for ones no record points at.
+    async def document_prefixes_before(self, older_than: datetime) -> list[str]: ...
 
 
 class LocalStorage:
@@ -134,6 +138,29 @@ class LocalStorage:
             await asyncio.to_thread(shutil.rmtree, base)
         if base.exists():
             raise OSError(f"Storage prefix still present after delete: {prefix!r}")
+
+    async def document_prefixes_before(self, older_than: datetime) -> list[str]:
+        cutoff = older_than.timestamp()
+
+        def scan() -> list[str]:
+            # A folder that vanishes mid-scan (a delete on the request path) or can't be
+            # read is skipped, so one odd entry never stops the cleanup run.
+            found: list[str] = []
+            for workspace in self._root.iterdir():
+                documents = workspace / "documents"
+                try:
+                    folders = list(documents.iterdir()) if documents.is_dir() else []
+                except OSError:
+                    continue
+                for folder in folders:
+                    try:
+                        if folder.is_dir() and folder.stat().st_mtime < cutoff:
+                            found.append(f"{workspace.name}/documents/{folder.name}")
+                    except OSError:
+                        continue
+            return found
+
+        return await asyncio.to_thread(scan)
 
 
 @lru_cache(maxsize=1)

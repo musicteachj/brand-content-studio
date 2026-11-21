@@ -23,7 +23,6 @@ interface StreamState {
   generationId: string | null;
   retrieval: RetrievalEnvelope | null;
   error: string | null;
-  errorCode: string | null;
 }
 
 const initialStream = (templateId: CardTemplate): StreamState => ({
@@ -36,7 +35,6 @@ const initialStream = (templateId: CardTemplate): StreamState => ({
   generationId: null,
   retrieval: null,
   error: null,
-  errorCode: null,
 });
 
 /** Drives a single streamed card generation: streams the draft copy, captures the

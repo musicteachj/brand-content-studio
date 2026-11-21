@@ -123,7 +123,6 @@ export function CardMode() {
           imageDataUrl={gen.imageDataUrl}
           attribution={gen.image?.attribution ?? null}
           error={gen.error}
-          errorCode={gen.errorCode}
           hasImage={gen.image !== null}
           imageError={gen.imageError}
           onAddImage={() => setPickerOpen(true)}

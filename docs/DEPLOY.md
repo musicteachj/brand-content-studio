@@ -24,7 +24,7 @@ The image sets `SEED_ON_STARTUP=true`, so the API checks the demo seed after it 
 Demo seed checked: created <list or "nothing">, repaired <list or "nothing">
 ```
 
-On an empty database the first start lists what it built (the user, the Verdure workspace, the corpus, the examples); a later start on healthy data says `created nothing, repaired nothing`. A failure logs `The demo seed failed at startup` with the traceback and the app still starts. The same result is in readiness: `GET /api/health` returns `seed: true` when the seed is complete, `seed: false` after a failure (the response is then a 503), and `seed: null` when `SEED_ON_STARTUP` is off. The seed makes no paid call: vectors and examples come from the fixtures in `server/seed/fixtures/`.
+On an empty database the first start lists what it built (the user, the Verdure workspace, the corpus, the examples); a later start on healthy data says `created nothing, repaired nothing`. A failure logs `The demo seed failed at startup` with the traceback and the app still starts, then retries the seed in the background (after 5 s, 15 s, 30 s, 60 s, 120 s, then every 5 minutes) until it succeeds, logging `The demo seed succeeded on retry N`. The same result is in readiness: `GET /api/health` returns `seed: true` when the seed is complete, `seed: false` after a failure until a retry succeeds (the response is then a 503), and `seed: null` when `SEED_ON_STARTUP` is off. The seed makes no paid call: vectors and examples come from the fixtures in `server/seed/fixtures/`.
 
 ## Restore
 
@@ -65,7 +65,7 @@ EventBridge Scheduler, hourly.
 | Env | `DATABASE_NAME=folio`; secrets `MONGODB_URL`, `JWT_SECRET_KEY` (the settings module checks it at import in production) |
 | Memory | 128 MiB |
 | Exit code | non-zero on any failure (drives the "scheduled task failed" alarm) |
-| Does | charges reservations open longer than 10 minutes; deletes expired visitor work (files first, then records), expired sessions, and their visitor allowances; prunes settled ledger call records older than 35 days (day totals are kept) |
+| Does | charges reservations open longer than 10 minutes; deletes expired visitor work (files first, then records), document folders older than a day that no record points at, expired sessions, and their visitor allowances; prunes settled ledger call records older than 35 days (day totals are kept) |
 
 The job deletes visitor files strictly: a file that fails to delete keeps its record, and the job exits 1, so the next hour retries it.
 

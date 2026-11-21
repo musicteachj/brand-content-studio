@@ -328,3 +328,84 @@ def test_the_document_prefix_cannot_escape_its_folder():
 
     prefix = build_document_prefix("ws1", "../../etc")
     assert prefix.startswith("ws1/documents/") and ".." not in prefix
+
+
+
+def _patch_save(monkeypatch, *, fail_on: str | None = None) -> list[str]:
+    """Record each saved key; raise on the format `fail_on` after the others are written."""
+    storage = get_storage()
+    real_save = storage.save
+    saved: list[str] = []
+
+    async def save(key, data):
+        if fail_on is not None and key.endswith(f".{fail_on}"):
+            raise OSError("disk full")
+        await real_save(key, data)
+        saved.append(key)
+
+    monkeypatch.setattr(storage, "save", save)
+    return saved
+
+
+def _gid(key: str) -> str:
+    return key.split("/documents/")[1].split("/")[0]
+
+
+def _insert_then_fail(monkeypatch):
+    """An insert that lands but whose caller still fails (a cancel in flight, say)."""
+    real_create = documents_mod.generations_service.create_generation
+
+    async def create(*args, **kwargs):
+        await real_create(*args, **kwargs)
+        raise RuntimeError("connection reset after the write")
+
+    monkeypatch.setattr(documents_mod.generations_service, "create_generation", create)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_save_removes_the_written_files(client, test_db, monkeypatch):
+    _override_workspace(12)
+    before = await test_db.generations.count_documents({"type": "document"})
+    saved = _patch_save(monkeypatch, fail_on="pdf")
+
+    resp = await client.post(DOC_URL, json=_BRIEF)
+
+    assert '"error"' in resp.text and "[DONE]" in resp.text
+    assert len(saved) == 1  # the .docx was written before the .pdf failed
+    assert not await _exists(_gid(saved[0]), "docx")
+    assert await test_db.generations.count_documents({"type": "document"}) == before
+
+
+@pytest.mark.asyncio
+async def test_a_failed_insert_removes_the_record_and_the_files(client, test_db, monkeypatch):
+    _override_workspace(12)
+    saved = _patch_save(monkeypatch)
+    _insert_then_fail(monkeypatch)
+
+    resp = await client.post(DOC_URL, json=_BRIEF)
+
+    assert '"error"' in resp.text
+    gid = _gid(saved[0])
+    assert await test_db.generations.find_one({"_id": ObjectId(gid)}) is None
+    assert not await _exists(gid, "docx") and not await _exists(gid, "pdf")
+
+
+@pytest.mark.asyncio
+async def test_a_record_that_cannot_be_removed_keeps_its_files(client, test_db, monkeypatch, caplog):
+    # Never a record that points at nothing: when the rollback can't remove the record,
+    # the files stay with it.
+    _override_workspace(12)
+    saved = _patch_save(monkeypatch)
+    _insert_then_fail(monkeypatch)
+
+    async def boom(self, *a, **k):
+        raise OSError("mongo unavailable")
+
+    monkeypatch.setattr(type(test_db.generations), "delete_one", boom)
+    resp = await client.post(DOC_URL, json=_BRIEF)
+
+    assert '"error"' in resp.text
+    gid = _gid(saved[0])
+    assert await test_db.generations.find_one({"_id": ObjectId(gid)}) is not None
+    assert await _exists(gid, "docx") and await _exists(gid, "pdf")
+    assert "Couldn't remove the record of failed document" in caplog.text

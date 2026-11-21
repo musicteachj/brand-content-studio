@@ -371,7 +371,7 @@ Message: `fix(server): one Claude client and one OpenAI client, no SDK retries, 
   - `async def reserve_action(db, requests: Sequence[LineRequest], *, visitor_id: str | None) -> MeteredAction`
   - `def claude_line(purpose: str, *, system: str, content: str | list[dict[str, Any]], max_tokens: int, schema: dict[str, Any] | None = None, extra_input_tokens: int = 0) -> LineRequest` (model `settings.ai_model`; input = estimate of system and every text part, plus `IMAGE_TOKEN_BOUND` per image part, plus `estimate_tokens(json.dumps(schema)) + SCHEMA_OVERHEAD_TOKENS` when a schema is given, plus `extra_input_tokens`)
   - `def embedding_line(purpose: str, texts: Sequence[str]) -> LineRequest` (model `settings.embedding_model`)
-- `status.py`: `GET /api/status` (no auth) returns `StatusResponse(live_ai_available: bool, live_ai_reason: Literal["available", "off", "paused"])`, cached in process for 30 s, header `Cache-Control: public, max-age=30`. Available when the budget is above 0 and `allowance_today - spent_today >= STATUS_MIN_ROOM_MICROS` (60_000, about one text post).
+- `status.py`: `GET /api/status` (no auth) returns `StatusResponse(live_ai_available: bool, live_ai_reason: Literal["available", "off", "paused"])`, cached in process for 30 s, header `Cache-Control: public, max-age=30`. Available when the budget is above 0 and `allowance_today - spent_today >= status_min_room_micros()` (the largest generation's reservation at the configured model's price: 110_000 on Sonnet 5.5; changed from a flat 60_000 in the PR #86 review, since a card, document, or LinkedIn post reserves more than a text post).
 - `cleanup.py`: `async def run_cleanup(db, *, now: datetime | None = None) -> dict[str, int]` (keys `swept`, `pruned`); `def main() -> None` (own Motor client, `maxPoolSize=2`; logs `cleanup: swept=N pruned=N`; exits 1 on any exception so the scheduled-task alarm fires). Run as `python -m app.jobs.cleanup`.
 - Settings: `ai_monthly_budget_usd: Decimal = Decimal("10")`, `ai_pacing_multiplier: Decimal = Decimal("3")`, `ai_daily_floor_usd: Decimal = Decimal("0.50")`, `ai_visitor_budget_usd: Decimal = Decimal("0.15")`.
 - Documents: `ai_spend_days {_id: "YYYY-MM-DD", month: "YYYY-MM", total_micros}` (settled + open, never deleted); `ai_spend_calls {_id, day, month, visitor_id, provider, model, purpose, reserved_micros, actual_micros|null, status: "open"|"settled"|"swept", outcome, created_at, settled_at}`; `ai_spend_visitors {_id: visitor_id, total_micros}`. Indexes: `ai_spend_calls (status, created_at)`, `ai_spend_days month`.
@@ -427,7 +427,7 @@ async def test_a_zero_budget_refuses_without_touching_the_database(monkeypatch):
 
 `test_ai_meter.py`: `test_finalize_releases_lines_that_never_started` (actual 0, outcome `not_attempted`); `test_finalize_keeps_a_started_unsettled_line_at_its_reservation`; `test_finalize_still_settles_when_the_task_is_canceled` (cancel an `anyio` scope around `async with action:` after `mark_started`; afterwards the call doc is settled at the reserved amount); `test_claude_line_counts_text_images_schema_and_extra` (one 2,000-byte text, one image, a schema, `extra_input_tokens=2_000`: input = 1,000 + 5,000 + schema estimate + 500 + 2,000).
 
-`test_status.py`: budget 0 gives `{"live_ai_available": false, "live_ai_reason": "off"}`; room under 60_000 gives `"paused"`; otherwise `"available"`; a second call within 30 s doesn't read the database; `Cache-Control: public, max-age=30`.
+`test_status.py`: budget 0 gives `{"live_ai_available": false, "live_ai_reason": "off"}`; room under `status_min_room_micros()` (110_000 on Sonnet 5.5) gives `"paused"`; otherwise `"available"`; a second call within 30 s doesn't read the database; `Cache-Control: public, max-age=30`.
 
 `test_cleanup_job.py`: `run_cleanup` sweeps one stale reservation and prunes one settled call older than 35 days, returning `{"swept": 1, "pruned": 1}`.
 
@@ -1215,7 +1215,7 @@ Expected: no findings. Then `grep -rnE 'uses: [^@]+@v[0-9]' .github/workflows` f
 
 - [x] **Step 4: No `dependabot.yml`** (D6 decided by James on 2026-11-19: security fixes only, through the GitHub setting in master plan Phase 0, plus the weekly audits). Nothing to add; the step stays so numbering doesn't shift.
 
-- [ ] **Step 5: Gitleaks over the full history after the first push**
+- [x] **Step 5: Gitleaks over the full history after the first push** (2026-11-20: `Leaked secrets (gitleaks)` passed on PR #86 with no findings, so no `.gitleaksignore` was needed.)
 
 The first CI run on the pushed branch (Task 18) scans all history. If it flags a known placeholder (for example a test value in `ci.yml` or `tests/`), stop, show James each finding, and with his OK add a `.gitleaksignore` with those fingerprints only.
 
@@ -1328,6 +1328,17 @@ Run `/code-review high` and `/security-review` (full) on `git diff dev...feat/po
 Stop: ask James for OK to push `feat/portfolio-demo-readiness` to origin. Then `git push -u origin feat/portfolio-demo-readiness`.
 Stop: show the PR title and body (summary, the review outcomes, the verification results, and the decisions D1 to D6 as James settled them), and wait for James's OK before `gh pr create --base dev`. Wait for CI (including gitleaks, Task 16 Step 5).
 Stop: ask James for OK to merge with a merge commit. The `dev` to `main` release is Phase 3.
+
+Status 2026-11-20: `/code-review high` gave four nits, three fixed in f75c16e (stream close, server-side end demo, `canceled`) and one deferred (owner-only ingestion error copy). `/security-review` found no HIGH or MEDIUM issues. The branch is pushed, and PR #86 into `dev` is open with all five checks green. Merge is waiting for James's OK.
+
+Status 2026-11-21: the independent review on PR #86 raised five items, all fixed in the working tree:
+- the status threshold now covers the largest generation (110_000 on Sonnet 5.5, priced from the model);
+- every generation error links to the examples, and a load balancer's HTML 502, 503, or 504 reads plainly;
+- a failed or interrupted document save or insert rolls back, and the hourly cleanup removes document folders older than a day that no record points at;
+- the privacy page names jsDelivr;
+- a startup seed that raised is retried in the background with backoff (5 s up to every 5 minutes), stopping at a `SeedError`.
+
+Two `/code-review high` passes on those fixes found more, now fixed: the post-pack error showing twice, template download errors offering the examples, dead error-code plumbing, and an orphan scan that could stop the cleanup run.
 
 - [ ] **Step 11: Update the master plan**
 

@@ -20,7 +20,6 @@ interface State {
   generationId: string | null;
   retrieval: RetrievalEnvelope | null;
   error: string | null;
-  errorCode: string | null;
 }
 
 const INITIAL: State = {
@@ -32,7 +31,6 @@ const INITIAL: State = {
   generationId: null,
   retrieval: null,
   error: null,
-  errorCode: null,
 };
 
 /** Drives a single streamed document generation: the draft streams as text for the

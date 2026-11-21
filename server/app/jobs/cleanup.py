@@ -1,10 +1,11 @@
 """Hourly cleanup, run as `python -m app.jobs.cleanup` by a scheduled task.
 
 Sweeps stale open AI reservations, prunes old closed call documents, removes expired
-visitor work (each generation's files first, then its record), and removes expired visitor
-sessions with their running spend totals (the ledger's day totals are never touched).
-Exits 1 on any exception so the scheduled-task alarm fires; a generation whose files
-couldn't be removed keeps its record, so the next run tries it again.
+visitor work (each generation's files first, then its record), removes document folders
+older than a day that no record points at, and removes expired visitor sessions with their
+running spend totals (the ledger's day totals are never touched). Exits 1 on any exception
+so the scheduled-task alarm fires; a generation whose files couldn't be removed keeps its
+record, so the next run tries it again.
 
 Keep this import chain free of chromadb (a test checks it): the job runs in its own small
 process and touches only Mongo and file storage.
@@ -14,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -61,6 +62,45 @@ async def remove_expired_generations(db: AsyncIOMotorDatabase, *, now: datetime)
     return len(removed)
 
 
+# A document's files are saved before its record, seconds apart; a folder this old with no
+# record is left over from a request that died in between (or a delete that couldn't remove
+# its files), never one still being written.
+ORPHAN_AGE = timedelta(hours=24)
+
+
+async def remove_orphaned_documents(db: AsyncIOMotorDatabase, *, now: datetime) -> int:
+    """Delete document folders older than ORPHAN_AGE whose generation has no record. A
+    folder whose name isn't a generation id is left alone. Raises after the rest is done
+    when any folder couldn't be removed."""
+    storage = get_storage()
+    by_id: dict[ObjectId, str] = {}
+    for prefix in await storage.document_prefixes_before(now - ORPHAN_AGE):
+        name = prefix.rsplit("/", 1)[-1]
+        if ObjectId.is_valid(name):
+            by_id[ObjectId(name)] = prefix
+    if not by_id:
+        return 0
+    known = {
+        doc["_id"]
+        async for doc in db.generations.find({"_id": {"$in": list(by_id)}}, projection={"_id": 1})
+    }
+    removed = 0
+    failed = 0
+    for oid, prefix in by_id.items():
+        if oid in known:
+            continue
+        try:
+            await storage.delete_prefix(prefix, strict=True)
+        except Exception:  # noqa: BLE001
+            logger.exception("Couldn't remove the orphaned document folder %s", prefix)
+            failed += 1
+            continue
+        removed += 1
+    if failed:
+        raise RuntimeError(f"Couldn't remove {failed} orphaned document folders")
+    return removed
+
+
 async def remove_expired_sessions(db: AsyncIOMotorDatabase, *, now: datetime) -> int:
     """Delete expired visitor sessions and their running spend totals. The total goes
     first, so a crash between the two leaves an expired session the next run removes."""
@@ -76,12 +116,18 @@ async def run_cleanup(db: AsyncIOMotorDatabase, *, now: datetime | None = None) 
     current = now or utcnow()
     swept = await sweep_stale(db, now=current)
     pruned = await prune_closed(db, now=current)
-    file_error: RuntimeError | None = None
+    file_error: Exception | None = None
+    expired_generations = orphaned_documents = 0
     try:
         expired_generations = await remove_expired_generations(db, now=current)
     except RuntimeError as exc:
         # Sessions still go this run; the kept generations carry their own expiry.
         file_error = exc
+    try:
+        orphaned_documents = await remove_orphaned_documents(db, now=current)
+    except Exception as exc:  # noqa: BLE001 (sessions still go; the run fails after)
+        logger.exception("The orphaned document sweep failed")
+        file_error = file_error or exc
     expired_sessions = await remove_expired_sessions(db, now=current)
     if file_error is not None:
         raise file_error
@@ -89,6 +135,7 @@ async def run_cleanup(db: AsyncIOMotorDatabase, *, now: datetime | None = None) 
         "swept": swept,
         "pruned": pruned,
         "expired_generations": expired_generations,
+        "orphaned_documents": orphaned_documents,
         "expired_sessions": expired_sessions,
     }
 
@@ -111,10 +158,12 @@ def main() -> None:
         logger.exception("cleanup failed")
         sys.exit(1)
     logger.info(
-        "cleanup: swept=%d pruned=%d expired_generations=%d expired_sessions=%d",
+        "cleanup: swept=%d pruned=%d expired_generations=%d orphaned_documents=%d "
+        "expired_sessions=%d",
         counts["swept"],
         counts["pruned"],
         counts["expired_generations"],
+        counts["orphaned_documents"],
         counts["expired_sessions"],
     )
 

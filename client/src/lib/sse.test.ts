@@ -41,7 +41,7 @@ describe("readFrames", () => {
     };
     const onError = vi.fn();
     await readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
-    expect(onError).toHaveBeenCalledWith("Generation failed.", undefined);
+    expect(onError).toHaveBeenCalledWith("Generation failed.");
   });
 
   it("ignores heartbeat comments and keeps the stream alive", async () => {
@@ -84,7 +84,7 @@ describe("readFrames", () => {
 });
 
 describe("stream errors", () => {
-  it("passes the error code from an error frame", async () => {
+  it("passes the message from an error frame", async () => {
     const frame = new TextEncoder().encode(
       'data: {"error": "Paused.", "code": "live_ai_paused"}\n\n',
     );
@@ -99,10 +99,10 @@ describe("stream errors", () => {
     };
     const onError = vi.fn();
     await readFrames(fakeResponse(reader), { onText: vi.fn(), onMeta: vi.fn(), onError });
-    expect(onError).toHaveBeenCalledWith("Paused.", "live_ai_paused");
+    expect(onError).toHaveBeenCalledWith("Paused.");
   });
 
-  it("passes the code from a non-OK response", async () => {
+  it("passes the detail from a non-OK response", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -119,7 +119,45 @@ describe("stream errors", () => {
         onError,
       },
     );
-    expect(onError).toHaveBeenCalledWith("Slow down.", "rate_limited");
+    expect(onError).toHaveBeenCalledWith("Slow down.");
+    vi.unstubAllGlobals();
+  });
+
+  it("an HTML 502 from the load balancer reads plainly", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response("<html><body><h1>502 Bad Gateway</h1></body></html>", {
+            status: 502,
+            headers: { "Content-Type": "text/html" },
+          }),
+      ),
+    );
+    const onError = vi.fn();
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      { onText: vi.fn(), onMeta: vi.fn(), onError },
+    );
+    expect(onError).toHaveBeenCalledWith(
+      "Folio couldn't reach its server just now. Try again in a minute.",
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("a plain-text 500 from the API itself is not called unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("Internal Server Error", { status: 500 })),
+    );
+    const onError = vi.fn();
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      { onText: vi.fn(), onMeta: vi.fn(), onError },
+    );
+    expect(onError).toHaveBeenCalledWith("That request didn't go through (error 500). Try again.");
     vi.unstubAllGlobals();
   });
 

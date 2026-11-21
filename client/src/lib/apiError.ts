@@ -18,15 +18,6 @@ export function apiErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-/** The server's machine-readable error `code` (`{detail, code}`), or null. */
-export function apiErrorCode(err: unknown): string | null {
-  if (err instanceof AxiosError) {
-    const code: unknown = err.response?.data?.code;
-    if (typeof code === "string" && code) return code;
-  }
-  return null;
-}
-
 /** For requests made with `responseType: "blob"` (file downloads): axios then
  *  hands back an error body as a Blob too, hiding the server's `detail`. Parse
  *  it back to JSON before rethrowing so `apiErrorMessage` can read it. */

@@ -26,7 +26,6 @@ interface Props {
   workspaceId: string | null;
   brand: BrandProfile;
   error: string | null;
-  errorCode?: string | null;
 }
 
 export function DocumentPreview({
@@ -38,7 +37,6 @@ export function DocumentPreview({
   workspaceId,
   brand,
   error,
-  errorCode,
 }: Props) {
   const showPaper = status === "done" && doc !== null;
 
@@ -59,7 +57,7 @@ export function DocumentPreview({
 
       {status === "error" && (
         <div className="mx-auto w-full max-w-2xl rounded-xl border border-border bg-surface p-6 shadow-preview">
-          <GenerationError message={error} code={errorCode} />
+          <GenerationError message={error} />
         </div>
       )}
 

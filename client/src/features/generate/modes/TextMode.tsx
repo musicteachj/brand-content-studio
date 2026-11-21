@@ -33,12 +33,7 @@ export function TextMode() {
         />
       </div>
       <div className="flex flex-col gap-6">
-        <PostOutput
-          status={gen.status}
-          text={gen.text}
-          error={gen.error}
-          errorCode={gen.errorCode}
-        />
+        <PostOutput status={gen.status} text={gen.text} error={gen.error} />
         <RetrievalDebugPanel retrieval={gen.retrieval} />
       </div>
     </div>
@@ -49,12 +44,10 @@ function PostOutput({
   status,
   text,
   error,
-  errorCode,
 }: {
   status: "idle" | "streaming" | "done" | "error";
   text: string;
   error: string | null;
-  errorCode?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -80,9 +73,7 @@ function PostOutput({
           </div>
         )}
 
-        {status === "error" && (
-          <GenerationError message={error} code={errorCode} className="min-h-[120px]" />
-        )}
+        {status === "error" && <GenerationError message={error} className="min-h-[120px]" />}
 
         {(status === "streaming" || status === "done") && (
           <>

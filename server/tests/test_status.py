@@ -53,15 +53,27 @@ async def test_budget_zero_is_off_and_never_reads_the_database(client, monkeypat
     assert calls == []
 
 
-async def test_room_under_60k_is_paused(client, monkeypatch):
-    _snapshot(monkeypatch, 1_000_000, 940_001, [])
+def test_the_threshold_is_the_largest_action_on_sonnet():
+    # A document or a LinkedIn post: 8,000 output tokens and up to 15,000 input tokens.
+    assert status_route.LARGEST_ACTION_OUTPUT_TOKENS == 8_000
+    assert status_route.status_min_room_micros() == 110_000
+
+
+def test_the_threshold_follows_the_model_price(monkeypatch):
+    monkeypatch.setattr(settings, "ai_model", "claude-opus-5-5")
+    assert status_route.status_min_room_micros() == 220_000
+
+
+async def test_room_under_the_largest_action_is_paused(client, monkeypatch):
+    # Room for a text post ($0.054) but not a document ($0.107): paused.
+    _snapshot(monkeypatch, 1_000_000, 890_001, [])
     r = await client.get("/api/status")
     assert r.json()["live_ai_available"] is False
     assert r.json()["live_ai_reason"] == "paused"
 
 
 async def test_enough_room_is_available(client, monkeypatch):
-    _snapshot(monkeypatch, 1_000_000, 940_000, [])
+    _snapshot(monkeypatch, 1_000_000, 890_000, [])
     r = await client.get("/api/status")
     assert r.json()["live_ai_available"] is True
     assert r.json()["live_ai_reason"] == "available"

@@ -6,6 +6,7 @@ const PROCESSORS = [
   ["OpenAI", "embeds briefs to find matching brand material"],
   ["Cloudflare", "the bot check"],
   ["Unsplash", "image search"],
+  ["jsDelivr", "serves the card fonts to your browser"],
   ["AWS", "hosting"],
   ["MongoDB Atlas", "the database"],
 ] as const;

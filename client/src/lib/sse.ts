@@ -9,11 +9,13 @@ import type { SSECardMetaFrame, SSEDocumentMetaFrame, SSEMetaFrame, SSETextFrame
 /** Abort the read if no frame arrives within this window: a stalled stream
  *  (proxy hang, dropped connection) should surface an error, not spin forever. */
 export const STREAM_INACTIVITY_MS = 30000;
+const SERVER_UNREACHABLE = "Folio couldn't reach its server just now. Try again in a minute.";
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
 export interface StreamHandlers<Meta> {
   onText: (text: string) => void;
   onMeta: (meta: Meta) => void;
-  onError: (message: string, code?: string) => void;
+  onError: (message: string) => void;
 }
 
 export interface TextStreamBody {
@@ -45,7 +47,7 @@ export interface PostPackStreamBody {
 async function openStream(
   url: string,
   body: unknown,
-  onError: (message: string, code?: string) => void,
+  onError: (message: string) => void,
   signal?: AbortSignal,
 ): Promise<Response | null> {
   const token = useAuthStore.getState().token;
@@ -67,19 +69,20 @@ async function openStream(
   }
 
   if (!response.ok) {
-    // Non-stream error (e.g. 409 empty corpus). Body is JSON {detail}.
-    let detail = `Request failed (${response.status})`;
-    let code: string | undefined;
+    // Non-stream error (e.g. 409 empty corpus). Our API's body is JSON {detail}; a load
+    // balancer's 502, 503, or 504 is an HTML page, so it gets plain words instead.
+    let detail = GATEWAY_STATUSES.has(response.status)
+      ? SERVER_UNREACHABLE
+      : `That request didn't go through (error ${response.status}). Try again.`;
     try {
       const data = await response.json();
       if (typeof data?.detail === "string") detail = data.detail;
-      if (typeof data?.code === "string") code = data.code;
     } catch {
       /* ignore */
     }
     // The session is gone: end it here, as the axios interceptor does for other calls.
     if (response.status === 401) endSessionOn401();
-    onError(detail, code);
+    onError(detail);
     return null;
   }
 
@@ -137,7 +140,6 @@ export async function readFrames<Meta>(
           else if ("error" in payload)
             handlers.onError(
               typeof payload.error === "string" ? payload.error : "Generation failed.",
-              typeof payload.code === "string" ? payload.code : undefined,
             );
         } catch {
           /* ignore malformed frame */

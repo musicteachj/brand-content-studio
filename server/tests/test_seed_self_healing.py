@@ -4,6 +4,7 @@ without a paid call. Runs against the test Mongo with a fake vector store, a tem
 `LocalStorage`, and a fixture loader patched to deterministic vectors."""
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -373,6 +374,100 @@ async def test_a_failed_startup_seed_is_recorded_and_the_app_still_starts(
         report = main_mod.app.state.seed_report
         assert not report.ok
         assert report.error
+
+
+async def test_a_failed_startup_seed_is_retried_until_it_succeeds(
+    test_db, startup_env, monkeypatch, caplog
+):
+    monkeypatch.setattr(main_mod, "SEED_RETRY_DELAYS_S", (0, 0))
+    calls: list[int] = []
+    succeeded = asyncio.Event()
+
+    async def flaky_seed(db, *, store, storage, embed_missing=False):
+        calls.append(1)
+        if len(calls) < 3:
+            raise RuntimeError("Mongo blip")
+        succeeded.set()
+        return SeedReport(created=[], repaired=["examples"], error=None)
+
+    monkeypatch.setattr(main_mod, "ensure_demo_seed", flaky_seed)
+    async with main_mod.lifespan(main_mod.app):
+        assert not main_mod.app.state.seed_report.ok  # the startup try failed
+        await asyncio.wait_for(succeeded.wait(), 2)
+        for _ in range(10):  # the retry stores its report right after the seed returns
+            if main_mod.app.state.seed_report.ok:
+                break
+            await asyncio.sleep(0)
+        assert main_mod.app.state.seed_report.repaired == ["examples"]
+    assert len(calls) == 3
+    assert "Demo seed retry 1 failed" in caplog.text
+
+
+async def test_a_seed_error_is_not_retried(test_db, startup_env, monkeypatch):
+    # A SeedError report names a fixture or settings problem that no retry fixes.
+    monkeypatch.setattr(main_mod, "SEED_RETRY_DELAYS_S", (0,))
+    calls: list[int] = []
+
+    async def stale_fixture(db, *, store, storage, embed_missing=False):
+        calls.append(1)
+        return SeedReport(created=[], repaired=[], error="The embeddings fixture is out of date.")
+
+    monkeypatch.setattr(main_mod, "ensure_demo_seed", stale_fixture)
+    async with main_mod.lifespan(main_mod.app):
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert not main_mod.app.state.seed_report.ok
+    assert calls == [1]
+
+
+async def test_a_retry_that_hits_a_seed_error_stops(test_db, startup_env, monkeypatch, caplog):
+    monkeypatch.setattr(main_mod, "SEED_RETRY_DELAYS_S", (0,))
+    calls: list[int] = []
+    stopped = asyncio.Event()
+
+    async def seed(db, *, store, storage, embed_missing=False):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("Mongo blip")
+        stopped.set()
+        return SeedReport(created=[], repaired=[], error="The embeddings fixture is out of date.")
+
+    monkeypatch.setattr(main_mod, "ensure_demo_seed", seed)
+    async with main_mod.lifespan(main_mod.app):
+        await asyncio.wait_for(stopped.wait(), 2)
+        for _ in range(10):
+            await asyncio.sleep(0)
+    assert calls == [1, 1]
+    assert "The demo seed stopped on retry 1" in caplog.text
+
+
+async def test_shutdown_stops_a_pending_seed_retry(test_db, startup_env, monkeypatch):
+    monkeypatch.setattr(main_mod, "SEED_RETRY_DELAYS_S", (3600,))
+    calls: list[int] = []
+
+    async def broken_seed(db, *, store, storage, embed_missing=False):
+        calls.append(1)
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(main_mod, "ensure_demo_seed", broken_seed)
+    async with main_mod.lifespan(main_mod.app):
+        pass  # leaving the lifespan cancels the retry waiting out its hour
+    assert calls == [1]
+
+
+async def test_a_good_startup_seed_starts_no_retry(test_db, startup_env, monkeypatch):
+    monkeypatch.setattr(main_mod, "SEED_RETRY_DELAYS_S", (0,))
+    calls: list[int] = []
+
+    async def fake_seed(db, *, store, storage, embed_missing=False):
+        calls.append(1)
+        return SeedReport(created=[], repaired=[], error=None)
+
+    monkeypatch.setattr(main_mod, "ensure_demo_seed", fake_seed)
+    async with main_mod.lifespan(main_mod.app):
+        for _ in range(5):
+            await asyncio.sleep(0)
+    assert calls == [1]
 
 
 async def test_startup_skips_the_seed_unless_asked(test_db, startup_env, monkeypatch):

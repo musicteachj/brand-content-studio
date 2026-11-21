@@ -34,7 +34,9 @@ interface Props {
   imageDataUrl: string | null;
   attribution: ImageAttribution | null;
   error: string | null;
-  errorCode?: string | null;
+  // The error (and its examples link) is shown in the panel beside this one, as in the
+  // LinkedIn Post mode, so the card frame stays quiet instead of repeating the alert.
+  errorShownBeside?: boolean;
   hasImage: boolean;
   imageError: string | null;
   onAddImage: () => void;
@@ -113,7 +115,7 @@ export function CardPreview({
   imageDataUrl,
   attribution,
   error,
-  errorCode,
+  errorShownBeside = false,
   hasImage,
   imageError,
   onAddImage,
@@ -180,7 +182,11 @@ export function CardPreview({
           {status === "idle" && <IdlePlaceholder />}
           {status === "error" && (
             <div className="flex aspect-4/5 items-center justify-center bg-surface p-8 text-center">
-              <GenerationError message={error} code={errorCode} />
+              {errorShownBeside ? (
+                <p className="text-sm text-muted-foreground">No card this time.</p>
+              ) : (
+                <GenerationError message={error} />
+              )}
             </div>
           )}
           {status === "streaming" && (

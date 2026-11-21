@@ -15,17 +15,9 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   error: string | null;
-  errorCode?: string | null;
 }
 
-export function PostCaptionPanel({
-  status,
-  streamingText,
-  value,
-  onChange,
-  error,
-  errorCode,
-}: Props) {
+export function PostCaptionPanel({ status, streamingText, value, onChange, error }: Props) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -48,7 +40,7 @@ export function PostCaptionPanel({
         </p>
       )}
 
-      {status === "error" && <GenerationError message={error} code={errorCode} className="py-6" />}
+      {status === "error" && <GenerationError message={error} className="py-6" />}
 
       {status === "streaming" && (
         <div

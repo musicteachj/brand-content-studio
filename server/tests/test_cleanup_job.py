@@ -25,7 +25,24 @@ def _req(m):
 
 
 def _counts(**kw: int) -> dict[str, int]:
-    return {"swept": 0, "pruned": 0, "expired_generations": 0, "expired_sessions": 0, **kw}
+    return {
+        "swept": 0,
+        "pruned": 0,
+        "expired_generations": 0,
+        "orphaned_documents": 0,
+        "expired_sessions": 0,
+        **kw,
+    }
+
+
+@pytest.fixture(autouse=True)
+def _temporary_storage(monkeypatch, tmp_path):
+    # Every run_cleanup here scans file storage for orphaned documents: point it at a
+    # temporary directory, never the real ./storage.
+    monkeypatch.setattr(settings, "storage_local_dir", str(tmp_path))
+    storage_service.get_storage.cache_clear()
+    yield
+    storage_service.get_storage.cache_clear()
 
 
 async def test_run_cleanup_sweeps_a_stale_reservation_and_prunes_an_old_settled_call(test_db):
@@ -52,7 +69,13 @@ def test_main_exits_1_when_cleanup_fails(monkeypatch):
 
 def test_main_logs_the_counts(monkeypatch, caplog):
     async def fake_run(db, *, now=None):
-        return {"swept": 2, "pruned": 3, "expired_generations": 4, "expired_sessions": 5}
+        return {
+            "swept": 2,
+            "pruned": 3,
+            "expired_generations": 4,
+            "orphaned_documents": 6,
+            "expired_sessions": 5,
+        }
 
     class FakeClient:
         def __init__(self, *a, **k):
@@ -68,7 +91,7 @@ def test_main_logs_the_counts(monkeypatch, caplog):
     monkeypatch.setattr(cleanup, "run_cleanup", fake_run)
     caplog.set_level("INFO")
     cleanup.main()
-    assert "cleanup: swept=2 pruned=3 expired_generations=4 expired_sessions=5" in caplog.text
+    assert "cleanup: swept=2 pruned=3 expired_generations=4 orphaned_documents=6 expired_sessions=5" in caplog.text
 
 
 # --- expired visitor work and sessions ---------------------------------------
@@ -91,10 +114,16 @@ class _RecordingStorage:
         self.strict_calls.append(strict)
         await self.inner.delete_prefix(prefix, strict=strict)
 
+    async def document_prefixes_before(self, older_than):
+        return await self.inner.document_prefixes_before(older_than)
+
 
 class _FailingStorage:
     async def delete_prefix(self, prefix: str, *, strict: bool = False) -> None:
         raise OSError("disk unavailable")
+
+    async def document_prefixes_before(self, older_than):
+        return []
 
 
 @pytest.fixture
@@ -206,6 +235,87 @@ async def test_an_undeletable_folder_in_real_storage_keeps_the_record(test_db, t
     assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts(expired_generations=1)
     assert await test_db.generations.find_one({"_id": ObjectId(gid)}) is None
     assert not _has_files(tmp_storage, gid)
+
+
+def _folder_exists(path: str) -> bool:
+    return os.path.isdir(path)
+
+
+async def _document_folder(storage, gid: str, *, age: timedelta) -> str:
+    """A document folder under WS_OID, last changed `age` before NOV19."""
+    await storage.save(build_document_key(str(WS_OID), gid, "pdf"), b"file")
+    folder = os.path.dirname(storage.local_path(build_document_key(str(WS_OID), gid, "pdf")))
+    stamp = (NOV19 - age).timestamp()
+    os.utime(folder, (stamp, stamp))
+    return folder
+
+
+async def test_cleanup_removes_old_document_folders_that_no_record_points_at(test_db, tmp_storage):
+    orphan = str(ObjectId())
+    in_flight = str(ObjectId())
+    kept = await _generation(test_db, type_="document")  # the owner's: no expiry, files kept
+    orphan_folder = await _document_folder(tmp_storage, orphan, age=timedelta(hours=25))
+    in_flight_folder = await _document_folder(tmp_storage, in_flight, age=timedelta(minutes=1))
+    kept_folder = await _document_folder(tmp_storage, kept, age=timedelta(days=30))
+    odd_folder = await _document_folder(tmp_storage, "not-a-generation", age=timedelta(days=30))
+
+    counts = await cleanup.run_cleanup(test_db, now=NOV19)
+
+    assert counts == _counts(orphaned_documents=1)
+    assert not _folder_exists(orphan_folder)
+    assert _folder_exists(in_flight_folder)  # still being written, as far as anyone knows
+    assert _folder_exists(kept_folder)
+    assert _folder_exists(odd_folder)
+    assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts()
+
+
+@pytest.mark.skipif(
+    hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores directory permissions"
+)
+async def test_an_undeletable_orphan_fails_the_run_after_the_rest(test_db, tmp_storage):
+    expired = await _session(test_db, expired=True)
+    folder = await _document_folder(tmp_storage, str(ObjectId()), age=timedelta(days=2))
+    os.chmod(folder, 0o500)
+    try:
+        with pytest.raises(RuntimeError, match="1 orphaned document folders"):
+            await cleanup.run_cleanup(test_db, now=NOV19)
+        assert _folder_exists(folder)
+        assert await test_db.demo_sessions.find_one({"_id": expired["_id"]}) is None
+    finally:
+        os.chmod(folder, 0o700)
+
+
+async def test_a_failed_orphan_scan_still_removes_expired_sessions(test_db, monkeypatch):
+    class _ScanFails:
+        async def delete_prefix(self, prefix, *, strict=False):
+            pass
+
+        async def document_prefixes_before(self, older_than):
+            raise PermissionError("storage root unreadable")
+
+    monkeypatch.setattr(cleanup, "get_storage", lambda: _ScanFails())
+    expired = await _session(test_db, expired=True)
+
+    with pytest.raises(PermissionError):
+        await cleanup.run_cleanup(test_db, now=NOV19)
+    assert await test_db.demo_sessions.find_one({"_id": expired["_id"]}) is None
+
+
+def test_the_scan_skips_a_folder_that_vanishes(tmp_storage, monkeypatch):
+    import asyncio as _asyncio
+    from pathlib import Path as _Path
+
+    gid = str(ObjectId())
+    _asyncio.run(tmp_storage.save(build_document_key(str(WS_OID), gid, "pdf"), b"file"))
+    real_stat = _Path.stat
+
+    def stat(self, *a, **k):
+        if self.name == gid:
+            raise FileNotFoundError(self)
+        return real_stat(self, *a, **k)
+
+    monkeypatch.setattr(_Path, "stat", stat)
+    assert _asyncio.run(tmp_storage.document_prefixes_before(NOV19 + timedelta(days=9999))) == []
 
 
 def test_main_exits_1_when_files_cannot_be_removed(monkeypatch):

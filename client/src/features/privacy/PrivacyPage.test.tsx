@@ -41,7 +41,15 @@ describe("PrivacyPage", () => {
         /removed from the app after 24 hours; backups up to 7 days; server logs \(including IP addresses\) 14 days/,
       ),
     ).toBeInTheDocument();
-    for (const name of ["Anthropic", "OpenAI", "Cloudflare", "Unsplash", "AWS", "MongoDB Atlas"]) {
+    for (const name of [
+      "Anthropic",
+      "OpenAI",
+      "Cloudflare",
+      "Unsplash",
+      "jsDelivr",
+      "AWS",
+      "MongoDB Atlas",
+    ]) {
       expect(screen.getByText(new RegExp(name))).toBeInTheDocument();
     }
     expect(screen.getByRole("link", { name: /jameslittlefield\.net/ })).toHaveAttribute(

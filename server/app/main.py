@@ -1,4 +1,6 @@
 """FastAPI application entrypoint."""
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -129,25 +131,52 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-async def run_startup_seed() -> SeedReport | None:
-    """The self-healing demo seed, when SEED_ON_STARTUP is set. A failure is logged and
-    kept as the report's error; the app still starts, and readiness reports it."""
-    if not settings.seed_on_startup:
-        return None
+async def run_seed_once(*, retry: int = 0) -> tuple[SeedReport, bool]:
+    """One run of the self-healing demo seed: its report, and whether another try could
+    help. A run that raised (a Mongo blip, say) is logged and worth retrying; a `SeedError`
+    report names a problem in the fixtures or settings that no retry fixes. Either way the
+    app keeps serving, and readiness reports the result."""
     try:
         report = await ensure_demo_seed(
             await get_database(), store=get_vector_store(), storage=get_storage()
         )
     except Exception as exc:  # noqa: BLE001 (the app must start; readiness shows the error)
-        logger.exception("The demo seed failed at startup")
-        return SeedReport(error=f"The demo seed failed: {type(exc).__name__}")
+        if retry:
+            logger.exception("Demo seed retry %d failed", retry)
+        else:
+            logger.exception("The demo seed failed at startup")
+        return SeedReport(error=f"The demo seed failed: {type(exc).__name__}"), True
     if report.ok:
         logger.info(
             "Demo seed checked: created %s, repaired %s",
             report.created or "nothing",
             report.repaired or "nothing",
         )
-    return report
+    return report, False
+
+
+# Waits before each retry of a failed startup seed; the last repeats until one succeeds.
+SEED_RETRY_DELAYS_S: tuple[float, ...] = (5, 15, 30, 60, 120, 300)
+
+
+async def retry_startup_seed(app: FastAPI) -> None:
+    """After a startup seed that raised, try again in the background with backoff, so a
+    passing failure doesn't leave the demo not ready until a restart. Each try's report
+    replaces the last, so readiness turns green as soon as one works. A retry runs while
+    the app serves; it repairs only what is missing or wrong, which is already broken for
+    visitors. It stops at a `SeedError`, which needs a fix and a deploy."""
+    attempt = 0
+    while True:
+        await asyncio.sleep(SEED_RETRY_DELAYS_S[min(attempt, len(SEED_RETRY_DELAYS_S) - 1)])
+        attempt += 1
+        report, retryable = await run_seed_once(retry=attempt)
+        app.state.seed_report = report
+        if report.ok:
+            logger.info("The demo seed succeeded on retry %d", attempt)
+            return
+        if not retryable:
+            logger.error("The demo seed stopped on retry %d; no further retries", attempt)
+            return
 
 
 @asynccontextmanager
@@ -160,8 +189,18 @@ async def lifespan(app: FastAPI):
     await connect_to_mongo()
     await ensure_indexes()
     get_vector_store()  # instantiate the configured backend (Chroma)
-    app.state.seed_report = await run_startup_seed()
+    # The self-healing demo seed, when SEED_ON_STARTUP is set (None when it isn't).
+    app.state.seed_report = None
+    seed_retry: asyncio.Task[None] | None = None
+    if settings.seed_on_startup:
+        app.state.seed_report, retryable = await run_seed_once()
+        if retryable:
+            seed_retry = asyncio.create_task(retry_startup_seed(app))
     yield
+    if seed_retry is not None:
+        seed_retry.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await seed_retry
     await close_mongo_connection()
     await close_ai_clients()
     await close_turnstile_verifier()
