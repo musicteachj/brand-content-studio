@@ -30,7 +30,7 @@ from app.models.image import (
 from app.utils.errors import IMAGE_SEARCH_UNAVAILABLE_COPY
 
 _API_BASE = "https://api.unsplash.com"
-_UTM = "utm_source=Brand+Content+Studio&utm_medium=referral"
+_UTM = "utm_source=Folio&utm_medium=referral"
 _TIMEOUT = httpx.Timeout(10.0)
 PER_PAGE = 24
 

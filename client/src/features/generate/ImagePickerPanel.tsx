@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import type { BrandImage, UnsplashPhoto } from "@/types";
+import { UnsplashCredit } from "./UnsplashCredit";
 
 interface Props {
   open: boolean;
@@ -269,19 +270,7 @@ function PhotoTile({
         )}
       </button>
       {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license. */}
-      <p className="mt-1 truncate text-[11px] leading-tight text-muted-foreground">
-        Photo by{" "}
-        <a
-          href={photo.attribution.author_url}
-          target="_blank"
-          rel="noreferrer"
-          className="underline decoration-border underline-offset-2 hover:text-foreground"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {photo.attribution.author}
-        </a>{" "}
-        on Unsplash
-      </p>
+      <UnsplashCredit attribution={photo.attribution} className="mt-1 truncate" />
     </div>
   );
 }

@@ -105,3 +105,67 @@ describe("ImagePickerPanel brand images", () => {
     expect(onSaveBrandImage).toHaveBeenCalledWith(file);
   });
 });
+
+describe("ImagePickerPanel Unsplash credit", () => {
+  const PHOTO = {
+    id: "abc123",
+    description: "A green wall",
+    thumb_url: "https://images.unsplash.com/small.jpg",
+    preview_url: "https://images.unsplash.com/regular.jpg",
+    width: 400,
+    height: 500,
+    color: "#1c3a2e",
+    attribution: {
+      author: "Jane Mason",
+      author_url: "https://unsplash.com/@janemason?utm_source=Folio&utm_medium=referral",
+      source_url: "https://unsplash.com/photos/abc123?utm_source=Folio&utm_medium=referral",
+    },
+    download_location: "https://api.unsplash.com/photos/abc123/download",
+  };
+
+  function mountWithResult(props: Partial<React.ComponentProps<typeof ImagePickerPanel>> = {}) {
+    useUnsplashSearch.mockReturnValue({
+      data: { query: "walls", page: 1, total_pages: 1, results: [PHOTO] },
+      isLoading: false,
+      isError: false,
+    } as never);
+    mount({ initialKeywords: ["walls"], brandImages: [], ...props });
+  }
+
+  afterEach(() => {
+    useUnsplashSearch.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+  });
+
+  function creditLinks(): HTMLAnchorElement[] {
+    return Array.from(document.querySelectorAll("a"));
+  }
+
+  it("credits the photographer and Unsplash with links that open in a new tab", () => {
+    mountWithResult();
+    const credit = creditLinks()[0].closest("p");
+    expect(credit?.textContent).toBe("Photo by Jane Mason on Unsplash");
+
+    const [author, unsplash] = creditLinks();
+    expect(author.textContent).toBe("Jane Mason");
+    expect(author.getAttribute("href")).toBe(PHOTO.attribution.author_url);
+    expect(unsplash.textContent).toBe("Unsplash");
+    expect(unsplash.getAttribute("href")).toBe(
+      "https://unsplash.com/?utm_source=Folio&utm_medium=referral",
+    );
+    for (const link of [author, unsplash]) {
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noreferrer");
+    }
+  });
+
+  it("following a credit link does not select the photo", () => {
+    const onSelectUnsplash = vi.fn();
+    mountWithResult({ onSelectUnsplash });
+    for (const link of creditLinks()) {
+      // Keep jsdom from attempting navigation; the click still bubbles through React.
+      link.addEventListener("click", (e) => e.preventDefault());
+      act(() => link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+    }
+    expect(onSelectUnsplash).not.toHaveBeenCalled();
+  });
+});
