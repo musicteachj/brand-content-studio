@@ -13,6 +13,7 @@ import { cardExportErrorMessage } from "@/features/generate/cardExportError";
 import { GenerationError } from "@/features/generate/GenerationError";
 import { ScaledCardBox } from "@/features/generate/cards/ScaledCardBox";
 import { StreamAnnouncer } from "@/features/generate/StreamAnnouncer";
+import { UnsplashCredit } from "@/features/generate/UnsplashCredit";
 import {
   cardPngName,
   downloadBlob,
@@ -156,6 +157,9 @@ export function CardPreview({
   const lockedReady = status === "done" && fields !== null && !editingText;
   const { svg, loading: svgLoading, error: svgError } = useCardSvg(lockedReady, elementProps);
   const showEditableCard = status === "done" && fields !== null && editingText && !!onEditField;
+  // The card bakes "Photo by X on Unsplash" in as plain text (a rendered image can't
+  // hold links), so the finished card also gets a linked credit beneath it.
+  const showCredit = status === "done" && fields !== null && usesImage && attribution !== null;
 
   async function onExport() {
     if (!svg) return;
@@ -207,6 +211,7 @@ export function CardPreview({
             <ScaledCardBox>{buildCardElement(elementProps)}</ScaledCardBox>
           ) : null}
         </div>
+        {showCredit && <UnsplashCredit attribution={attribution} className="mt-3 text-center" />}
       </div>
 
       {/* Finishing actions at the base of the card: add/swap the image (photo-led),

@@ -127,3 +127,63 @@ describe("CardPreview errors", () => {
     expect(container.textContent).not.toContain("Something went wrong.");
   });
 });
+
+describe("CardPreview: linked Unsplash credit", () => {
+  const ATTRIBUTION = {
+    author: "Jane Mason",
+    author_url: "https://unsplash.com/@janemason?utm_source=Folio&utm_medium=referral",
+    source_url: "https://unsplash.com/photos/abc123?utm_source=Folio&utm_medium=referral",
+  };
+  const FIELDS = { eyebrow: "", headline: "Walls that breathe", body: "", cta: "", hashtag: "" };
+
+  // A finished card shown as its locked SVG (no Satori, no ScaledCardBox).
+  function renderFinished(props: Partial<React.ComponentProps<typeof CardPreview>> = {}) {
+    exportState.svg = { svg: "<svg/>", error: null, loading: false };
+    render({ fields: FIELDS, attribution: ATTRIBUTION, ...props });
+  }
+
+  function credit(): HTMLParagraphElement | undefined {
+    return [...container.querySelectorAll("p")].find((p) => p.textContent?.startsWith("Photo by"));
+  }
+
+  it("links the photographer and Unsplash under a finished photo card", () => {
+    renderFinished();
+    const p = credit();
+    expect(p?.textContent).toBe("Photo by Jane Mason on Unsplash");
+    const [author, unsplash] = [...p!.querySelectorAll("a")];
+    expect(author.getAttribute("href")).toBe(ATTRIBUTION.author_url);
+    expect(unsplash.getAttribute("href")).toBe(
+      "https://unsplash.com/?utm_source=Folio&utm_medium=referral",
+    );
+    for (const link of [author, unsplash]) {
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noreferrer");
+    }
+  });
+
+  it("shows no credit without an Unsplash photo", () => {
+    renderFinished({ attribution: null });
+    expect(credit()).toBeUndefined();
+  });
+
+  it("shows no credit on a layout that does not use the photo", () => {
+    renderFinished({ template: "statement" });
+    expect(credit()).toBeUndefined();
+  });
+
+  it("shows no credit before the card is finished", () => {
+    render({ status: "idle", fields: FIELDS, attribution: ATTRIBUTION });
+    expect(credit()).toBeUndefined();
+  });
+
+  it("shows a saved author link that is not on unsplash.com as plain text", () => {
+    renderFinished({
+      attribution: { ...ATTRIBUTION, author_url: "https://example.com/@janemason" },
+    });
+    const p = credit();
+    expect(p?.textContent).toBe("Photo by Jane Mason on Unsplash");
+    const links = [...p!.querySelectorAll("a")];
+    expect(links).toHaveLength(1);
+    expect(links[0].textContent).toBe("Unsplash");
+  });
+});

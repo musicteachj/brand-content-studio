@@ -7,12 +7,7 @@ import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/apiError";
 import { cn } from "@/lib/utils";
 import type { BrandImage, UnsplashPhoto } from "@/types";
-
-/** Unsplash's home page, tagged with the same UTM referral params the server puts on
- *  the author and photo links (`_UTM` in server/app/services/unsplash_service.py). */
-const UNSPLASH_HOME_URL = "https://unsplash.com/?utm_source=Folio&utm_medium=referral";
-
-const CREDIT_LINK = "underline decoration-border underline-offset-2 hover:text-foreground";
+import { UnsplashCredit } from "./UnsplashCredit";
 
 interface Props {
   open: boolean;
@@ -274,30 +269,8 @@ function PhotoTile({
           </span>
         )}
       </button>
-      {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license:
-          the photographer and Unsplash both link out, with our UTM referral params. */}
-      <p className="mt-1 truncate text-[11px] leading-tight text-muted-foreground">
-        Photo by{" "}
-        <a
-          href={photo.attribution.author_url}
-          target="_blank"
-          rel="noreferrer"
-          className={CREDIT_LINK}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {photo.attribution.author}
-        </a>{" "}
-        on{" "}
-        <a
-          href={UNSPLASH_HOME_URL}
-          target="_blank"
-          rel="noreferrer"
-          className={CREDIT_LINK}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Unsplash
-        </a>
-      </p>
+      {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license. */}
+      <UnsplashCredit attribution={photo.attribution} className="mt-1 truncate" />
     </div>
   );
 }
