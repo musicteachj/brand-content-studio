@@ -48,6 +48,12 @@ def build_font_key(workspace_id: str, font_id: str, filename: str) -> str:
 DOCUMENT_FORMATS = ("docx", "pdf", "pptx")
 
 
+def build_workspace_prefix(workspace_id: str) -> str:
+    """Every file a workspace owns (assets, images, fonts, templates, documents) lives
+    under this prefix."""
+    return safe_filename(workspace_id)
+
+
 def build_document_prefix(workspace_id: str, generation_id: str) -> str:
     """Everything built for one generation lives under this prefix."""
     return f"{safe_filename(workspace_id)}/documents/{safe_filename(generation_id)}"

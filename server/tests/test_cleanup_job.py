@@ -251,6 +251,7 @@ async def _document_folder(storage, gid: str, *, age: timedelta) -> str:
 
 
 async def test_cleanup_removes_old_document_folders_that_no_record_points_at(test_db, tmp_storage):
+    await test_db.workspaces.insert_one({"_id": WS_OID, "name": "Verdure"})
     orphan = str(ObjectId())
     in_flight = str(ObjectId())
     kept = await _generation(test_db, type_="document")  # the owner's: no expiry, files kept
@@ -269,10 +270,33 @@ async def test_cleanup_removes_old_document_folders_that_no_record_points_at(tes
     assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts()
 
 
+async def test_the_sweep_deletes_nothing_against_a_database_with_no_generations(
+    test_db, tmp_storage
+):
+    # A cleanup task pointed at the wrong DATABASE_NAME or MONGODB_URL: every folder looks
+    # like an orphan there, so the sweep must not run at all.
+    await test_db.workspaces.insert_one({"_id": WS_OID, "name": "Verdure"})
+    folder = await _document_folder(tmp_storage, str(ObjectId()), age=timedelta(days=30))
+
+    assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts()
+    assert _folder_exists(folder)
+
+
+async def test_the_sweep_leaves_folders_under_a_workspace_it_does_not_know(test_db, tmp_storage):
+    # Generations exist, but the folder's workspace isn't in this database: leave it.
+    await _generation(test_db, type_="text")
+    folder = await _document_folder(tmp_storage, str(ObjectId()), age=timedelta(days=30))
+
+    assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts()
+    assert _folder_exists(folder)
+
+
 @pytest.mark.skipif(
     hasattr(os, "geteuid") and os.geteuid() == 0, reason="root ignores directory permissions"
 )
 async def test_an_undeletable_orphan_fails_the_run_after_the_rest(test_db, tmp_storage):
+    await test_db.workspaces.insert_one({"_id": WS_OID, "name": "Verdure"})
+    await _generation(test_db, type_="text")
     expired = await _session(test_db, expired=True)
     folder = await _document_folder(tmp_storage, str(ObjectId()), age=timedelta(days=2))
     os.chmod(folder, 0o500)
@@ -294,11 +318,31 @@ async def test_a_failed_orphan_scan_still_removes_expired_sessions(test_db, monk
             raise PermissionError("storage root unreadable")
 
     monkeypatch.setattr(cleanup, "get_storage", lambda: _ScanFails())
+    await _generation(test_db, type_="text")  # past the empty-database guard, into the scan
     expired = await _session(test_db, expired=True)
 
     with pytest.raises(PermissionError):
         await cleanup.run_cleanup(test_db, now=NOV19)
     assert await test_db.demo_sessions.find_one({"_id": expired["_id"]}) is None
+
+
+async def test_the_sweep_skips_prefixes_of_another_shape(test_db, monkeypatch):
+    removed: list[str] = []
+    gid = str(ObjectId())
+
+    class _OddPrefixes:
+        async def delete_prefix(self, prefix, *, strict=False):
+            removed.append(prefix)
+
+        async def document_prefixes_before(self, older_than):
+            return [gid, f"{WS_OID}/documents", f"{WS_OID}/images/{gid}", f"{WS_OID}/documents/{gid}/x"]
+
+    monkeypatch.setattr(cleanup, "get_storage", lambda: _OddPrefixes())
+    await test_db.workspaces.insert_one({"_id": WS_OID, "name": "Verdure"})
+    await _generation(test_db, type_="text")
+
+    assert await cleanup.run_cleanup(test_db, now=NOV19) == _counts()
+    assert removed == []
 
 
 def test_the_scan_skips_a_folder_that_vanishes(tmp_storage, monkeypatch):

@@ -34,7 +34,13 @@ from app.services.brand_extract_service import (
     brand_extract_line,
     exemplar_note_line,
 )
-from app.services.storage_service import build_font_key, build_image_key, get_storage, safe_filename
+from app.services.storage_service import (
+    build_font_key,
+    build_image_key,
+    build_workspace_prefix,
+    get_storage,
+    safe_filename,
+)
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
 from app.services.workspace_service import WorkspaceWriteConflict
 from app.utils.dependencies import (
@@ -459,5 +465,9 @@ async def delete_workspace(
     db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     namespace = workspace["vector_namespace"]
-    await workspace_service.delete_workspace(db, str(workspace["_id"]), current_user.id)
+    workspace_id = str(workspace["_id"])
+    if await workspace_service.delete_workspace(db, workspace_id, current_user.id):
+        # Its files go with it, best effort, records first: with the workspace record gone,
+        # the cleanup job's orphan sweep would never reach them.
+        await get_storage().delete_prefix(build_workspace_prefix(workspace_id))
     await get_vector_store().delete_workspace(namespace)

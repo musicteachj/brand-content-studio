@@ -371,7 +371,7 @@ Message: `fix(server): one Claude client and one OpenAI client, no SDK retries, 
   - `async def reserve_action(db, requests: Sequence[LineRequest], *, visitor_id: str | None) -> MeteredAction`
   - `def claude_line(purpose: str, *, system: str, content: str | list[dict[str, Any]], max_tokens: int, schema: dict[str, Any] | None = None, extra_input_tokens: int = 0) -> LineRequest` (model `settings.ai_model`; input = estimate of system and every text part, plus `IMAGE_TOKEN_BOUND` per image part, plus `estimate_tokens(json.dumps(schema)) + SCHEMA_OVERHEAD_TOKENS` when a schema is given, plus `extra_input_tokens`)
   - `def embedding_line(purpose: str, texts: Sequence[str]) -> LineRequest` (model `settings.embedding_model`)
-- `status.py`: `GET /api/status` (no auth) returns `StatusResponse(live_ai_available: bool, live_ai_reason: Literal["available", "off", "paused"])`, cached in process for 30 s, header `Cache-Control: public, max-age=30`. Available when the budget is above 0 and `allowance_today - spent_today >= status_min_room_micros()` (the largest generation's reservation at the configured model's price: 110_000 on Sonnet 5.5; changed from a flat 60_000 in the PR #86 review, since a card, document, or LinkedIn post reserves more than a text post).
+- `status.py`: `GET /api/status` (no auth) returns `StatusResponse(live_ai_available: bool, live_ai_reason: Literal["available", "off", "paused"])`, cached in process for 30 s, header `Cache-Control: public, max-age=30`. Available when the budget is above 0 and `allowance_today - spent_today >= status_min_room_micros()` (the largest generation's reservation at the configured model's price: 122_000 on Sonnet 5.5; changed from a flat 60_000 in the PR #86 review, since a card, document, or LinkedIn post reserves more than a text post).
 - `cleanup.py`: `async def run_cleanup(db, *, now: datetime | None = None) -> dict[str, int]` (keys `swept`, `pruned`); `def main() -> None` (own Motor client, `maxPoolSize=2`; logs `cleanup: swept=N pruned=N`; exits 1 on any exception so the scheduled-task alarm fires). Run as `python -m app.jobs.cleanup`.
 - Settings: `ai_monthly_budget_usd: Decimal = Decimal("10")`, `ai_pacing_multiplier: Decimal = Decimal("3")`, `ai_daily_floor_usd: Decimal = Decimal("0.50")`, `ai_visitor_budget_usd: Decimal = Decimal("0.15")`.
 - Documents: `ai_spend_days {_id: "YYYY-MM-DD", month: "YYYY-MM", total_micros}` (settled + open, never deleted); `ai_spend_calls {_id, day, month, visitor_id, provider, model, purpose, reserved_micros, actual_micros|null, status: "open"|"settled"|"swept", outcome, created_at, settled_at}`; `ai_spend_visitors {_id: visitor_id, total_micros}`. Indexes: `ai_spend_calls (status, created_at)`, `ai_spend_days month`.
@@ -427,7 +427,7 @@ async def test_a_zero_budget_refuses_without_touching_the_database(monkeypatch):
 
 `test_ai_meter.py`: `test_finalize_releases_lines_that_never_started` (actual 0, outcome `not_attempted`); `test_finalize_keeps_a_started_unsettled_line_at_its_reservation`; `test_finalize_still_settles_when_the_task_is_canceled` (cancel an `anyio` scope around `async with action:` after `mark_started`; afterwards the call doc is settled at the reserved amount); `test_claude_line_counts_text_images_schema_and_extra` (one 2,000-byte text, one image, a schema, `extra_input_tokens=2_000`: input = 1,000 + 5,000 + schema estimate + 500 + 2,000).
 
-`test_status.py`: budget 0 gives `{"live_ai_available": false, "live_ai_reason": "off"}`; room under `status_min_room_micros()` (110_000 on Sonnet 5.5) gives `"paused"`; otherwise `"available"`; a second call within 30 s doesn't read the database; `Cache-Control: public, max-age=30`.
+`test_status.py`: budget 0 gives `{"live_ai_available": false, "live_ai_reason": "off"}`; room under `status_min_room_micros()` (122_000 on Sonnet 5.5) gives `"paused"`; otherwise `"available"`; a second call within 30 s doesn't read the database; `Cache-Control: public, max-age=30`.
 
 `test_cleanup_job.py`: `run_cleanup` sweeps one stale reservation and prunes one settled call older than 35 days, returning `{"swept": 1, "pruned": 1}`.
 
@@ -1332,13 +1332,15 @@ Stop: ask James for OK to merge with a merge commit. The `dev` to `main` release
 Status 2026-11-20: `/code-review high` gave four nits, three fixed in f75c16e (stream close, server-side end demo, `canceled`) and one deferred (owner-only ingestion error copy). `/security-review` found no HIGH or MEDIUM issues. The branch is pushed, and PR #86 into `dev` is open with all five checks green. Merge is waiting for James's OK.
 
 Status 2026-11-21: the independent review on PR #86 raised five items, all fixed in the working tree:
-- the status threshold now covers the largest generation (110_000 on Sonnet 5.5, priced from the model);
+- the status threshold now covers the largest generation (122_000 on Sonnet 5.5 after the re-review, priced from the model);
 - every generation error links to the examples, and a load balancer's HTML 502, 503, or 504 reads plainly;
 - a failed or interrupted document save or insert rolls back, and the hourly cleanup removes document folders older than a day that no record points at;
 - the privacy page names jsDelivr;
 - a startup seed that raised is retried in the background with backoff (5 s up to every 5 minutes), stopping at a `SeedError`.
 
 Two `/code-review high` passes on those fixes found more, now fixed: the post-pack error showing twice, template download errors offering the examples, dead error-code plumbing, and an orphan scan that could stop the cleanup run.
+
+Re-review 2026-11-21 (two non-blocking items, both fixed): the threshold's input side was a hand-typed 15,000 tokens, but the real worst case on the demo corpus (a 2,000-character brief of 4-byte characters, 10 pinned chunks plus the 6 largest others) reserves 121,060 for a LinkedIn post, so the allowance is now 21,000 tokens (122,000 micros) and a test builds that reservation with the real prompt and line helpers. The orphan sweep now fails closed: only folders under a workspace in the same database, and nothing while that database has no generations. Since a deleted workspace's folders would then never be swept, deleting a workspace now removes its files (assets, images, fonts, templates, documents) along with its records; before, the files were left on disk.
 
 - [ ] **Step 11: Update the master plan**
 

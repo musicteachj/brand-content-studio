@@ -65,7 +65,7 @@ EventBridge Scheduler, hourly.
 | Env | `DATABASE_NAME=folio`; secrets `MONGODB_URL`, `JWT_SECRET_KEY` (the settings module checks it at import in production) |
 | Memory | 128 MiB |
 | Exit code | non-zero on any failure (drives the "scheduled task failed" alarm) |
-| Does | charges reservations open longer than 10 minutes; deletes expired visitor work (files first, then records), document folders older than a day that no record points at, expired sessions, and their visitor allowances; prunes settled ledger call records older than 35 days (day totals are kept) |
+| Does | charges reservations open longer than 10 minutes; deletes expired visitor work (files first, then records), document folders older than a day that no record points at (only under a workspace in the same database, and never while that database has no generations, so a job pointed at the wrong database deletes nothing), expired sessions, and their visitor allowances; prunes settled ledger call records older than 35 days (day totals are kept) |
 
 The job deletes visitor files strictly: a file that fails to delete keeps its record, and the job exits 1, so the next hour retries it.
 

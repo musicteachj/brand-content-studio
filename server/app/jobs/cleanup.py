@@ -71,13 +71,32 @@ ORPHAN_AGE = timedelta(hours=24)
 async def remove_orphaned_documents(db: AsyncIOMotorDatabase, *, now: datetime) -> int:
     """Delete document folders older than ORPHAN_AGE whose generation has no record. A
     folder whose name isn't a generation id is left alone. Raises after the rest is done
-    when any folder couldn't be removed."""
+    when any folder couldn't be removed.
+
+    It fails closed: "no record" counts only in the database that owns the files. A folder
+    is a candidate only under a workspace that exists here, and nothing is swept while this
+    database has no generations at all, so a job pointed at the wrong DATABASE_NAME or
+    MONGODB_URL deletes nothing."""
+    if await db.generations.find_one({}, projection={"_id": 1}) is None:
+        return 0
     storage = get_storage()
-    by_id: dict[ObjectId, str] = {}
+    candidates: list[tuple[ObjectId, ObjectId, str]] = []
     for prefix in await storage.document_prefixes_before(now - ORPHAN_AGE):
-        name = prefix.rsplit("/", 1)[-1]
-        if ObjectId.is_valid(name):
-            by_id[ObjectId(name)] = prefix
+        parts = prefix.split("/")
+        if len(parts) != 3 or parts[1] != "documents":
+            continue
+        workspace_name, _, name = parts
+        if ObjectId.is_valid(workspace_name) and ObjectId.is_valid(name):
+            candidates.append((ObjectId(workspace_name), ObjectId(name), prefix))
+    if not candidates:
+        return 0
+    workspaces = {
+        doc["_id"]
+        async for doc in db.workspaces.find(
+            {"_id": {"$in": list({ws for ws, _, _ in candidates})}}, projection={"_id": 1}
+        )
+    }
+    by_id = {gid: prefix for ws, gid, prefix in candidates if ws in workspaces}
     if not by_id:
         return 0
     known = {
