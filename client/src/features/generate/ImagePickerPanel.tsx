@@ -269,8 +269,9 @@ function PhotoTile({
           </span>
         )}
       </button>
-      {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license. */}
-      <UnsplashCredit attribution={photo.attribution} className="mt-1 truncate" />
+      {/* Attribution is rendered visibly (never a tooltip), per the Unsplash license.
+          It wraps rather than truncates, so a long name never hides "on Unsplash". */}
+      <UnsplashCredit attribution={photo.attribution} className="mt-1 break-words" />
     </div>
   );
 }

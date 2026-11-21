@@ -123,9 +123,12 @@ describe("ImagePickerPanel Unsplash credit", () => {
     download_location: "https://api.unsplash.com/photos/abc123/download",
   };
 
-  function mountWithResult(props: Partial<React.ComponentProps<typeof ImagePickerPanel>> = {}) {
+  function mountWithResult(
+    props: Partial<React.ComponentProps<typeof ImagePickerPanel>> = {},
+    photo = PHOTO,
+  ) {
     useUnsplashSearch.mockReturnValue({
-      data: { query: "walls", page: 1, total_pages: 1, results: [PHOTO] },
+      data: { query: "walls", page: 1, total_pages: 1, results: [photo] },
       isLoading: false,
       isError: false,
     } as never);
@@ -167,5 +170,18 @@ describe("ImagePickerPanel Unsplash credit", () => {
       act(() => link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
     }
     expect(onSelectUnsplash).not.toHaveBeenCalled();
+  });
+
+  it('wraps a long photographer name instead of cutting off "on Unsplash"', () => {
+    const author = "Ricardo Gomez Angel Fernandez de la Torre Villanueva";
+    mountWithResult({}, { ...PHOTO, attribution: { ...PHOTO.attribution, author } });
+    const credit = creditLinks()[0].closest("p")!;
+    // The whole credit is in the DOM, and nothing clips it to one line.
+    expect(credit.textContent).toBe(`Photo by ${author} on Unsplash`);
+    expect(credit.classList).toContain("break-words");
+    for (const clip of ["truncate", "whitespace-nowrap", "text-ellipsis", "overflow-hidden"]) {
+      expect(credit.classList).not.toContain(clip);
+    }
+    expect([...credit.classList].some((c) => c.startsWith("line-clamp"))).toBe(false);
   });
 });
