@@ -1,0 +1,86 @@
+{
+  "family": "folio-cleanup",
+  "networkMode": "bridge",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "executionRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/folio-execution",
+  "taskRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/folio-task",
+  "placementConstraints": [
+    {
+      "type": "memberOf",
+      "expression": "attribute:data-mounted == true"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "storage",
+      "host": {
+        "sourcePath": "/data/folio/storage"
+      }
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "folio-cleanup",
+      "image": "__IMAGE__",
+      "essential": true,
+      "command": [
+        "python",
+        "-m",
+        "app.jobs.cleanup"
+      ],
+      "memory": 128,
+      "user": "10001",
+      "privileged": false,
+      "readonlyRootFilesystem": true,
+      "linuxParameters": {
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        },
+        "tmpfs": [
+          {
+            "containerPath": "/tmp",
+            "size": 64
+          }
+        ]
+      },
+      "dockerSecurityOptions": [
+        "no-new-privileges"
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "storage",
+          "containerPath": "/app/storage",
+          "readOnly": false
+        }
+      ],
+      "environment": [
+        {
+          "name": "DATABASE_NAME",
+          "value": "folio"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MONGODB_URL",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/MONGODB_URL"
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/JWT_SECRET_KEY"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/portfolio/folio",
+          "awslogs-region": "__REGION__",
+          "awslogs-stream-prefix": "cleanup"
+        }
+      }
+    }
+  ]
+}
