@@ -55,8 +55,7 @@ dev   ────●───●──●──●──●──●───�
 feat/*      ●●        ●●              ●●                short-lived feature branches
 ```
 
-- **`main`** — stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each phase on `main`: `v0.0.0` (scaffold), `v0.1.0` (Phase 1a), `v0.2.0` (1b), etc. — matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md).
-  In practice the per-phase releases were deferred to one release closer to deploy (see [`phase-4-plan.md`](./phase-4-plan.md)): Phases 1a to 6 are all on `dev`, and `main` is still at `v0.0.0`.
+- **`main`**: stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each release on `main`, matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md). The plan was one tag per phase (`v0.1.0` for Phase 1a, `v0.2.0` for 1b, and so on), but the per-phase releases were deferred (see [`phase-4-plan.md`](./phase-4-plan.md)) and Phases 1a to 6 ship together as `1.0.0`, the first public deploy. So the tags are `v0.0.0` (scaffold) and `v1.0.0`, which goes on `main` once that deploy and its smoke checks pass.
 - **`dev`** — integration branch (where we are now). Feature branches merge here; it should always at least build.
 - **`feat/<phase>-<slice>`** — short-lived, branched off `dev`, one per feature. Examples: `feat/0-scaffold`, `feat/1a-ingestion`, `feat/1a-text-generation`, `feat/1b-card-export`.
 - Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `qa/`.

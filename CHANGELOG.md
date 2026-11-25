@@ -17,7 +17,7 @@ mapped to build phases (see [`docs/PLAN.md`](./docs/PLAN.md)); `1.0.0` is reserv
 | `0.8.0` | Phase 6 — robustness & limits |
 | `1.0.0` | first public deploy |
 
-Git tags mark what reached `main`: `v0.0.0` (the scaffold) and `v1.0.0` (the first public deploy). The per-phase tags in [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §7 were never made, because the phases were released together.
+Git tags mark what reached `main`: `v0.0.0` (the scaffold), and `v1.0.0` (the first public deploy) once that deploy and its smoke checks pass. The per-phase tags that [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §3 once planned (`v0.1.0` to `v0.8.0`) were never made, because the phases were released together.
 Phases 1a through 6 (`0.1.0` to `0.8.0`) were never released one by one: they ship together in `1.0.0`, the first
 public deploy, and their notes stay under it below, newest first.
 
@@ -441,7 +441,7 @@ Generate a designed 1080×1350 card in the workspace's brand and export it as a 
 - **Three Satori archetypes** — PhotoLed · Statement · Quote, authored in Satori's CSS subset using **only** workspace fonts + colors (never Folio chrome, DESIGN §7). One shared element drives the live DOM preview, the locked Satori preview, and the resvg-wasm PNG export, so **preview == export by construction**. Brand fonts load as TTF buffers for Satori and as `@font-face` for the DOM from the same fontsource binaries.
 - **Generate page (card mode)** — text/card mode toggle; a **guided in-place flow** (not a wizard): numbered step markers on the controls (`STEP 1 · TEMPLATE`, `STEP 2 · BRIEF`) and the two finishing actions (*Add an image*, *Export*) on the card itself, with the image step nudged in `accent` when the card is ready but bare. Explicit template picker (brand-colored thumbnails, no auto-select); `CardPreview` (drafting typing card → locked Satori preview → `useCardExport` 1080×1350 PNG); slide-in `ImagePickerPanel` (keyword-seeded Unsplash search that auto-fills when keywords arrive without clobbering a typed query, masonry grid with visible attribution, upload). Image selection is parallel — available while copy streams and surviving a regenerate; card generations persisted, image attached via `PATCH /generations/{id}`; Content History renders card thumbnails + a card detail view, with **Copy text** (posts) and **Download PNG** (cards) on **both the grid cards and the detail view** (via a shared `useGenerationActions` hook). The card download re-exports from the persisted `output` with **no model call** — the Phase 1.5 "re-export without re-calling Claude" goal, pulled forward into History.
 
-### Fixed
+#### Fixed
 - **Card thumbnail sizing** — the scaled-down card used a CSS `transform`, which doesn't shrink layout box size, so the un-scaled 1350px-tall element blew out the container (huge empty gap below each History card / detail dialog). The scaled card is now absolutely positioned and the box clipped, so its height comes purely from the 4:5 aspect ratio.
 - **Missing-glyph (tofu) box in card copy** — the brand fonts load as the "latin" subset (no arrow/emoji/symbol glyphs), so a model-emitted `→` rendered as a tofu box. Glyphs outside the renderable ranges are now stripped at render time (`cleanGlyphs`, applied across preview/export/thumbnail; General Punctuation kept), and the prompt asks for plain-text, short CTAs.
 - **Tests** — pytest: card route streams copy + persists fields/keywords, card empty-corpus block, Unsplash attribution normalization (httpx mocked), missing-key guard, and the download-tracking **SSRF guard** (rejects non-`api.unsplash.com` hosts) (24 total). Vitest: card archetypes render workspace fonts (computed `font-family`) never the app's, attribution renders when present (3).
@@ -459,17 +459,17 @@ The full RAG loop end-to-end: upload brand assets → ingest → hybrid retrieva
 - **RAG pytest backbone** — deterministic fake embedder/vector store; tests for chunking size/overlap, **workspace-scoped query isolation** (no cross-leak), top-k scores, hybrid always-injects voice **and** pillars, empty-corpus block (Claude not called), SSE persists `retrieved_chunk_ids`, plus an **eval harness** (8 briefs → expected chunks, hit-rate threshold). 18 tests.
 - **Seed** — the rich Verdure corpus (voice PDF + pillars/posts/personas/competitors markdown) ingested into the Verdure workspace; idempotent.
 
-### Fixed
+#### Fixed
 - **Code-review findings (high)** — deterministic pinned-chunk ordering (was Python-set iteration); corpus-ready gate no longer reads a stale workspaces cache after ingest; empty model completions are no longer persisted as `complete`; asset doc + counters are written only after the file is stored (no orphan/counter drift on a storage failure); orphan vectors are dropped if an asset is deleted mid-ingest; CRLF-tolerant SSE frame parsing; the retrieval debug panel no longer uses the reserved action accent for score bars (DESIGN §7) and omits unpersisted latency/k when re-opened from history; seed `asset_count` is derived from actually-ingested files.
 - **Content pillars now always pinned** — raised the pinned-fundamentals fetch limit so a multi-chunk voice guide can't crowd pillars out of retrieval (DECISIONS #16). _(Found by the live acceptance run.)_
 - **Dev tooling** — `dev:server` + `seed` run via the server virtualenv (`.venv/bin/python`) so Phase 1a's RAG deps resolve; root deps installed so `npm run dev` (`concurrently`) works.
 
-### Verified
+#### Verified
 - **Quality gates** — server `ruff` + `mypy` + `pytest` (18) green; client `tsc` + `eslint` + `prettier` + production build green.
 - **Live acceptance (real OpenAI + Chroma + Claude + Mongo)** — seeded the Verdure corpus (32 chunks across 5 assets, incl. the voice PDF via `pdfplumber`); two distinct briefs streamed on-brand posts grounded in the corpus, retrieved **different** chunks, surfaced ≥3 sources in the debug panel, and persisted to history; confirmed hands-on in the UI.
 - **Review gate (Tier-2)** — `/code-review` (high): 8 findings fixed (above); `/security-review` (full): clean; plus a focused follow-up security pass over the post-review changes: clean.
 
-### Notes
+#### Notes
 - Asset upload/delete is disabled for the seeded demo user (`is_demo` guard); generation is allowed. Exercising the upload pipeline through the UI requires a non-demo account (no public signup).
 - Generation uses `claude-sonnet-4-6`; retrieval embeddings use OpenAI `text-embedding-3-small` (1536-dim). Both API keys live only in the gitignored `server/.env`.
 

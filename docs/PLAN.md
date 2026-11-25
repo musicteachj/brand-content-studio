@@ -3,7 +3,7 @@
 # Build Plan — Phased Roadmap
 
 > The execution roadmap for Brand Content Studio (**what** to build, in what order). Decisions follow [DECISIONS.md](./DECISIONS.md); technical detail lives in [ARCHITECTURE.md](./ARCHITECTURE.md) and [DATA_MODEL.md](./DATA_MODEL.md); **how** we build it — vertical slices, front/back ordering, branching, commits — is in [WORKFLOW.md](./WORKFLOW.md).
-> **Status (2026-10-27): Phases 0–6 are all merged into `dev`, along with the follow-up features, the July audit remediation, and the October QA fixes listed under "After Phase 6" below. `main` still holds Phase 0 (`v0.0.0`); the `dev → main` release and the AWS deployment are still to come.** This document is the build reference.
+> **Status (2026-10-27): Phases 0–6 are all merged into `dev`, along with the follow-up features, the July audit remediation, and the October QA fixes listed under "After Phase 6" below. `main` still holds Phase 0 (`v0.0.0`); the `dev → main` release and the AWS deployment are still to come.** (2026-11-25: Phases 0 to 6 and everything after them ship together as `1.0.0`, the first public deploy, through the `dev` to `main` release PR; `v1.0.0` is tagged once the deploy and its smoke checks pass.) This document is the build reference.
 
 Build order: **Phase 0 scaffold → 1a text posts → 1b image cards → 1.5 customization → 2 documents → 3 "LinkedIn Post" objective → 4 brand setup & learning → 5 on-brand templates → 6 robustness → deferred AWS deployment.** Each phase lists concrete steps, the files it touches, an acceptance criterion, and how to verify. Phases 3–6 (the pre-deployment enhancement round) are detailed in `docs/phase-3-plan.md`, `docs/phase-4-plan.md`, the specs and plans under `docs/superpowers/` (Phase 5 onward), and [DECISIONS.md](./DECISIONS.md) (#22+); summarized below.
 
@@ -117,7 +117,7 @@ chunk/size caps, retry), **generation concurrency/state** fixes, **demo-guard re
 **HTTP-level cross-workspace isolation** test. Split into **PR-A** (pagination + isolation test —
 *built*) and **PR-B** (bounded/retryable ingestion + stream abort-on-switch/inactivity timeout +
 demo-guard reconcile — *built*). **Acceptance:** the multi-use QA checklist passes; no known
-scaling/safety gaps ship. Phase 6 is complete; the `dev → main` release/tag pass hasn't happened yet.
+scaling/safety gaps ship. Phase 6 is complete. Its `dev` to `main` release and tag come with `1.0.0`, the first public deploy (2026-11-25).
 
 ---
 
