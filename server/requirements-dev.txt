@@ -12,3 +12,6 @@ pytest-asyncio==1.4.0
 # Starlette's TestClient runs on httpx2 (on plain httpx it warns that it's deprecated,
 # and pytest.ini turns that into an error). Tests only; httpx stays a runtime dep.
 httpx2==2.15.1
+# tests/test_deploy.py reads the CI workflow. PyYAML arrives today only through chromadb and
+# uvicorn[standard], so it is pinned here to keep the tests from depending on that.
+PyYAML==6.0.3

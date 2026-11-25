@@ -13,18 +13,17 @@ on:
   # monthly image rebuild and for re-creating the service after a restore.
   workflow_dispatch:
 
-# Runs for a pull request share a group, so a newer push cancels the older run. Every other run is
-# grouped by its event, branch and commit. A fast-forward release puts dev's tip on main, and a run
-# by hand on main can name the same commit as a push run, so keyed by the commit alone those runs
-# would wait on each other (main's deploy behind dev's CI, or a run by hand behind a push run
-# waiting for approval). Runs in one of these groups still queue, which happens only for two runs
-# by hand on one commit; deploys from different runs queue on the deploy job's own
-# deploy-production group.
-# Only a pull request cancels: a push or a run by hand on main may be deploying, and canceling it
-# could stop a deploy partway, which the deploy role cannot undo.
+# Off main, runs share a group per event and branch (a pull request, dev, any other branch), so a
+# newer run cancels the older one: none of them can deploy. On main, every run is grouped by its
+# event and commit and nothing is ever canceled: a push or a run by hand on main may be deploying,
+# and canceling it could stop a deploy partway, which the deploy role cannot undo. The release into
+# main is a merge commit (docs/WORKFLOW.md), so main's push never shares a commit with dev's run,
+# but a run by hand on main can name the same commit as a push run waiting for approval; keyed by
+# the commit alone, it would queue behind it. Two runs by hand on one commit still queue, and
+# deploys from different runs queue on the deploy job's own deploy-production group.
 concurrency:
-  group: ci-${{ github.event_name == 'pull_request' && github.ref || format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.ref == 'refs/heads/main' && format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) || format('{0}-{1}', github.event_name, github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Nothing here writes to the repo, so every job gets a read-only token. This
 # limits the damage if a third-party action is ever compromised.
@@ -302,7 +301,7 @@ jobs:
       contents: read
       id-token: write
     # One deploy at a time: this group never cancels a running deploy, and the workflow's own group
-    # cancels only pull request runs. GitHub keeps at most one pending run per group, though, so a
+    # never cancels a run on main (it cancels older runs only off main). GitHub keeps at most one pending run per group, though, so a
     # newer run replaces an older pending one (a push can drop a redeploy by hand that is still
     # waiting for approval).
     concurrency:
@@ -336,7 +335,8 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2.2.0
 
-      # Main can move while the job waits for approval or runs, so ask again right before the push: a
+      # Both checks run after the production approval. Main can still move in the seconds between the
+      # first check and the push (credentials, ECR login), so ask again right before the push: a
       # run refused here has pushed nothing, and costs no place in ECR's keep-5. Main can still move
       # during the build and push (see its timing below); the newer run is then queued behind this one
       # by the deploy-production concurrency group, and deploys after it.

@@ -126,7 +126,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
 - **Merge commits** for `feat/*` (and other branches) → `dev`, so each PR's own commits stay in history (every PR so far was merged this way); `dev` → `main` is a merge commit too, so release points are visible.
-- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5); adding `Leaked secrets (gitleaks)` to the required checks is a GitHub repository setting (master plan Phase 0), to do once it has run on the pushed branch. No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. The `deploy` job pushes the Docker image to ECR on a push to `main`, after approval.
+- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5); adding `Leaked secrets (gitleaks)` to the required checks is a GitHub repository setting (master plan Phase 0), to do once it has run on the pushed branch. No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. The `deploy` job pushes the Docker image to ECR on a push to `main` or a run by hand on `main`, after approval.
 
 ---
 

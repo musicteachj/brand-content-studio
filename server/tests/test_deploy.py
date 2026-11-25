@@ -816,21 +816,23 @@ def test_the_deploy_job_checks_the_head_of_main_before_credentials_and_before_th
         assert guard["run"] == "deploy/head-of-main.sh"
 
 
-def test_only_pull_requests_cancel_a_running_workflow() -> None:
-    # A push or a run by hand on main may be deploying, and must never be canceled partway.
+def test_nothing_on_main_is_ever_canceled_and_everything_else_is() -> None:
+    # A push or a run by hand on main may be deploying, and must never be canceled partway. A newer
+    # pull request push, dev push, or run on any other branch supersedes the older run.
     cancel = workflow()["concurrency"]["cancel-in-progress"]
     assert cancel is not True
-    assert cancel == "${{ github.event_name == 'pull_request' }}"
+    assert cancel == "${{ github.ref != 'refs/heads/main' }}"
 
 
-def test_runs_that_share_a_commit_get_their_own_group_per_event_and_branch() -> None:
-    # A fast-forward release puts dev's tip on main: keyed by the commit alone, main's run (and its
-    # deploy) would wait behind dev's CI, and a run by hand would queue behind a push run
-    # waiting for approval. Keyed by event, branch and commit, none of them waits on another.
+def test_main_runs_get_a_group_per_event_and_commit_and_other_runs_one_per_event_and_branch() -> None:
+    # On main, a run by hand can name the same commit as a push run waiting for approval: keyed by
+    # the commit alone, it would queue behind it. Keyed by event and commit, neither waits on the
+    # other. Elsewhere one group per event and branch lets a newer run cancel the older one.
     group = workflow()["concurrency"]["group"]
     assert group == (
-        "ci-${{ github.event_name == 'pull_request' && github.ref"
-        " || format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) }}"
+        "ci-${{ github.ref == 'refs/heads/main'"
+        " && format('{0}-{1}-{2}', github.event_name, github.ref, github.sha)"
+        " || format('{0}-{1}', github.event_name, github.ref) }}"
     )
 
 
