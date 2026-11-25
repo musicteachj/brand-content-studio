@@ -17,11 +17,15 @@ mapped to build phases (see [`docs/PLAN.md`](./docs/PLAN.md)); `1.0.0` is reserv
 | `0.8.0` | Phase 6 — robustness & limits |
 | `1.0.0` | first public deploy |
 
-Git tags (`v0.0.0`, …) are created when a phase merges to `main` (see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §7).
-Phases 1a through 6 (`0.1.0` to `0.8.0`) are all merged into `dev` and recorded under [Unreleased] below;
-none has been merged to `main` or tagged yet, so `v0.0.0` is still the only release.
+Git tags mark what reached `main`: `v0.0.0` (the scaffold) and `v1.0.0` (the first public deploy). The per-phase tags in [`docs/WORKFLOW.md`](./docs/WORKFLOW.md) §7 were never made, because the phases were released together.
+Phases 1a through 6 (`0.1.0` to `0.8.0`) were never released one by one: they ship together in `1.0.0`, the first
+public deploy, and their notes stay under it below, newest first.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-11-25: first public deploy
+
+Folio's first production release, for `folio.jameslittlefield.net` on the shared portfolio ECS cluster, with no accounts: one click starts a private, temporary visitor session behind Cloudflare Turnstile. It brings together Phases 1a to 6, the demo sessions and deploy readiness work, and the ECS deploy files below. It deploys from `main` through the CI deploy job, which waits for James's approval, stops the old task before it starts the new one, and smoke-tests the service through the load balancer. The first start seeds the demo from checked-in fixtures at no cost. The live AI budget starts at $0 and is turned on only after the go-live checks pass. The `v1.0.0` tag goes on `main` once the deploy and its smoke checks pass; if the go-live slips, this date moves with it.
 
 ### Added: the ECS deploy files
 

@@ -134,6 +134,6 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 
 **A slice is done when:** its tests are green, it's wired to the real endpoint, it covers the design's loading/empty/error states, and its acceptance bullet is met.
 
-**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged (that release step has been deferred so far; see §3).
+**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged. For Phases 1a to 6 that release step was deferred (see §3) and made once, as `1.0.0`, the first public deploy, so `v0.1.0` to `v0.8.0` were never tagged.
 
 **Any push is allowed only after:** the §5 review gate (`/code-review` + `/security-review`, findings addressed) and explicit push approval.

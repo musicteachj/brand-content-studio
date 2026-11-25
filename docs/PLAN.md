@@ -123,7 +123,7 @@ scaling/safety gaps ship. Phase 6 is complete; the `dev → main` release/tag pa
 
 ## After Phase 6: follow-up work (all merged into `dev`)
 
-Recorded in detail in [`CHANGELOG.md`](../CHANGELOG.md) under [Unreleased]; PR numbers in parentheses.
+Recorded in detail in [`CHANGELOG.md`](../CHANGELOG.md) under [1.0.0], the first public deploy, which released them all; PR numbers in parentheses.
 
 - **Features (June–July 2026):** onboarding gate for a new account with no workspace (#14), brand image
   library (#15), curated font picker (#16), fill a template from a document (#17), brand image polish (#18),
