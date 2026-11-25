@@ -9,10 +9,21 @@ on:
   # instead of surprising the next unrelated PR.
   schedule:
     - cron: "0 13 * * 1"
+  # A run by hand on main redeploys the current commit (the deploy job at the end), for the
+  # monthly image rebuild and for re-creating the service after a restore.
+  workflow_dispatch:
 
+# Off main, runs share a group per event and branch (a pull request, dev, any other branch), so a
+# newer run cancels the older one: none of them can deploy. On main, every run is grouped by its
+# event and commit and nothing is ever canceled: a push or a run by hand on main may be deploying,
+# and canceling it could stop a deploy partway, which the deploy role cannot undo. The release into
+# main is a merge commit (docs/WORKFLOW.md), so main's push never shares a commit with dev's run,
+# but a run by hand on main can name the same commit as a push run waiting for approval; keyed by
+# the commit alone, it would queue behind it. Two runs by hand on one commit still queue, and
+# deploys from different runs queue on the deploy job's own deploy-production group.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref == 'refs/heads/main' && format('{0}-{1}-{2}', github.event_name, github.ref, github.sha) || format('{0}-{1}', github.event_name, github.ref) }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Nothing here writes to the repo, so every job gets a read-only token. This
 # limits the damage if a third-party action is ever compromised.
@@ -266,3 +277,100 @@ jobs:
         # dev-tool advisories (they were report-only until then).
         working-directory: client
         run: npm audit
+
+  # Builds the production image, pushes it to ECR, and deploys it to the shared portfolio server
+  # (deploy/deploy.sh says how each step fails). It runs only on main, by a push or by hand
+  # (workflow_dispatch redeploys the current commit), and only after every job above passed or was
+  # skipped (!cancelled() replaces the implicit success(), which a skipped job would
+  # fail). The `production` environment holds it for James's approval.
+  deploy:
+    name: Deploy to production
+    needs: [client, server, docker, audit]
+    if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    runs-on: ubuntu-latest
+    # The budget: the build and push (capped at 8 by their own timeout), a setup task's wait of up to
+    # about 10 (Folio has no setup task, but the shared deploy script allows one), the wait for the
+    # service to settle of up to 30, the smoke checks (about 5 minutes at most), and a minute for
+    # checkout, login and the guards.
+    # Worst case: 8 + 10 + 30 + 5 + 1 = 54 minutes, so 58 leaves a little room. 58 is safe because the
+    # OIDC credentials are taken about a minute into the job and last 1 hour (the default session
+    # configure-aws-credentials asks for), so the job ends before they expire.
+    timeout-minutes: 58
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    # One deploy at a time: this group never cancels a running deploy, and the workflow's own group
+    # never cancels a run on main (it cancels older runs only off main). GitHub keeps at most one pending run per group, though, so a
+    # newer run replaces an older pending one (a push can drop a redeploy by hand that is still
+    # waiting for approval).
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # "Re-run jobs" on an older run keeps that run's commit, and an older run approved late can
+      # land after a newer one. Either would put old code over a newer release, so only the commit
+      # at the head of main deploys. A run by hand on main starts from the head, so it passes.
+      - name: Refuse a run that is not for the head of main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: deploy/head-of-main.sh
+
+      # OIDC: the role trusts this repository's `production` environment and nothing else, so
+      # no AWS key is stored anywhere.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/folio-deploy
+          aws-region: us-east-1
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@7290e214a610b32bc0eef81748948b6d466a8783 # v2.2.0
+
+      # Both checks run after the production approval. Main can still move in the seconds between the
+      # first check and the push (credentials, ECR login), so ask again right before the push: a
+      # run refused here has pushed nothing, and costs no place in ECR's keep-5. Main can still move
+      # during the build and push (see its timing below); the newer run is then queued behind this one
+      # by the deploy-production concurrency group, and deploys after it.
+      - name: Refuse again, right before the push, if main moved
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: deploy/head-of-main.sh
+
+      # The tag is the commit, the run and the attempt: a run by hand rebuilds the same commit, and
+      # "Re-run jobs" keeps the run id, so the attempt makes each tag new. The ECR repository is
+      # mutable, so a reused tag would overwrite the image an older task definition revision names.
+      # It still starts with the commit, which portfolio-infra's revision check reads.
+      # --provenance=false and --sbom=false keep buildx from pushing an image index with untagged
+      # attestation manifests beside the image. ECR's scan on push and the keep-5 lifecycle rule both
+      # need exactly one plain image manifest per tag.
+      # Its own timeout (build and push together), so a slow or hung build fails here, before the
+      # service is touched, instead of eating the time the settle wait and smoke checks need. This build
+      # starts with no layer cache (a clean production image): npm ci, the Vite build and the pip
+      # install all run from scratch, then the push, so it should take a few minutes, well inside 8.
+      # Record the first release's real figure in docs/DEPLOY.md.
+      - name: Build and push the image
+        timeout-minutes: 8
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/portfolio/folio:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker buildx build --platform linux/amd64 --provenance=false --sbom=false --push -t "$IMAGE" .
+
+      # Registers the two task definitions (web and cleanup), creates or updates the service, waits for
+      # it to settle on this release, runs the smoke checks, and then records the cleanup's revision.
+      - name: Deploy
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/portfolio/folio:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          ALB_DNS_NAME: ${{ vars.ALB_DNS_NAME }}
+          TARGET_GROUP_ARN: ${{ vars.TARGET_GROUP_ARN }}
+        run: deploy/deploy.sh "$IMAGE"
