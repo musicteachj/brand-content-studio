@@ -191,6 +191,17 @@ async def test_room_under_the_largest_action_is_paused(client, monkeypatch):
     assert r.json()["live_ai_reason"] == "paused"
 
 
+@pytest.mark.parametrize("cap", [Decimal(0), Decimal(-1)])
+async def test_a_visitor_cap_of_zero_or_less_is_off(client, monkeypatch, cap):
+    monkeypatch.setattr(settings, "ai_visitor_budget_usd", cap)
+    calls: list[int] = []
+    _snapshot(monkeypatch, 1_000_000, 0, calls)
+    r = await client.get("/api/status")
+    assert r.json()["live_ai_available"] is False
+    assert r.json()["live_ai_reason"] == "off"
+    assert calls == []
+
+
 async def test_enough_room_is_available(client, monkeypatch):
     _snapshot(monkeypatch, 1_000_000, 878_000, [])
     r = await client.get("/api/status")

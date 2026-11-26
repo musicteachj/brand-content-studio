@@ -25,7 +25,12 @@ from app.models.image import (
     UnsplashSearchResponse,
 )
 from app.services import unsplash_service
-from app.services.storage_service import build_image_key, get_storage, safe_filename
+from app.services.storage_service import (
+    build_image_key,
+    get_storage,
+    is_object_id_str,
+    safe_filename,
+)
 from app.services.upload_service import IMAGE_CONTENT_TYPE, IMAGE_POLICY, read_upload
 from app.utils.dependencies import get_current_user, get_workspace_or_404, require_not_demo
 from app.utils.errors import IMAGE_SEARCH_UNAVAILABLE_COPY
@@ -101,12 +106,21 @@ async def serve_image(
     """Serve an uploaded card image. Ownership is enforced by
     `get_workspace_or_404`; the storage key is rebuilt server-side (the
     path-traversal guard in storage rejects anything that escapes the root)."""
+    # Ids are made by `str(ObjectId())`; anything else (`..`, a path piece) is not an image.
+    if not is_object_id_str(image_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
     workspace_id = str(workspace["_id"])
     key = build_image_key(workspace_id, image_id, filename)
     try:
         data = await get_storage().read(key)
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError, ValueError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found") from None
+    except OSError:
+        # A broken volume (permission denied, EIO) is a server fault, not a missing image.
+        logger.exception("Could not read image %s", key)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not read the image."
+        ) from None
     content_type = IMAGE_CONTENT_TYPE.get(
         os.path.splitext(filename)[1].lower(), "application/octet-stream"
     )

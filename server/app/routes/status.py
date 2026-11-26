@@ -96,7 +96,11 @@ async def get_status(
 
 
 async def _live_reason(db: AsyncIOMotorDatabase) -> LiveReason:
-    if usd_to_micros(settings.ai_monthly_budget_usd) == 0:
+    # A visitor cap of 0 or less refuses every visitor call (see the ledger), so say off.
+    if (
+        usd_to_micros(settings.ai_monthly_budget_usd) == 0
+        or usd_to_micros(settings.ai_visitor_budget_usd) <= 0
+    ):
         return "off"
     snap = await budget_snapshot(db)
     if snap.allowance_today - snap.spent_today >= status_min_room_micros():

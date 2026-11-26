@@ -212,6 +212,25 @@ async def test_a_zero_budget_refuses_without_touching_the_database(monkeypatch):
     assert refused.value.reason == "off" and refused.value.code == "live_ai_paused"
 
 
+@pytest.mark.parametrize("cap", [Decimal(0), Decimal(-1)])
+async def test_a_visitor_cap_of_zero_or_less_refuses_a_new_visitor_and_writes_nothing(
+    test_db, monkeypatch, cap
+):
+    monkeypatch.setattr(settings, "ai_visitor_budget_usd", cap)
+    with pytest.raises(BudgetRefusal) as refused:
+        await reserve(test_db, [_req(1)], visitor_id="fresh", now=NOV19)
+    # Live AI is off for visitors: the paused copy, not "you've used your generations".
+    assert refused.value.reason == "off" and refused.value.code == "live_ai_paused"
+    assert await test_db.ai_spend_visitors.count_documents({}) == 0
+    assert await test_db.ai_spend_days.count_documents({}) == 0
+
+
+async def test_a_positive_visitor_cap_still_admits_a_new_visitors_first_call(test_db, monkeypatch):
+    monkeypatch.setattr(settings, "ai_visitor_budget_usd", Decimal("0.01"))
+    await reserve(test_db, [_req(1)], visitor_id="fresh", now=NOV19)
+    assert (await test_db.ai_spend_visitors.find_one({"_id": "fresh"}))["total_micros"] == 1
+
+
 async def test_budget_snapshot(test_db):
     await test_db.ai_spend_days.insert_one({"_id": "2026-11-05", "month": "2026-11", "total_micros": 4_000_000})
     await reserve(test_db, [_req(100_000)], visitor_id=None, now=NOV19)

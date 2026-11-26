@@ -60,10 +60,13 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
-/** A 401 signs the visitor out. For a demo session it also says why, so the start page can
- *  show that the demo ended; an owner's 401 signs out as before. */
-export function endSessionOn401() {
-  const { user, logout, isAuthenticated } = useAuthStore.getState();
+/** A 401 signs the visitor out, but only when `sentToken` (the token the failed request
+ *  carried) is still the current session's. For a demo session it also says why, so the
+ *  start page can show that the demo ended; an owner's 401 signs out as before. */
+export function endSessionOn401(sentToken: string | null) {
+  const { user, logout, isAuthenticated, token } = useAuthStore.getState();
+  // A late 401 for a request sent under an older session must not sign out the new one.
+  if (sentToken !== token) return;
   // Already signed out: a burst of parallel 401s must not erase the ended reason, and a
   // 401 on the start page must not touch state.
   if (!isAuthenticated) return;

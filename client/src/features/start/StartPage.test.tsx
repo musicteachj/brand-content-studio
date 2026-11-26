@@ -88,8 +88,8 @@ describe("StartPage", () => {
       full_name: "Demo Visitor",
       is_demo: true,
     });
-    endSessionOn401();
-    endSessionOn401();
+    endSessionOn401("t");
+    endSessionOn401("t");
     renderApp();
     expect(await screen.findByRole("status")).toHaveTextContent(DEMO_ENDED_COPY);
   });

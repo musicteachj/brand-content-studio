@@ -15,7 +15,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      endSessionOn401();
+      const header = error.config?.headers?.Authorization;
+      const sent = typeof header === "string" ? header.replace(/^Bearer /, "") : null;
+      endSessionOn401(sent);
     }
     return Promise.reject(error);
   },
