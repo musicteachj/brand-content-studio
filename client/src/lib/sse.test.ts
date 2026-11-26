@@ -183,6 +183,27 @@ describe("stream errors", () => {
     vi.unstubAllGlobals();
   });
 
+  it("a late 401 on a stream does not sign out a newer session", async () => {
+    const demo = { id: "d1", email: "d@x.io", full_name: "D", is_demo: true };
+    useAuthStore.getState().setSession("old", demo);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        // The visitor starts a new session while the stream request is in flight.
+        useAuthStore.getState().setSession("new", demo);
+        return Response.json({ detail: "ended", code: "demo_ended" }, { status: 401 });
+      }),
+    );
+    await streamTextGeneration(
+      "w",
+      { brief: "b", tone: "t", length: "l" },
+      { onText: vi.fn(), onMeta: vi.fn(), onError: vi.fn() },
+    );
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().token).toBe("new");
+    vi.unstubAllGlobals();
+  });
+
   it("a network failure reads as plain advice, not developer text", async () => {
     vi.stubGlobal(
       "fetch",

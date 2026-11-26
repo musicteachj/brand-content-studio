@@ -1,9 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { initTheme } from "@/lib/theme";
+import { queryClient } from "@/lib/queryClient";
 // Self-hosted app-chrome fonts (STYLE-02) — replaces the Google Fonts @import,
 // so the faces bundle as same-origin assets (no third-party request, no extra
 // round-trips). Weights mirror what the old @import loaded. The per-brand card
@@ -17,10 +18,6 @@ import "@fontsource/dm-mono/500.css";
 import "./index.css";
 
 initTheme();
-
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
-});
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

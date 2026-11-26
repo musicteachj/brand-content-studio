@@ -223,8 +223,16 @@ async def test_generate_document_persists_and_builds_files(client, test_db):
 
 
 @pytest.mark.asyncio
-async def test_download_route_serves_and_scopes(client):
+async def test_download_route_serves_and_scopes(client, monkeypatch):
     _override_workspace(12)
+    keys = []
+    real_build = documents_mod.build_document_key
+
+    def spy(workspace_id, generation_id, fmt):
+        keys.append(generation_id)
+        return real_build(workspace_id, generation_id, fmt)
+
+    monkeypatch.setattr(documents_mod, "build_document_key", spy)
     resp = await client.post(DOC_URL, json=_BRIEF)
     gid = _meta(resp.text)["generation_id"]
 
@@ -237,6 +245,14 @@ async def test_download_route_serves_and_scopes(client):
     pdf = await client.get(f"{GEN_BASE}/{gid}/download/pdf")
     assert pdf.status_code == 200
     assert pdf.content[:5] == b"%PDF-"
+
+    # The id in the path is normalized: an uppercase spelling reads the same file.
+    upper = await client.get(f"{GEN_BASE}/{gid.upper()}/download/pdf")
+    assert upper.status_code == 200
+    assert upper.content[:5] == b"%PDF-"
+    # Files were saved under the lowercase id; the key must use it (a case-sensitive disk
+    # would 404 an uppercase key).
+    assert keys[-1] == gid.lower()
 
     # Unknown format and unknown generation both 404 (no leak, no traversal).
     assert (await client.get(f"{GEN_BASE}/{gid}/download/exe")).status_code == 404

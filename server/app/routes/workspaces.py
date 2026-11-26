@@ -2,6 +2,7 @@
 generations) hang off `/workspaces/{workspace_id}` and go through
 `get_workspace_or_404` for ownership."""
 import asyncio
+import logging
 import re
 
 from bson import ObjectId
@@ -39,6 +40,7 @@ from app.services.storage_service import (
     build_image_key,
     build_workspace_prefix,
     get_storage,
+    is_object_id_str,
     safe_filename,
 )
 from app.services.upload_service import FONT_POLICY, IMAGE_POLICY, read_upload
@@ -50,6 +52,8 @@ from app.utils.dependencies import (
     require_not_demo,
 )
 from app.utils.ratelimit import GENERATE_RATE_LIMIT, limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -398,11 +402,20 @@ async def serve_font(
 ):
     """Serve an uploaded font's bytes. Ownership via the dependency; the key is
     rebuilt server-side (storage's traversal guard rejects anything escaping root)."""
+    # Ids are made by `str(ObjectId())`; anything else (`..`, a path piece) is not a font.
+    if not is_object_id_str(font_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found")
     key = build_font_key(str(workspace["_id"]), font_id, filename)
     try:
         data = await get_storage().read(key)
-    except (FileNotFoundError, ValueError):
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError, ValueError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Font not found") from None
+    except OSError:
+        # A broken volume (permission denied, EIO) is a server fault, not a missing font.
+        logger.exception("Could not read font %s", key)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not read the font."
+        ) from None
     return Response(content=data, media_type="font/ttf")
 
 

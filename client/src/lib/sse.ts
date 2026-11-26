@@ -81,7 +81,7 @@ async function openStream(
       /* ignore */
     }
     // The session is gone: end it here, as the axios interceptor does for other calls.
-    if (response.status === 401) endSessionOn401();
+    if (response.status === 401) endSessionOn401(token);
     onError(detail);
     return null;
   }

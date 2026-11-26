@@ -322,6 +322,26 @@ async def test_render_returns_filled_file(tpl_client):
 
 
 @pytest.mark.asyncio
+async def test_render_builds_its_key_from_the_normalized_id(tpl_client, monkeypatch):
+    import app.routes.templates as templates_mod
+
+    t = await _upload(tpl_client)
+    seen = []
+    real = templates_mod.build_template_key
+
+    def spy(workspace_id, template_id, name):
+        seen.append(template_id)
+        return real(workspace_id, template_id, name)
+
+    monkeypatch.setattr(templates_mod, "build_template_key", spy)
+    resp = await tpl_client.post(
+        f"{_base()}/{t['id'].upper()}/render", json={"values": {"client_name": "Acme"}}
+    )
+    assert resp.status_code == 200
+    assert seen == [t["id"].lower()]
+
+
+@pytest.mark.asyncio
 async def test_upload_demo_blocked(test_db, tmp_path, monkeypatch):
     ac = await _mk(test_db, tmp_path, monkeypatch, is_demo=True)
     async with ac:

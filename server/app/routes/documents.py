@@ -243,7 +243,8 @@ async def download_document(
             status_code=status.HTTP_404_NOT_FOUND, detail="This format was not generated."
         )
 
-    key = build_document_key(str(workspace["_id"]), generation_id, fmt)
+    # The normalized id (files were saved under `str(ObjectId)`), not the raw path text.
+    key = build_document_key(str(workspace["_id"]), str(doc["_id"]), fmt)
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):

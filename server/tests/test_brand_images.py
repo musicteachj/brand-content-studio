@@ -309,3 +309,29 @@ async def test_service_enforces_cap_atomically(test_db, monkeypatch):
         await add_workspace_image(test_db, str(WS_OID), str(OWNER_OID), over)
     doc = await test_db.workspaces.find_one({"_id": WS_OID})
     assert len(doc["brand_profile"]["brand_images"]) == MAX_BRAND_IMAGES
+
+
+@pytest.mark.asyncio
+async def test_serve_image_validates_the_id(bi_client):
+    resp = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
+    url = resp.json()["brand_profile"]["brand_images"][0]["url"]
+    served = await bi_client.get(url)
+    assert served.status_code == 200 and served.content == PNG
+
+    base = f"/api/workspaces/{WS_OID}/images/file"
+    for bad in ("%2e%2e", "%2E%2E", "not-an-id", "A" * 24, "z" * 24):
+        assert (await bi_client.get(f"{base}/{bad}/photo.png")).status_code == 404, bad
+    # `..` plus the name of a real directory used to resolve to that directory (a 500).
+    assert (await bi_client.get(f"{base}/%2e%2e/images")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_serve_image_does_not_hide_a_broken_volume_as_404(bi_client, monkeypatch):
+    resp = await bi_client.post(_url(), files={"file": ("photo.png", PNG, "image/png")})
+    url = resp.json()["brand_profile"]["brand_images"][0]["url"]
+
+    async def denied(self, key):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(type(get_storage()), "read", denied)
+    assert (await bi_client.get(url)).status_code == 500

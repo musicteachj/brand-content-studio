@@ -230,7 +230,7 @@ async def render_template(
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     fmt = doc["format"]
-    key = build_template_key(str(workspace["_id"]), template_id, doc["name"])
+    key = build_template_key(str(workspace["_id"]), str(doc["_id"]), doc["name"])
     try:
         data = await get_storage().read(key)
     except (FileNotFoundError, ValueError):

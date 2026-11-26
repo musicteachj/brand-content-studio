@@ -221,3 +221,31 @@ def test_register_pdf_font_uses_uploaded_bytes():
     ds._REGISTERED.clear()
     name = ds._register_pdf_font("Acme Sans", "body", {"Acme Sans": ttf})
     assert name == "bcs-body-acme-sans"  # embedded, not a base-14 fallback
+
+
+@pytest.mark.asyncio
+async def test_serve_font_validates_the_id(fc):
+    resp = await fc.post(_url(), data={"name": "Acme Sans"},
+                         files={"file": ("acme.ttf", bytes.fromhex(TTF_HEX), "font/ttf")})
+    url = resp.json()["brand_profile"]["uploaded_fonts"][0]["url"]
+    served = await fc.get(url)
+    assert served.status_code == 200 and served.content == bytes.fromhex(TTF_HEX)
+
+    base = f"/api/workspaces/{WS}/fonts/file"
+    for bad in ("%2e%2e", "%2E%2E", "not-an-id", "z" * 24):
+        assert (await fc.get(f"{base}/{bad}/acme.ttf")).status_code == 404, bad
+    # `..` plus the name of a real directory used to resolve to that directory (a 500).
+    assert (await fc.get(f"{base}/%2e%2e/fonts")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_serve_font_does_not_hide_a_broken_volume_as_404(fc, monkeypatch):
+    resp = await fc.post(_url(), data={"name": "Acme Sans"},
+                         files={"file": ("acme.ttf", bytes.fromhex(TTF_HEX), "font/ttf")})
+    url = resp.json()["brand_profile"]["uploaded_fonts"][0]["url"]
+
+    async def denied(self, key):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(type(get_storage()), "read", denied)
+    assert (await fc.get(url)).status_code == 500

@@ -122,6 +122,8 @@ async def delete_asset(
     doc = await asset_service.get_asset(db, workspace["_id"], asset_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
-    await get_vector_store().delete_asset(workspace["vector_namespace"], asset_id)
-    await get_storage().delete_prefix(f"{workspace['_id']}/{asset_id}")
+    # The normalized id: files and vectors were saved under `str(ObjectId)`.
+    clean_id = str(doc["_id"])
+    await get_vector_store().delete_asset(workspace["vector_namespace"], clean_id)
+    await get_storage().delete_prefix(f"{workspace['_id']}/{clean_id}")
     await asset_service.delete_asset_record(db, doc)
