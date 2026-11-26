@@ -92,11 +92,13 @@ async def reingest_asset(
     doc = await asset_service.get_asset(db, workspace["_id"], asset_id)
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
-    await get_vector_store().delete_asset(workspace["vector_namespace"], asset_id)
+    # The normalized id: chunks are tagged with `str(ObjectId)`, never the raw path text.
+    clean_id = str(doc["_id"])
+    await get_vector_store().delete_asset(workspace["vector_namespace"], clean_id)
     updated = await asset_service.mark_processing(db, doc["_id"])
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
-    background_tasks.add_task(ingest_asset, asset_id, workspace["vector_namespace"])
+    background_tasks.add_task(ingest_asset, clean_id, workspace["vector_namespace"])
     return await asset_service.asset_response(updated)
 
 

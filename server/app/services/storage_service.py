@@ -24,7 +24,8 @@ _OBJECT_ID = re.compile(r"[0-9a-f]{24}")
 
 def is_object_id_str(value: str) -> bool:
     """True for the exact form `str(ObjectId())` makes (24 lowercase hex), the only shape
-    image and font ids are created in."""
+    image and font ids are created in. Ids are stored lowercase, so file URLs are
+    case-sensitive on purpose: an uppercase spelling is not the same file."""
     return _OBJECT_ID.fullmatch(value) is not None
 
 

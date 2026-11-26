@@ -128,6 +128,15 @@ describe("a stale 401", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
+  it("keeps the ended reason when a 401 with no token arrives while signed out", () => {
+    useAuthStore.getState().setSession("cur", demoUser);
+    endSessionOn401("cur");
+    expect(useAuthStore.getState().endedReason).toBe("ended");
+    endSessionOn401(null);
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().endedReason).toBe("ended");
+  });
+
   it("still signs out, with the ended reason, when the 401 carried the current token", () => {
     useAuthStore.getState().setSession("cur", demoUser);
     endSessionOn401("cur");
@@ -185,5 +194,31 @@ describe("a mounted consumer follows the session", () => {
     act(() => useAuthStore.getState().setSession("b", demoUser));
     await waitFor(() => expect(screen.getByText("history-of-b")).toBeInTheDocument());
     expect(screen.queryByText("history-of-a")).not.toBeInTheDocument();
+  });
+
+  it("sends no request from a mounted consumer after sign-out", async () => {
+    const calls: Array<string | null> = [];
+    function Counted() {
+      const { data } = useQuery({
+        queryKey: ["generations", "ws-counted"],
+        queryFn: async () => {
+          calls.push(useAuthStore.getState().token);
+          return "data";
+        },
+      });
+      return <p>{data ?? "loading"}</p>;
+    }
+    useAuthStore.getState().setSession("a", demoUser);
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Counted />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("data")).toBeInTheDocument();
+    expect(calls).toEqual(["a"]);
+
+    act(() => useAuthStore.getState().logout());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toEqual(["a"]);
   });
 });

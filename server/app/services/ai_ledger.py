@@ -160,9 +160,10 @@ async def _write_reservation(
     if visitor_id:
         cap = usd_to_micros(settings.ai_visitor_budget_usd)
         # The upsert below inserts a new visitor's document whatever the filter says, so a
-        # cap of 0 or less must refuse here, before any write.
+        # cap of 0 or less must refuse here, before any write. It means live AI is off for
+        # visitors, so it reads as paused, like a monthly budget of 0.
         if cap <= 0:
-            raise BudgetRefusal("visitor")
+            raise BudgetRefusal("off")
         # Shared rule (portfolio-infra/PLAN.md, 2026-11-19): admit while the visitor has room
         # left, counted at settled + open spend; one call may overshoot. The day check below
         # still reserves the worst case.

@@ -219,7 +219,8 @@ async def test_a_visitor_cap_of_zero_or_less_refuses_a_new_visitor_and_writes_no
     monkeypatch.setattr(settings, "ai_visitor_budget_usd", cap)
     with pytest.raises(BudgetRefusal) as refused:
         await reserve(test_db, [_req(1)], visitor_id="fresh", now=NOV19)
-    assert refused.value.reason == "visitor"
+    # Live AI is off for visitors: the paused copy, not "you've used your generations".
+    assert refused.value.reason == "off" and refused.value.code == "live_ai_paused"
     assert await test_db.ai_spend_visitors.count_documents({}) == 0
     assert await test_db.ai_spend_days.count_documents({}) == 0
 
