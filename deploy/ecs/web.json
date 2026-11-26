@@ -1,0 +1,169 @@
+{
+  "family": "folio-web",
+  "networkMode": "bridge",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "executionRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/folio-execution",
+  "taskRoleArn": "arn:aws:iam::__ACCOUNT_ID__:role/folio-task",
+  "placementConstraints": [
+    {
+      "type": "memberOf",
+      "expression": "attribute:data-mounted == true"
+    }
+  ],
+  "volumes": [
+    {
+      "name": "storage",
+      "host": {
+        "sourcePath": "/data/folio/storage"
+      }
+    },
+    {
+      "name": "chroma",
+      "host": {
+        "sourcePath": "/data/folio/chroma"
+      }
+    }
+  ],
+  "containerDefinitions": [
+    {
+      "name": "folio",
+      "image": "__IMAGE__",
+      "essential": true,
+      "memoryReservation": 512,
+      "memory": 1024,
+      "stopTimeout": 30,
+      "user": "10001",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 0,
+          "protocol": "tcp"
+        }
+      ],
+      "privileged": false,
+      "readonlyRootFilesystem": true,
+      "linuxParameters": {
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        },
+        "tmpfs": [
+          {
+            "containerPath": "/tmp",
+            "size": 64
+          }
+        ]
+      },
+      "dockerSecurityOptions": [
+        "no-new-privileges"
+      ],
+      "mountPoints": [
+        {
+          "sourceVolume": "storage",
+          "containerPath": "/app/storage",
+          "readOnly": false
+        },
+        {
+          "sourceVolume": "chroma",
+          "containerPath": "/app/chroma",
+          "readOnly": false
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD",
+          "python",
+          "-c",
+          "import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health/live', timeout=3).status == 200 else 1)"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "environment": [
+        {
+          "name": "APP_ORIGIN",
+          "value": "https://folio.jameslittlefield.net"
+        },
+        {
+          "name": "CORS_ORIGINS",
+          "value": "[\"https://folio.jameslittlefield.net\"]"
+        },
+        {
+          "name": "DATABASE_NAME",
+          "value": "folio"
+        },
+        {
+          "name": "FORWARDED_ALLOW_IPS",
+          "value": "10.20.0.0/16"
+        },
+        {
+          "name": "AI_PACING_MULTIPLIER",
+          "value": "3"
+        },
+        {
+          "name": "AI_DAILY_FLOOR_USD",
+          "value": "0.50"
+        },
+        {
+          "name": "AI_VISITOR_BUDGET_USD",
+          "value": "0.15"
+        },
+        {
+          "name": "DEMO_STARTS_PER_HOUR",
+          "value": "15"
+        },
+        {
+          "name": "DEMO_STARTS_PER_DAY",
+          "value": "50"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MONGODB_URL",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/MONGODB_URL"
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/JWT_SECRET_KEY"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/ANTHROPIC_API_KEY"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/OPENAI_API_KEY"
+        },
+        {
+          "name": "UNSPLASH_ACCESS_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/UNSPLASH_ACCESS_KEY"
+        },
+        {
+          "name": "TURNSTILE_SITE_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/TURNSTILE_SITE_KEY"
+        },
+        {
+          "name": "TURNSTILE_SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/TURNSTILE_SECRET_KEY"
+        },
+        {
+          "name": "AI_MONTHLY_BUDGET_USD",
+          "valueFrom": "arn:aws:ssm:__REGION__:__ACCOUNT_ID__:parameter/portfolio/folio/AI_MONTHLY_BUDGET_USD"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/portfolio/folio",
+          "awslogs-region": "__REGION__",
+          "awslogs-stream-prefix": "web"
+        }
+      }
+    }
+  ]
+}

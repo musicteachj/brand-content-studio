@@ -18,13 +18,18 @@ A slice may touch two or three views, but we build only the **minimum view a sli
 
 | Phase | Views built / touched |
 |---|---|
-| 0 — Scaffold | AppShell + SideNav, Login (demo button) — minimal shell only |
-| 1a — Text posts | Workspace Setup (name + asset upload steps), Asset Manager, Generate (text mode + Retrieval Debug Panel), Content History (basic), Dashboard (basic) |
-| 1b — Image cards | Generate (card mode: template picker, Image Picker panel, Card Preview, export); Content History thumbnails render cards |
-| 1.5 — Customization | Generate enhancements (inline edit, image/layout swap, accent toggle); Settings (quiet page, slot in here) |
-| 2 — Documents | Document output controls in Generate / a documents view |
+| 0: Scaffold | AppShell + SideNav, Login (demo button) — minimal shell only |
+| 1a: Text posts | Workspace Setup (name + asset upload steps), Asset Manager, Generate (text mode + Retrieval Debug Panel), Content History (basic), Dashboard (basic) |
+| 1b: Image cards | Generate (card mode: template picker, Image Picker panel, Card Preview, export); Content History thumbnails render cards |
+| 1.5: Customization | Generate enhancements (inline edit, image/layout swap, accent toggle); Settings (quiet page, slot in here) |
+| 2: Documents | Document output controls in Generate / a documents view |
+| 3: LinkedIn post | Generate (LinkedIn post mode: card beside an editable caption); History shows post packs |
+| 4: Brand setup | TopBar workspace switcher; Settings: Workspaces, Brand identity editor, Learn from an image, Example cards |
+| 5: Templates | Templates page (upload, fill panel, Draft with AI); Settings: Card presets; Image card Preset select |
+| 6: Robustness | History and Assets "Load more"; asset Error + Retry; stream Stop and stalled-stream states |
+| After 6 | Settings: Brand images and Brand fonts; image picker Brand images + Save to brand images; Templates: Fill from a document; zero-workspace Dashboard; confirm dialogs; desktop-first sidebar collapse |
 | Deploy | none (infra only) |
-| Last | Landing page |
+| Last | Landing page (mocked, not built yet) |
 
 ---
 
@@ -50,10 +55,10 @@ dev   ────●───●──●──●──●──●───�
 feat/*      ●●        ●●              ●●                short-lived feature branches
 ```
 
-- **`main`** — stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each phase on `main`: `v0.0.0` (scaffold), `v0.1.0` (Phase 1a), `v0.2.0` (1b), etc. — matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md).
+- **`main`**: stable, releasable. Only receives merges from `dev` at phase boundaries. Tag each release on `main`, matching the version mapping in [`../CHANGELOG.md`](../CHANGELOG.md). The plan was one tag per phase (`v0.1.0` for Phase 1a, `v0.2.0` for 1b, and so on), but the per-phase releases were deferred (see [`phase-4-plan.md`](./phase-4-plan.md)) and Phases 1a to 6 ship together as `1.0.0`, the first public deploy. So the tags are `v0.0.0` (scaffold) and `v1.0.0`, which goes on `main` once that deploy and its smoke checks pass.
 - **`dev`** — integration branch (where we are now). Feature branches merge here; it should always at least build.
 - **`feat/<phase>-<slice>`** — short-lived, branched off `dev`, one per feature. Examples: `feat/0-scaffold`, `feat/1a-ingestion`, `feat/1a-text-generation`, `feat/1b-card-export`.
-- Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`.
+- Other prefixes as needed: `fix/`, `chore/`, `docs/`, `refactor/`, `test/`, `qa/`.
 
 **Flow:** branch off `dev` → build the slice → PR into `dev` → at phase boundary, PR `dev` → `main` + tag.
 
@@ -95,7 +100,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 | **2 — sensitive surface** | diff touches a surface below | `/code-review` **high** | `/security-review` **full** |
 | **3 — phase boundary / milestone** | `dev` → `main`, before tagging or first deploy | `/code-review` **high–max** across the whole phase diff | `/security-review` **full** + **you** run `/code-review ultra` (cloud multi-agent; billed, user-triggered — Claude can't launch it) |
 
-**Sensitive surfaces (escalate to Tier 2):** auth (JWT, demo bypass, `get_workspace_or_404` ownership) · workspace/retrieval isolation (the Qdrant filter is the only tenant boundary — a cross-workspace leak is the top risk) · file upload + ingestion (untrusted PDF parsing, `storage_key` path traversal, type/size limits) · external calls (Unsplash proxy SSRF, API-key exposure) · secrets/config (`.env`, Secrets Manager) · new dependencies.
+**Sensitive surfaces (escalate to Tier 2):** auth (JWT, demo bypass, `get_workspace_or_404` ownership) · workspace/retrieval isolation (the per-workspace Chroma collection is the tenant boundary, so a cross-workspace leak is the top risk) · file upload + ingestion (untrusted PDF parsing, `storage_key` path traversal, type/size limits) · external calls (Unsplash proxy SSRF, API-key exposure) · secrets/config (`.env`, Secrets Manager) · new dependencies.
 
 **RAG/AI-specific items to check explicitly** (generic reviewers miss these):
 - **Prompt injection via ingested content** — a malicious uploaded brand doc can carry instructions into the generation prompt; check how retrieved chunks are framed.
@@ -105,7 +110,7 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 - **Fix loop:** fix every finding, or consciously accept it with a one-line reason in the PR; re-run the relevant review after material changes. Use `/code-review --fix` only with an eyeball of the applied diff; `/simplify` for pure cleanup, not bug-hunting.
 - **Paper trail:** record the outcome in the PR description (e.g. "code-review: 2 fixed; security-review: clean").
 - **Where reviews run:** on the local diff before the first push of a branch (you must push before opening its PR); they may be re-run on the PR.
-- **CI (deploy phase):** GitHub Actions runs the quality gate on every PR — `ruff` + `mypy` + `pytest` (server) and `eslint` + `prettier --check` + `tsc --noEmit` + build (client) — so the automated half stops depending on memory.
+- **CI:** GitHub Actions (`.github/workflows/ci.yml`) runs on every PR and push to `dev`/`main`, so the automated half stops depending on memory. Four jobs in this workflow, required checks on both branches, and a fifth check in a second workflow: `client` (`eslint`, `prettier --check`, `tsc -b` + `vite build`, `vitest`), `server` (`ruff`, `mypy`, `pytest` against real Mongo + Chroma), `docker` (builds the production image, checks no `.env` was baked in, boots it against Mongo + Chroma and waits for its `HEALTHCHECK`), and `audit` (`pip-audit` + `npm audit`; advisories with no fixed release are allow-listed in the workflow with a reason). The fifth, `Leaked secrets (gitleaks)`, is a separate workflow, `.github/workflows/security.yml`; it scans the whole git history for committed secrets on every PR, every push to `dev`/`main`, and weekly. Every action in both workflows is pinned to a commit SHA, every checkout sets `persist-credentials: false`, and every job has a `timeout-minutes`. The `/code-review` + `/security-review` gate above stays manual. A deploy job, `deploy`, also in this workflow (not one of the four, and not a required check), ends it: it runs only on a push or a run by hand on `main` (never on a pull request or the weekly schedule), after every job above passed, and waits for James's approval in the `production` environment before it builds the image, pushes it to ECR, and runs `deploy/deploy.sh` (see `docs/DEPLOY.md`).
 
 ---
 
@@ -119,8 +124,8 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
   - [ ] The phase/slice acceptance criterion is demonstrably met.
   - [ ] `/code-review` and `/security-review` were run and findings addressed (the §5 gate) before the branch was pushed.
   - [ ] Quality gate clean: `ruff` + `mypy` (server), `eslint` + `prettier --check` + `tsc --noEmit` (client).
-- **Squash-merge** `feat/*` → `dev` to keep `dev` history readable; use a merge commit for `dev` → `main` so release points are visible.
-- **CI (added in the deploy phase):** run pytest + client build on every PR; later, build/push the Docker image on merge to `main`.
+- **Merge commits** for `feat/*` (and other branches) → `dev`, so each PR's own commits stay in history (every PR so far was merged this way); `dev` → `main` is a merge commit too, so release points are visible.
+- **CI is a merge gate:** `dev` and `main` are branch-protected and require the `client`, `server`, `docker`, and `audit` checks (see §5); adding `Leaked secrets (gitleaks)` to the required checks is a GitHub repository setting (master plan Phase 0), to do once it has run on the pushed branch. No required reviews (solo repo); an admin can bypass in an emergency, but GitHub makes that an explicit choice. The `deploy` job pushes the Docker image to ECR on a push to `main` or a run by hand on `main`, after approval.
 
 ---
 
@@ -128,6 +133,6 @@ Order is always: **reviews → fix → ask → push.** Claude must not request p
 
 **A slice is done when:** its tests are green, it's wired to the real endpoint, it covers the design's loading/empty/error states, and its acceptance bullet is met.
 
-**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged.
+**A phase is done when:** all its slices are merged to `dev`, the phase acceptance criteria in [PLAN.md](./PLAN.md) pass end-to-end (`docker-compose up` + `npm run dev`), [`../CHANGELOG.md`](../CHANGELOG.md) has an entry for the phase, and `dev` is merged to `main` and tagged. For Phases 1a to 6 that release step was deferred (see §3) and made once, as `1.0.0`, the first public deploy, so `v0.1.0` to `v0.8.0` were never tagged.
 
 **Any push is allowed only after:** the §5 review gate (`/code-review` + `/security-review`, findings addressed) and explicit push approval.

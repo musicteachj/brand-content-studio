@@ -1,47 +1,52 @@
 import { useState } from "react";
-import { AxiosError } from "axios";
+import { useQueryClient } from "@tanstack/react-query";
+import { appStatusQuery } from "@/api/status";
 import { api } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
+import { getTurnstileToken } from "@/lib/turnstile";
 import { useAuthStore, type AuthUser } from "@/stores/auth";
 
 type Pending = "demo" | "password" | null;
 
-function message(err: unknown, fallback: string): string {
-  if (err instanceof AxiosError) {
-    const detail = err.response?.data?.detail;
-    if (typeof detail === "string") return detail;
-  }
-  return fallback;
-}
-
-/** Demo + password sign-in. Token is set before /auth/me so the interceptor attaches it. */
+/** Demo + password sign-in. The session is stored only once /auth/me returns the user. */
 export function useAuthActions() {
-  const setToken = useAuthStore((s) => s.setToken);
-  const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
+  const setSession = useAuthStore((s) => s.setSession);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function finish(token: string) {
-    // Token must be set first so the interceptor authenticates /auth/me. If that
-    // call fails, roll back so we never persist a half-authenticated state
-    // (isAuthenticated=true with user=null) that would survive a reload.
-    setToken(token);
+    // Nothing is stored until the user is loaded: a reload mid-request must not
+    // find a session with no user, which would show a demo visitor owner
+    // controls (QA-02). The store has no token yet, so pass it explicitly.
+    const me = await api.get<AuthUser>("/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setSession(token, me.data);
+  }
+
+  /** A Turnstile token for this start, or "" when none could be had (the script didn't load,
+   *  the check failed): the server then refuses in its own words, which are shown. */
+  async function turnstileToken(slot: HTMLElement | null): Promise<string> {
+    if (!slot) return "";
     try {
-      const me = await api.get<AuthUser>("/auth/me");
-      setUser(me.data);
-    } catch (err) {
-      useAuthStore.getState().logout();
-      throw err;
+      const status = await queryClient.fetchQuery(appStatusQuery);
+      return await getTurnstileToken(slot, status.turnstile_site_key);
+    } catch {
+      return "";
     }
   }
 
-  async function loginDemo() {
+  /** "Explore as demo": a bot check in `slot`, then a new visitor session. */
+  async function loginDemo(slot: HTMLElement | null) {
     setError(null);
     setPending("demo");
     try {
-      const res = await api.post<{ access_token: string }>("/auth/demo-login");
+      const turnstile_token = await turnstileToken(slot);
+      const res = await api.post<{ access_token: string }>("/auth/demo-login", { turnstile_token });
       await finish(res.data.access_token);
     } catch (err) {
-      setError(message(err, "Demo sign-in failed. Is the server running and seeded?"));
+      setError(apiErrorMessage(err, "The demo couldn't start. Try again in a moment."));
       throw err;
     } finally {
       setPending(null);
@@ -55,7 +60,7 @@ export function useAuthActions() {
       const res = await api.post<{ access_token: string }>("/auth/login", { email, password });
       await finish(res.data.access_token);
     } catch (err) {
-      setError(message(err, "Incorrect email or password."));
+      setError(apiErrorMessage(err, "Incorrect email or password."));
       throw err;
     } finally {
       setPending(null);

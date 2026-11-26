@@ -15,12 +15,10 @@ export function Brand({
       </span>
       {!collapsed && (
         <span className="flex flex-col leading-none">
-          <span className="font-display text-[15px] font-semibold tracking-[-0.01em] text-foreground">
+          <span className="font-display text-[15px] font-semibold tracking-heading text-foreground">
             Folio
           </span>
-          <span className="mt-[3px] font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            Studio
-          </span>
+          <span className="mt-[3px] eyebrow">Studio</span>
         </span>
       )}
     </div>

@@ -1,0 +1,23 @@
+#!/bin/sh
+# A stand-in for curl, first on PATH in test_deploy.py. It records each call in $FAKE_CALLS and
+# answers as the app would: the body, then the status code on a line of its own, which is what
+# smoke.sh asks curl for. The address is the last argument.
+#   FAKE_CURL_STATUS=503   every answer has this status (each path's normal status unless set)
+#   FAKE_CURL_FAIL_ON=1,2,4  these request numbers (counted from 1 in $FAKE_CALLS) answer 503
+#   FAKE_CURL_FAIL_FIRST=n   the first n requests answer 503
+#   FAKE_CURL_BODY=...     every answer has this body
+#   FAKE_LOGIN_STATUS=200  the login answers this status (404 unless set)
+#   FAKE_HEALTH_STATUS=503 the readiness check answers this status (200 unless set)
+printf 'curl %s\n' "$*" >>"$FAKE_CALLS"
+
+for url in "$@"; do :; done
+status=200
+case "$url" in
+  */api/health) body='{"status":"ok","seed":true}' ; status="${FAKE_HEALTH_STATUS:-200}" ;;
+  */api/auth/login) body='{}' ; status="${FAKE_LOGIN_STATUS:-404}" ;;
+  *) body='<!doctype html><html><body><div id="root"></div></body></html>' ;;
+esac
+number="$(grep -c '^curl ' "$FAKE_CALLS")"
+if [ "$number" -le "${FAKE_CURL_FAIL_FIRST:-0}" ]; then FAKE_CURL_STATUS=503; fi
+case ",${FAKE_CURL_FAIL_ON:-}," in *",$number,"*) FAKE_CURL_STATUS=503 ;; esac
+printf '%s\n%s' "${FAKE_CURL_BODY:-$body}" "${FAKE_CURL_STATUS:-$status}"

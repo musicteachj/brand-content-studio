@@ -1,0 +1,240 @@
+{
+  "_comment": "Four hand-written, read-only example generations for the Verdure Materials demo. Facts come only from seed/verdure_corpus/. American English, no em dashes. Retrieval entries name corpus chunks by filename and chunk index; the seed resolves them to the seeded asset and chunk IDs.",
+  "examples": [
+    {
+      "example_key": "text-post",
+      "type": "text",
+      "tone": "default",
+      "brief": "A LinkedIn post on when hempcrete is worth its cost premium, for architects with an embodied-carbon target.",
+      "post_text": "Hempcrete locks away roughly 110 kg of CO₂ per cubic meter, and it keeps getting stronger as it carbonates. That carbon stays in the wall for the life of the building.\n\nHere are the trade-offs we lead with, every time:\n\nIt isn't structural. Hempcrete is an insulating infill, paired with a timber or steel frame.\nCure time is longer than block, so it has to be sequenced into the program early.\nThe envelope carries a cost premium of 5 to 12%.\n\nWhat you get back is a documented service life of 50 to 100 years, and breathable walls that buffer humidity instead of trapping it.\n\nOn the Larkfield mixed-use block, hempcrete and reclaimed cladding cut embodied carbon 38% against the baseline spec. The material helped. Being in the room at RIBA Stage 2 helped more.\n\nSpecify it early, and specify it for what it is.\n\n#EmbodiedCarbon #Hempcrete #BioBasedMaterials #SustainableConstruction",
+      "retrieval": [
+        {
+          "filename": "voice-and-tone.pdf",
+          "chunk_index": 0,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "voice-and-tone.pdf",
+          "chunk_index": 3,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "content-pillars.md",
+          "chunk_index": 1,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 0,
+          "score": 0.7124,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 10,
+          "score": 0.5831,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 6,
+          "score": 0.5216,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 11,
+          "score": 0.4708,
+          "pinned": false
+        }
+      ]
+    },
+    {
+      "example_key": "card",
+      "type": "card",
+      "tone": "default",
+      "brief": "A statement card on why every material claim needs a number attached.",
+      "template_id": "statement",
+      "accent_hex": "#C98A3D",
+      "fields": {
+        "eyebrow": "Evidence first",
+        "headline": "A material that can't show its numbers doesn't belong in the spec.",
+        "body": "We ask for embodied carbon in kgCO₂e/m², a U-value, and an end-of-life pathway. \"Sustainable\" without a number is just a feeling.",
+        "cta": "Ask us where our numbers stop",
+        "hashtag": "#LifeCycleAssessment"
+      },
+      "suggested_keywords": [
+        "technical data sheet",
+        "architect reviewing drawings",
+        "timber frame wall"
+      ],
+      "retrieval": [
+        {
+          "filename": "voice-and-tone.pdf",
+          "chunk_index": 2,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "content-pillars.md",
+          "chunk_index": 0,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 2,
+          "score": 0.7433,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 9,
+          "score": 0.5519,
+          "pinned": false
+        },
+        {
+          "filename": "competitors.md",
+          "chunk_index": 2,
+          "score": 0.4412,
+          "pinned": false
+        }
+      ]
+    },
+    {
+      "example_key": "post-pack",
+      "type": "post_pack",
+      "tone": "default",
+      "brief": "A LinkedIn post and a quote card on the mycelium acoustic panels in the Halden studio fit-out.",
+      "post_text": "Reverberation time in the Halden studio dropped from 1.4s to 0.6s after we installed 400 mycelium acoustic panels.\n\nEach panel grows into the exact shape of its mold in about a week. Then we heat-set it to stop the growth. Indoors, it is warrantied for 15 years, and at the end of its life it is home-compostable.\n\nThe note the architect sent back is the one we keep coming back to: \"first acoustic product I haven't had to hide.\"\n\nBio-based doesn't have to mean something you cover up. It can be the thing you put on show.\n\n#Mycelium #BioBasedMaterials #BiophilicDesign",
+      "template_id": "quote",
+      "fields": {
+        "eyebrow": "Halden studio fit-out",
+        "headline": "\"First acoustic product I haven't had to hide.\"",
+        "body": "The project architect, after 400 mycelium panels took reverberation time from 1.4s to 0.6s.",
+        "cta": "Read the field notes",
+        "hashtag": "#Mycelium"
+      },
+      "suggested_keywords": [
+        "acoustic wall panels",
+        "design studio interior",
+        "natural textures"
+      ],
+      "retrieval": [
+        {
+          "filename": "voice-and-tone.pdf",
+          "chunk_index": 3,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "content-pillars.md",
+          "chunk_index": 1,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 3,
+          "score": 0.7862,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 6,
+          "score": 0.4931,
+          "pinned": false
+        },
+        {
+          "filename": "personas.md",
+          "chunk_index": 1,
+          "score": 0.3807,
+          "pinned": false
+        }
+      ]
+    },
+    {
+      "example_key": "document",
+      "type": "document",
+      "tone": "default",
+      "brief": "A one-pager for a development manager weighing the cost of a bio-based envelope.",
+      "archetype": "one-pager",
+      "document": {
+        "title": "Bio-based envelopes, costed honestly",
+        "eyebrow": "Specifier brief",
+        "lede": "A low-carbon envelope can cost more up front. Here is where the premium comes from, what it buys, and when a hybrid spec is the better answer.",
+        "sections": [
+          {
+            "heading": "What the premium is",
+            "body": "Bio-based materials often carry a 5 to 15% premium at the envelope; for hempcrete it runs 5 to 12%. Sometimes it disappears once thermal mass cuts plant size. Sometimes it doesn't, and we will say so.",
+            "bullets": [
+              "Hempcrete is an insulating infill, paired with a timber or steel frame",
+              "Cure time is longer than block, so it is sequenced into the program early",
+              "Reclaimed timber is specified to availability, not the other way around"
+            ]
+          },
+          {
+            "heading": "What it returns",
+            "body": "The return is carbon you can report and fabric that lasts. A credibly low-carbon building also carries asset value, a planning advantage, and an ESG claim that survives due diligence.",
+            "bullets": [
+              "Roughly 110 kg of CO₂ sequestered per cubic meter of hempcrete",
+              "A documented service life of 50 to 100 years for hempcrete walls",
+              "Breathable walls that avoid interstitial condensation"
+            ]
+          },
+          {
+            "heading": "Where the big wins come from",
+            "body": "On the Larkfield mixed-use block, hempcrete and reclaimed cladding cut embodied carbon 38% against the baseline spec. It worked because we were in the room at RIBA Stage 2, before the structural grid was locked.",
+            "bullets": [
+              "We model cost both ways and show you the honest number",
+              "We publish cradle-to-gate and cradle-to-grave figures for every product",
+              "Where the premium doesn't pay back, we recommend a hybrid spec"
+            ]
+          }
+        ],
+        "footer": "Verdure Materials: evidence, candor, and early involvement."
+      },
+      "retrieval": [
+        {
+          "filename": "voice-and-tone.pdf",
+          "chunk_index": 0,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "content-pillars.md",
+          "chunk_index": 2,
+          "score": 1.0,
+          "pinned": true
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 11,
+          "score": 0.6918,
+          "pinned": false
+        },
+        {
+          "filename": "personas.md",
+          "chunk_index": 2,
+          "score": 0.6143,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 10,
+          "score": 0.5627,
+          "pinned": false
+        },
+        {
+          "filename": "past-posts.md",
+          "chunk_index": 0,
+          "score": 0.5094,
+          "pinned": false
+        }
+      ]
+    }
+  ]
+}

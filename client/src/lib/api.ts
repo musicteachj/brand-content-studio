@@ -1,12 +1,13 @@
 import axios from "axios";
-import { useAuthStore } from "@/stores/auth";
+import { endSessionOn401, useAuthStore } from "@/stores/auth";
 
 /** Axios instance. Vite proxies /api -> FastAPI (see vite.config.ts). */
 export const api = axios.create({ baseURL: "/api" });
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Keep an explicit header: sign-in calls /auth/me with the new token before it's stored.
+  if (token && !config.headers.Authorization) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -14,7 +15,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      const header = error.config?.headers?.Authorization;
+      const sent = typeof header === "string" ? header.replace(/^Bearer /, "") : null;
+      endSessionOn401(sent);
     }
     return Promise.reject(error);
   },

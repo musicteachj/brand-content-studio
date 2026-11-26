@@ -1,35 +1,48 @@
 """User lookup + authentication (mirrors EMS pattern)."""
-from typing import Optional
+import secrets
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.models.user import UserInDB
-from app.utils.security import verify_password
+from app.utils.security import get_password_hash, verify_password
+
+# Verified against when the email doesn't exist, so the unknown-user path pays the
+# same bcrypt cost as a real check. Without it, Python short-circuits and an
+# unknown email returns in ~0ms while a known one takes ~230ms — an enumeration
+# oracle. Random, so it can never match a submitted password.
+_DECOY_HASH = get_password_hash(secrets.token_urlsafe(32))
 
 
-async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[UserInDB]:
+def _to_user(doc: dict) -> UserInDB:
+    return UserInDB(id=str(doc["_id"]), **{k: v for k, v in doc.items() if k != "_id"})
+
+
+async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> UserInDB | None:
     doc = await db.users.find_one({"email": email})
-    return UserInDB(**doc) if doc else None
+    return _to_user(doc) if doc else None
 
 
-async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[UserInDB]:
+async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> UserInDB | None:
     try:
         doc = await db.users.find_one({"_id": ObjectId(user_id)})
     except Exception:
         return None
-    return UserInDB(**doc) if doc else None
+    return _to_user(doc) if doc else None
 
 
-async def get_demo_user(db: AsyncIOMotorDatabase) -> Optional[dict]:
+async def get_demo_user(db: AsyncIOMotorDatabase) -> dict | None:
     """Raw demo user doc (includes _id) for the demo-login bypass."""
     return await db.users.find_one({"is_demo": True})
 
 
 async def authenticate_user(
     db: AsyncIOMotorDatabase, email: str, password: str
-) -> Optional[dict]:
+) -> dict | None:
     doc = await db.users.find_one({"email": email})
-    if not doc or not verify_password(password, doc["hashed_password"]) or not doc.get("is_active", True):
+    if not doc:
+        verify_password(password, _DECOY_HASH)  # constant-cost; see _DECOY_HASH
+        return None
+    if not verify_password(password, doc["hashed_password"]) or not doc.get("is_active", True):
         return None
     return doc

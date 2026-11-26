@@ -1,0 +1,83 @@
+# The production image, run locally the way it runs in production: read-only root
+# filesystem, no capabilities, a 1 GiB memory limit, persistent volumes for Mongo,
+# storage, and Chroma, live AI off by default, and Cloudflare's always-pass Turnstile
+# test keys (allowed only because APP_ORIGIN is a loopback origin; nothing calls
+# Cloudflare or any AI provider).
+#
+#   JWT_SECRET_KEY=$(openssl rand -hex 32) docker compose -f docker-compose.prod.yml up --build
+#
+# Then open http://localhost:8000. A project name of its own, so it never touches the
+# development compose project (docker-compose.yml) or its containers.
+name: folio-local
+
+services:
+  mongo:
+    image: mongo:7
+    # No published port: only the app reaches it, over the folio_local network.
+    volumes:
+      - folio_mongo:/data/db
+    networks:
+      - folio_local
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build: .
+    image: folio:local
+    depends_on:
+      mongo:
+        condition: service_healthy
+    # Loopback only: the app is reachable from this machine, not the LAN.
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - folio_local
+    # New named volumes copy the image's /app/storage and /app/chroma, owned by uid 10001.
+    volumes:
+      - folio_storage:/app/storage
+      - folio_chroma:/app/chroma
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 1024m
+    # uvicorn stops gracefully within 25 s (--timeout-graceful-shutdown 25).
+    stop_grace_period: 30s
+    environment:
+      ENVIRONMENT: production
+      APP_ORIGIN: http://localhost:8000
+      CORS_ORIGINS: '["http://localhost:8000"]'
+      # Requests reach uvicorn from the network's gateway (the published port).
+      FORWARDED_ALLOW_IPS: 127.0.0.1,172.30.0.0/24
+      MONGODB_URL: mongodb://mongo:27017
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      TURNSTILE_SECRET_KEY: 1x0000000000000000000000000000000AA
+      # 0 means live AI is off: every AI action gets the friendly free-path message.
+      AI_MONTHLY_BUDGET_USD: ${AI_MONTHLY_BUDGET_USD:-0}
+      DEMO_STARTS_PER_HOUR: ${DEMO_STARTS_PER_HOUR:-15}
+      # A placeholder so the app starts; with the budget at 0 it is never used.
+      ANTHROPIC_API_KEY: placeholder-never-called
+      # Empty: the seed restores the demo's vectors from its fixture, with no OpenAI call.
+      OPENAI_API_KEY: ""
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?Set JWT_SECRET_KEY, for example with openssl rand -hex 32}"
+
+networks:
+  folio_local:
+    name: folio_local
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  folio_mongo:
+    name: folio_mongo
+  folio_storage:
+    name: folio_storage
+  folio_chroma:
+    name: folio_chroma

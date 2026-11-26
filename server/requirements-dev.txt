@@ -1,0 +1,17 @@
+# Dev / quality-gate tooling. Installed for local dev + CI, NOT in the runtime
+# image (the Dockerfile installs requirements.txt only). Pulls the runtime deps in
+# so `pip install -r requirements-dev.txt` gives a complete environment.
+-r requirements.txt
+
+# Exact pins: a new ruff/mypy release can add rules that fail CI on unchanged
+# code. Upgrade them deliberately, in their own PR, and fix any new findings there.
+ruff==0.15.18
+mypy==2.1.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+# Starlette's TestClient runs on httpx2 (on plain httpx it warns that it's deprecated,
+# and pytest.ini turns that into an error). Tests only; httpx stays a runtime dep.
+httpx2==2.15.1
+# tests/test_deploy.py reads the CI workflow. PyYAML arrives today only through chromadb and
+# uvicorn[standard], so it is pinned here to keep the tests from depending on that.
+PyYAML==6.0.3

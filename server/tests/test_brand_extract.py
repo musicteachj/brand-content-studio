@@ -1,0 +1,253 @@
+"""Brand auto-extraction (Phase 4c). The Pillow palette step is deterministic and
+unit-tested directly; the route is tested with the vision service faked (no model
+call), asserting it returns a proposal, validates the upload, refuses the demo
+user, and **never mutates** the workspace."""
+import io
+from dataclasses import replace
+
+import pytest
+import pytest_asyncio
+from bson import ObjectId
+from httpx import ASGITransport, AsyncClient
+from PIL import Image
+
+from app.config import settings
+from app.database import get_database
+from app.main import app
+from app.models.common import BrandColor, BrandFonts, utcnow
+from app.models.user import UserInDB
+from app.models.workspace import BrandExtractResponse
+from app.prompts.brand_extract import BRAND_EXTRACT_TOOL
+from app.services.brand_extract_service import (
+    BrandExtractService,
+    build_extract_response,
+    extract_palette,
+)
+from app.services.upload_service import IMAGE_POLICY
+from app.utils.dependencies import get_current_user
+from tests.conftest import TEST_DB_NAME
+from tests.fakes import settle_fake_usage
+
+WORKSPACE_OID = ObjectId()
+OWNER_OID = ObjectId()
+
+
+def _png(color: tuple[int, int, int], size: tuple[int, int] = (16, 16)) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", size, color).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+# --- Pillow palette (pure, no network) -------------------------------------
+
+def test_extract_palette_reads_dominant_color_first():
+    img = Image.new("RGB", (10, 10), (255, 0, 0))  # 60 red px
+    img.paste(Image.new("RGB", (4, 10), (0, 0, 255)), (0, 0))  # 40 blue px
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    hexes = extract_palette(buf.getvalue())
+    assert hexes[0] == "#FF0000"
+    assert "#0000FF" in hexes
+    assert len(hexes) == len(set(hexes))  # de-duped
+
+
+def test_extract_palette_single_color():
+    assert extract_palette(_png((28, 58, 46))) == ["#1C3A2E"]
+
+
+# --- build_extract_response (shaping) --------------------------------------
+
+def test_build_extract_response_normalizes_and_falls_back():
+    out = build_extract_response(
+        ["#1C3A2E"],
+        {
+            "colors": [{"name": "Forest", "hex": "#1C3A2E", "role": "primary"}],
+            "voice_summary": "  ",  # blank -> None
+            "fonts": {"heading": "Fraunces", "body": "", "mono": "  "},
+        },
+    )
+    assert out.colors == [BrandColor(name="Forest", hex="#1C3A2E", role="primary")]
+    assert out.voice_summary is None
+    assert out.fonts == BrandFonts(heading="Fraunces", body=None, mono=None)
+
+
+def test_build_extract_response_falls_back_to_detected_palette():
+    out = build_extract_response(["#112233"], {"colors": [], "voice_summary": "v", "fonts": {}})
+    assert out.colors == [BrandColor(name="#112233", hex="#112233", role="primary")]
+    assert out.voice_summary == "v"
+
+
+def test_build_extract_response_maps_fonts_onto_the_curated_list():
+    # QA-14: the model returned style descriptions ("Clean sans-serif"); stored as
+    # brand fonts they broke card export. Only curated families survive, and they
+    # come back in their canonical spelling.
+    out = build_extract_response(
+        ["#142846"],
+        {
+            "colors": [],
+            "voice_summary": "",
+            "fonts": {
+                "heading": "Classic serif (e.g. Freight Display or similar old-style serif)",
+                "body": "inter",
+                "mono": "JETBRAINS MONO",
+            },
+        },
+    )
+    assert out.fonts == BrandFonts(heading=None, body="Inter", mono="JetBrains Mono")
+
+
+def test_build_extract_response_keeps_role_categories_apart():
+    # A mono family isn't a heading/body choice, and vice versa.
+    out = build_extract_response(
+        [], {"colors": [], "voice_summary": "", "fonts": {"heading": "IBM Plex Mono", "body": "", "mono": "Lora"}}
+    )
+    assert out.fonts == BrandFonts(heading=None, body=None, mono=None)
+
+
+def test_build_extract_response_skips_colors_with_an_invalid_hex():
+    # R6: one malformed hex used to raise and lose the whole proposal (500).
+    out = build_extract_response(
+        ["#112233"],
+        {
+            "colors": [
+                {"name": "No hash", "hex": "1C3A2E", "role": "primary"},
+                {"name": "Clay", "hex": "#C8643B", "role": "accent"},
+            ],
+            "voice_summary": "",
+            "fonts": {},
+        },
+    )
+    assert out.colors == [BrandColor(name="Clay", hex="#C8643B", role="accent")]
+
+
+def test_build_extract_response_all_invalid_hexes_fall_back_to_detected():
+    out = build_extract_response(
+        ["#112233"], {"colors": [{"name": "Bad", "hex": "#12", "role": "primary"}], "voice_summary": "", "fonts": {}}
+    )
+    assert out.colors == [BrandColor(name="#112233", hex="#112233", role="primary")]
+
+
+def test_extract_tool_restricts_fonts_to_curated_families():
+    fonts = BRAND_EXTRACT_TOOL["input_schema"]["properties"]["fonts"]["properties"]
+    assert "" in fonts["heading"]["enum"]
+    assert set(fonts["heading"]["enum"]) == set(fonts["body"]["enum"])
+    assert {"Fraunces", "Inter", "Lora"} <= set(fonts["heading"]["enum"])
+    assert "JetBrains Mono" not in fonts["heading"]["enum"]
+    assert set(fonts["mono"]["enum"]) == {"", "JetBrains Mono", "IBM Plex Mono"}
+
+
+# --- Route (vision service faked) ------------------------------------------
+
+class _FakeExtractService:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def propose(self, data: bytes, media_type: str, *, line) -> BrandExtractResponse:
+        self.calls += 1
+        line.mark_started()
+        await settle_fake_usage(line)
+        return BrandExtractResponse(
+            colors=[BrandColor(name="Forest", hex="#1C3A2E", role="primary")],
+            voice_summary="Calm, precise.",
+            fonts=BrandFonts(heading="Fraunces", body="Inter", mono=None),
+        )
+
+
+def _owner_user(is_demo: bool = False) -> UserInDB:
+    return UserInDB(
+        id=str(OWNER_OID), email="owner@example.com", hashed_password="x",
+        full_name="Owner", is_demo=is_demo,
+    )
+
+
+async def _seed_workspace(test_db) -> None:
+    now = utcnow()
+    await test_db.workspaces.insert_one(
+        {
+            "_id": WORKSPACE_OID,
+            "owner_id": OWNER_OID,
+            "name": "Verdure",
+            "slug": "verdure",
+            "brand_profile": {"colors": [{"name": "Old", "hex": "#000000", "role": "primary"}]},
+            "vector_namespace": str(WORKSPACE_OID),
+            "embedding_model": settings.embedding_model,
+            "embedding_dim": settings.embedding_dim,
+            "asset_count": 0,
+            "ready_chunk_count": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+
+
+def _url() -> str:
+    return f"/api/workspaces/{WORKSPACE_OID}/brand/extract"
+
+
+async def _make_client(test_db, monkeypatch, *, is_demo: bool) -> AsyncClient:
+    monkeypatch.setattr(settings, "database_name", TEST_DB_NAME)
+    await _seed_workspace(test_db)
+    app.dependency_overrides[get_database] = lambda: test_db
+    app.dependency_overrides[get_current_user] = lambda: _owner_user(is_demo)
+    fake = _FakeExtractService()
+    app.dependency_overrides[BrandExtractService] = lambda: fake
+    ac = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    ac.fake = fake  # type: ignore[attr-defined]
+    return ac
+
+
+@pytest_asyncio.fixture
+async def client(test_db, monkeypatch):
+    ac = await _make_client(test_db, monkeypatch, is_demo=False)
+    async with ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def demo_client(test_db, monkeypatch):
+    ac = await _make_client(test_db, monkeypatch, is_demo=True)
+    async with ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_extract_returns_proposal_without_mutating(client, test_db):
+    resp = await client.post(_url(), files={"file": ("logo.png", _png((28, 58, 46)), "image/png")})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["colors"][0]["hex"] == "#1C3A2E"
+    assert body["voice_summary"] == "Calm, precise."
+    assert body["fonts"]["heading"] == "Fraunces"
+    # Nothing persisted — the workspace's stored brand_profile is untouched.
+    doc = await test_db.workspaces.find_one({"_id": WORKSPACE_OID})
+    assert doc["brand_profile"]["colors"] == [{"name": "Old", "hex": "#000000", "role": "primary"}]
+
+
+@pytest.mark.asyncio
+async def test_extract_rejects_bad_type(client):
+    resp = await client.post(_url(), files={"file": ("notes.txt", b"hi", "text/plain")})
+    assert resp.status_code == 415
+
+
+@pytest.mark.asyncio
+async def test_extract_rejects_empty(client):
+    resp = await client.post(_url(), files={"file": ("logo.png", b"", "image/png")})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_extract_rejects_oversize(client, monkeypatch):
+    monkeypatch.setattr("app.routes.workspaces.IMAGE_POLICY", replace(IMAGE_POLICY, max_bytes=4))
+    resp = await client.post(_url(), files={"file": ("logo.png", _png((1, 2, 3)), "image/png")})
+    assert resp.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_extract_closed_to_the_demo(demo_client):
+    # A paid vision call the demo UI never offers (BrandIdentityEditor hides it), so the
+    # route refuses it too, before the upload is read or anything is reserved.
+    resp = await demo_client.post(_url(), files={"file": ("logo.png", _png((28, 58, 46)), "image/png")})
+    assert resp.status_code == 403
+    assert demo_client.fake.calls == 0

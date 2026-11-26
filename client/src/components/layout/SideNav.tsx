@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink } from "react-router-dom";
 import {
   Files,
   LayoutDashboard,
   LayoutGrid,
+  LayoutTemplate,
   LogOut,
   PanelLeft,
   PanelLeftClose,
@@ -12,6 +13,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "@/components/Brand";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth";
 
@@ -27,13 +30,39 @@ const NAV: NavItem[] = [
   { to: "/generate", label: "Generate", icon: PenLine },
   { to: "/history", label: "History", icon: LayoutGrid },
   { to: "/assets", label: "Assets", icon: Files },
+  { to: "/templates", label: "Templates", icon: LayoutTemplate },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
+// Below Tailwind's `lg` (64rem, 1024px at the default font size) the sidebar starts
+// collapsed. The app is desktop-first (DECISIONS #39); this keeps a narrow window
+// or tablet usable. rem, like Tailwind, so the two agree at any browser font size.
+const NARROW = "(width < 64rem)";
+
 export function SideNav() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.matchMedia(NARROW).matches);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  // End the visitor's session on the server first, then sign out here whatever the answer
+  // was: a failed call must not leave them stuck signed in.
+  async function endDemo() {
+    try {
+      await api.post("/auth/end-demo");
+    } catch {
+      // Signed out locally below; the session still lapses on its own within 24 hours.
+    }
+    logout();
+  }
+
+  // Follow the window across the breakpoint; the toggle still works in between.
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const onChange = (e: { matches: boolean }) => setCollapsed(e.matches);
+    mq.addEventListener("change", onChange);
+    setCollapsed(mq.matches); // in case the window crossed it between render and now
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const initials = (user?.full_name ?? "Demo User")
     .split(" ")
@@ -41,6 +70,18 @@ export function SideNav() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const signOutButton = (
+    <button
+      type="button"
+      onClick={user?.is_demo ? undefined : () => logout()}
+      aria-label="Sign out"
+      title={collapsed ? "Sign out" : undefined}
+      className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <LogOut className="h-[18px] w-[18px]" aria-hidden />
+    </button>
+  );
 
   return (
     <aside
@@ -77,8 +118,12 @@ export function SideNav() {
       </nav>
 
       <div className="border-t border-border p-3">
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-variant font-mono text-[11px] font-medium text-foreground">
+        {/* Collapsed (the default on narrow screens), the row stacks so Sign out stays. */}
+        <div className={cn("flex items-center gap-3", collapsed && "flex-col gap-2")}>
+          <span
+            title={collapsed ? (user?.full_name ?? "Demo User") : undefined}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-variant font-mono text-[11px] font-medium text-foreground"
+          >
             {initials}
           </span>
           {!collapsed && (
@@ -86,31 +131,38 @@ export function SideNav() {
               <span className="truncate text-sm font-medium text-foreground">
                 {user?.full_name ?? "Demo User"}
               </span>
-              {user?.is_demo && (
-                <span className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Demo session
-                </span>
-              )}
+              {user?.is_demo && <span className="mt-0.5 eyebrow">Demo session</span>}
             </div>
           )}
-          {!collapsed && (
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="Sign out"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <LogOut className="h-[18px] w-[18px]" aria-hidden />
-            </button>
+          {user?.is_demo ? (
+            <ConfirmDialog
+              trigger={signOutButton}
+              title="End your demo?"
+              description="Signing out ends this demo. Your work stays private and is removed after 24 hours."
+              confirmLabel="End demo"
+              onConfirm={endDemo}
+              errorFallback="Couldn’t end the demo. Try again."
+            />
+          ) : (
+            signOutButton
           )}
         </div>
+
+        {!collapsed && (
+          <Link
+            to="/privacy"
+            className="mt-3 block px-2.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Privacy and terms
+          </Link>
+        )}
 
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
-            "mt-3 flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "mt-3 flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-muted-foreground transition-colors hover:bg-surface-variant hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
             collapsed && "justify-center",
           )}
         >

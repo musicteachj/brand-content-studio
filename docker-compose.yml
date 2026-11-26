@@ -4,19 +4,14 @@ services:
   mongo:
     image: mongo:7
     container_name: brand_content_mongo
+    # Loopback-only. Neither service authenticates, so the short "27017:27017"
+    # form (which binds 0.0.0.0) would expose the whole database to the LAN.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
 
-  chroma:
-    image: chromadb/chroma:latest
-    container_name: brand_content_chroma
-    ports:
-      - "8001:8000"
-    volumes:
-      - chroma_data:/data
+  # No Chroma service: Chroma runs in-process in the API server (server/chroma/).
 
 volumes:
   mongo_data:
-  chroma_data:

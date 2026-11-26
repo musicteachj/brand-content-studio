@@ -1,0 +1,142 @@
+"""Ingestion pipeline: parse → chunk → embed → upsert → mark ready.
+
+Runs as a FastAPI BackgroundTask (DECISIONS: no task queue at portfolio
+scale). The chunk-building step (`build_chunks`) is a pure function so it can be
+unit-tested deterministically without a vector store or network."""
+from __future__ import annotations
+
+import asyncio
+import logging
+
+from bson import ObjectId
+
+from app.database import get_database
+from app.limits import MAX_CHUNKS, PARSE_TIMEOUT_S
+from app.rag.chunking import chunk_text, split_posts
+from app.rag.embeddings import embed_metered
+from app.rag.loaders import FileTooComplexError, Section, UnsupportedFileError, load_sections
+from app.rag.vector_store import Chunk, get_vector_store
+from app.services import asset_service
+from app.services.ai_meter import embedding_line, reserve_action
+from app.services.storage_service import get_storage
+from app.utils.errors import INGEST_PAUSED_COPY, BudgetRefusal, LiveAIUnavailable, client_error
+
+logger = logging.getLogger(__name__)
+
+POSTS_KIND = "posts"
+
+
+def build_chunks(
+    *,
+    workspace_namespace: str,
+    asset_id: str,
+    asset_kind: str,
+    filename: str,
+    sections: list[Section],
+) -> list[Chunk]:
+    """Turn parsed sections into vector-store chunks. `posts` are split one per
+    exemplar post; everything else uses the 800/120 recursive splitter. Page
+    numbers (PDFs) ride along in metadata for the debug panel."""
+    chunks: list[Chunk] = []
+    index = 0
+
+    def _add(text: str, page: int | None) -> None:
+        nonlocal index
+        metadata: dict = {
+            "workspace_id": workspace_namespace,
+            "asset_id": asset_id,
+            "filename": filename,
+            "asset_kind": asset_kind,
+            "chunk_index": index,
+        }
+        if page is not None:
+            metadata["page"] = page
+        chunks.append({"id": f"{asset_id}:{index}", "text": text, "metadata": metadata})
+        index += 1
+
+    if asset_kind == POSTS_KIND:
+        combined = "\n---\n".join(s.text for s in sections)
+        for post in split_posts(combined):
+            _add(post, None)
+    else:
+        for section in sections:
+            for piece in chunk_text(section.text):
+                _add(piece, section.page)
+
+    return chunks
+
+
+async def ingest_asset(asset_id: str, workspace_namespace: str) -> None:
+    """Background entrypoint. Reads the raw file, builds chunks, embeds + upserts
+    them, then flips the asset to ready (or error)."""
+    db = await get_database()
+    asset_oid = ObjectId(asset_id)
+    asset = await db.assets.find_one({"_id": asset_oid})
+    if not asset:
+        logger.warning("ingest_asset: asset %s vanished before ingestion", asset_id)
+        return
+
+    try:
+        storage = get_storage()
+        path = storage.local_path(asset["storage_key"])
+        try:
+            sections = await asyncio.wait_for(
+                asyncio.to_thread(load_sections, path, asset["content_type"]),
+                PARSE_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            await asset_service.mark_error(
+                db, asset_oid, "Parsing timed out. Try a smaller or simpler file."
+            )
+            return
+        chunks = build_chunks(
+            workspace_namespace=workspace_namespace,
+            asset_id=asset_id,
+            asset_kind=asset["asset_kind"],
+            filename=asset["filename"],
+            sections=sections,
+        )
+        if not chunks:
+            await asset_service.mark_error(db, asset_oid, "No extractable text found in file.")
+            return
+        if len(chunks) > MAX_CHUNKS:
+            await asset_service.mark_error(
+                db,
+                asset_oid,
+                f"Document too large ({len(chunks)} sections > {MAX_CHUNKS}). Split it into smaller files.",
+            )
+            return
+        try:
+            ingest = await reserve_action(
+                db, [embedding_line("ingest", [c["text"] for c in chunks])], visitor_id=None
+            )
+            async with ingest:
+                vectors = await embed_metered(
+                    [c["text"] for c in chunks], line=ingest.lines[0]
+                )
+        except BudgetRefusal:
+            await asset_service.mark_error(db, asset_oid, INGEST_PAUSED_COPY)
+            return
+        except LiveAIUnavailable as exc:
+            await asset_service.mark_error(db, asset_oid, exc.message)
+            return
+        count = await get_vector_store().upsert_chunks(workspace_namespace, chunks, vectors)
+        marked = await asset_service.mark_ready(db, asset_oid, count)
+        if marked is None:
+            # Asset was deleted while we were ingesting; drop the orphan vectors
+            # so they can't leak into retrieval with no backing asset record.
+            await get_vector_store().delete_asset(workspace_namespace, asset_id)
+            logger.info("asset %s deleted mid-ingest; dropped %d orphan chunks", asset_id, count)
+            return
+        logger.info("ingested asset %s → %d chunks", asset_id, count)
+    except (UnsupportedFileError, FileTooComplexError) as exc:
+        # The loader's own refusals are written for users ("PDF has 81 pages; the
+        # limit is 80.") and are fixable by them, so show them as-is (QA-03).
+        await asset_service.mark_error(db, asset_oid, str(exc))
+    except Exception as exc:  # noqa: BLE001 (surface any failure as asset error state)
+        # Anything else is unexpected and its text may carry internals, so the
+        # string served back via the asset API is redacted (client_error logs the
+        # real traceback server-side).
+        await asset_service.mark_error(
+            db, asset_oid, client_error(exc, context=f"ingestion of asset {asset_id}")
+        )

@@ -1,8 +1,8 @@
-"""JWT + password hashing (mirrors Employee Management System)."""
+"""JWT + password hashing. Uses PyJWT (python-jose was unmaintained — SEC-05)."""
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -25,17 +25,22 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(_truncate(password))
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+    # One clock reading, so exp - iat is exactly the lifetime (a visitor token's 24 hours).
+    now = datetime.now(timezone.utc)
+    expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    to_encode.update({"exp": expire, "iat": now})
+    return jwt.encode(
+        to_encode, settings.jwt_secret_key.get_secret_value(), algorithm=settings.jwt_algorithm
     )
-    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str) -> dict | None:
     try:
-        return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-    except JWTError:
+        # algorithms pinned → blocks alg=none / HS↔RS confusion; exp verified by default.
+        return jwt.decode(
+            token, settings.jwt_secret_key.get_secret_value(), algorithms=[settings.jwt_algorithm]
+        )
+    except InvalidTokenError:
         return None
